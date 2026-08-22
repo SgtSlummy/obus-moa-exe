@@ -38,7 +38,8 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("Local → GPT 5.6 Luna", html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
-            'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list'
+            'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list',
+            'quantum-inference-status', 'quantum-refresh'
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertNotIn('simulated', html.lower())
@@ -95,6 +96,29 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertFalse(response.json()["rag_enabled"])
         persisted = json.loads(self.state_file.read_text(encoding="utf-8"))
         self.assertFalse(persisted["settings"]["rag_enabled"])
+
+    def test_quantum_inference_initializes_and_changes_only_the_poll_interval(self):
+        state = backend.normalize_state({})
+        initial, changed = backend.update_quantum_inference(state, now=60)
+        self.assertTrue(changed)
+        self.assertTrue(initial["setup_complete"])
+        self.assertEqual(initial["chosen_variable"], "ui_poll_interval_ms")
+        self.assertIn(initial["ui_poll_interval_ms"], backend.QUANTUM_POLL_INTERVALS_MS)
+        self.assertFalse(initial["quantum_hardware"])
+        follow_up, changed = backend.update_quantum_inference(state, now=120)
+        self.assertTrue(changed)
+        self.assertNotEqual(initial["ui_poll_interval_ms"], follow_up["ui_poll_interval_ms"])
+        self.assertEqual(state["runtime_settings"]["max_parallel"], 8)
+
+    def test_quantum_inference_api_is_visible_and_secret_safe(self):
+        dashboard = self.client.get("/api/dashboard")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertIn("quantum_inference", dashboard.json())
+        response = self.client.get("/api/quantum-inference")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["chosen_variable"], "ui_poll_interval_ms")
+        self.assertNotIn("api_key", json.dumps(payload).lower())
 
     def test_clear_memory_is_a_real_backend_operation(self):
         self.memory_file.write_text(json.dumps([{"text": "temporary"}]), encoding="utf-8")

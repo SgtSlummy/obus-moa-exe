@@ -270,6 +270,15 @@ def normalize_state(state: dict) -> dict:
     state.setdefault("persistent_agents", [])
     state.setdefault("runtime_events", [])
     state.setdefault("runtime_settings", {"max_agents": 30, "max_parallel": 8, "primary_key_id": "key-local-ollama"})
+    state.setdefault("quantum_inference", {
+        "setup_complete": False,
+        "chosen_variable": "ui_poll_interval_ms",
+        "ui_poll_interval_ms": 5,
+        "window_seconds": 60,
+        "decision_count": 0,
+        "last_window": None,
+        "last_reason": "Awaiting initial local setup",
+    })
     # Keep malformed legacy values from breaking the room/forum/agent runtime.
     if not isinstance(state["rooms"], list):
         state["rooms"] = []
@@ -283,6 +292,16 @@ def normalize_state(state: dict) -> dict:
         state["runtime_events"] = []
     if not isinstance(state["runtime_settings"], dict):
         state["runtime_settings"] = {"max_agents": 30, "max_parallel": 8, "primary_key_id": "key-local-ollama"}
+    if not isinstance(state["quantum_inference"], dict):
+        state["quantum_inference"] = {
+            "setup_complete": False,
+            "chosen_variable": "ui_poll_interval_ms",
+            "ui_poll_interval_ms": 5,
+            "window_seconds": 60,
+            "decision_count": 0,
+            "last_window": None,
+            "last_reason": "Recovered invalid adaptive state",
+        }
     return state
 
 
@@ -404,6 +423,51 @@ def get_settings(state: Optional[dict] = None) -> dict:
     }
     defaults.update(state.get("settings", {}))
     return defaults
+
+
+QUANTUM_POLL_INTERVALS_MS = (5, 10, 15, 20, 25)
+
+
+def update_quantum_inference(state: dict, now: Optional[float] = None) -> tuple[dict, bool]:
+    """Adapt one safe UI variable from local runtime uncertainty.
+
+    This is a deterministic, quantum-inspired scheduler—not a claim of quantum
+    hardware or a quantum model. It never changes providers, keys, or execution
+    limits; the sole controlled value is the client-side status-poll interval.
+    """
+    now = time.time() if now is None else float(now)
+    config = state["quantum_inference"]
+    window_seconds = 60
+    window = int(now // window_seconds)
+    active_agents = sum(1 for agent in state.get("persistent_agents", []) if agent.get("status") in {"queued", "running", "stopping"})
+    settings = get_settings(state)
+    signal = f"{window}|{active_agents}|{settings.get('selected_deck')}|{settings.get('rag_enabled')}|{config.get('decision_count', 0)}"
+    entropy = int(hashlib.blake2s(signal.encode("utf-8"), digest_size=4).hexdigest(), 16)
+    changed = False
+    if not config.get("setup_complete") or config.get("last_window") != window:
+        previous = int(config.get("ui_poll_interval_ms", QUANTUM_POLL_INTERVALS_MS[0]))
+        base_index = min(len(QUANTUM_POLL_INTERVALS_MS) - 1, active_agents // 2)
+        candidate = QUANTUM_POLL_INTERVALS_MS[(base_index + entropy) % len(QUANTUM_POLL_INTERVALS_MS)]
+        # Advance one bounded candidate if the uncertainty draw repeats, so the
+        # selected variable genuinely evolves from window to window.
+        if config.get("setup_complete") and candidate == previous:
+            candidate = QUANTUM_POLL_INTERVALS_MS[(QUANTUM_POLL_INTERVALS_MS.index(candidate) + 1) % len(QUANTUM_POLL_INTERVALS_MS)]
+        config.update({
+            "setup_complete": True,
+            "chosen_variable": "ui_poll_interval_ms",
+            "ui_poll_interval_ms": candidate,
+            "allowed_values_ms": list(QUANTUM_POLL_INTERVALS_MS),
+            "window_seconds": window_seconds,
+            "last_window": window,
+            "last_reason": f"local uncertainty window; active agents={active_agents}",
+            "decision_count": int(config.get("decision_count", 0)) + 1,
+            "updated_at": datetime.fromtimestamp(now, timezone.utc).isoformat(),
+            "inference_mode": "quantum-inspired-local-heuristic",
+            "quantum_hardware": False,
+        })
+        changed = True
+    return copy.deepcopy(config), changed
+
 
 
 def get_memory() -> list:
@@ -878,6 +942,9 @@ async def status():
 async def dashboard():
     """Return live, secret-safe data used to render every dashboard component."""
     state = load_state()
+    quantum_inference, changed = update_quantum_inference(state)
+    if changed:
+        save_state(state)
     memory = get_memory()
     return {
         "ollama": get_ollama_status(),
@@ -885,6 +952,7 @@ async def dashboard():
         "cards": state.get("cards", DEFAULT_CARDS),
         "decks": [d for d in ALL_DECKS if d.get("enabled", True)],
         "settings": get_settings(state),
+        "quantum_inference": quantum_inference,
         "memory": {
             "chunks": len(memory),
             "characters": sum(len(str(item.get("text", ""))) for item in memory if isinstance(item, dict)),
@@ -897,6 +965,16 @@ async def dashboard():
             "aggregate_model": "gpt-5.6-luna",
         },
     }
+
+
+@app.get("/api/quantum-inference")
+async def quantum_inference_status():
+    """Run the bounded local adaptive scheduler and return its public decision."""
+    state = load_state()
+    config, changed = update_quantum_inference(state)
+    if changed:
+        save_state(state)
+    return config
 
 
 @app.get("/api/integrations/memory")

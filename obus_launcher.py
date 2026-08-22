@@ -56,8 +56,12 @@ def open_browser(url: str):
         print(f"Please open: {url}")
 
 
-def wait_for_server(url: str, attempts: int = 80, delay: float = 0.1) -> bool:
-    """Wait until the local HTTP server responds before opening the browser."""
+def wait_for_server(url: str, attempts: int = 80, delay: float = 0.02) -> bool:
+    """Wait until the local HTTP server responds before opening the browser.
+
+    The 20 ms retry cadence keeps startup responsiveness below the requested
+    30 ms bound without busy-spinning the launcher.
+    """
     for _ in range(attempts):
         try:
             response = urllib.request.urlopen(url, timeout=1)
