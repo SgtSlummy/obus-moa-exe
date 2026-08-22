@@ -94,15 +94,15 @@ MINOR = {
     },
     "cups": {
         "ace":"an ornate silver chalice overflowing with luminous water above a moonlit pool, a white dove descending, lotus flowers",
-        "two":"two adult humans exchanging jeweled cups beneath a winged lion emblem, moonlit coast, mutual trust",
+        "two":"wide shot of exactly two fully clothed adult human travelers, both clearly visible from waist up on a moonlit beach, facing each other and each holding one ornate silver goblet while gently touching the two cup rims together, mutual trust, no masks, no modern clothing, no city street",
         "three":"three adult human friends raising silver cups in celebration beside a moonlit garden fountain, abundance and friendship",
         "four":"a contemplative human seated beneath a coastal tree ignoring three cups while a luminous fourth cup appears from mist",
         "five":"a grieving cloaked human before three spilled cups while two upright cups remain behind, ruined bridge and rain",
         "six":"one human child offering a flower-filled cup to another in an old seaside courtyard, four cups nearby, memory and kindness",
-        "seven":"a human dreamer facing seven floating cups containing visions of a jewel, laurel, dragon, tower, shrouded figure, serpent and face",
+        "seven":"a fully clothed human dreamer wearing a high-necked layered blue robe, shown from behind and in profile, facing exactly seven separate ornate chalices floating in a wide visible semicircle, the cups contain visions of a jewel, laurel, dragon, tower, shrouded figure, serpent and human face, no exposed chest",
         "eight":"a solitary human leaving eight carefully stacked cups and walking toward moonlit mountains, difficult departure",
         "nine":"a satisfied human host seated before nine displayed golden cups in a warm coastal hall, earned contentment",
-        "ten":"a fully clothed human family of four beneath a rainbow of ten luminous cups overlooking a peaceful sea village",
+        "ten":"wide landscape shot of exactly four fully clothed humans, two adult parents and two children, standing together with arms raised beneath a bright rainbow made of ten luminous cups, peaceful sea village and home clearly visible behind them, joyful family completion, no table, no single central chalice",
         "page":"a youthful human messenger holding a silver cup from which a small realistic fish leaps, blue silk, moonlit beach",
         "knight":"a human knight in silver-blue armor on a realistic white horse offering a cup, slow river crossing",
         "queen":"a regal human queen beside the sea holding an intricate lidded chalice, silver crown, layered blue silk, reflective water",
@@ -228,6 +228,36 @@ def make_frame(raw_path: Path, card: dict, target: Path):
     # restrained double frame preserves the painting
     draw.rounded_rectangle((15,15,705,1105), radius=30, outline=(*accent,235), width=8)
     draw.rounded_rectangle((29,29,691,1091), radius=24, outline=(235,225,202,175), width=2)
+    # Exact Minor Arcana suit-count markers preserve Marseille-style legibility
+    # even when the narrative painting abstracts or occludes individual objects.
+    rank_count = {"ace":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10}
+    def pip(x, y, suit, size=12):
+        if suit == "wands":
+            draw.line((x-size*.45,y+size,x+size*.45,y-size), fill=(*accent,235), width=3)
+        elif suit == "cups":
+            draw.arc((x-size,y-size,x+size,y+size*.7), 0, 180, fill=(*accent,235), width=3)
+            draw.line((x,y+size*.6,x,y+size*1.25), fill=(*accent,235), width=3)
+            draw.line((x-size*.55,y+size*1.25,x+size*.55,y+size*1.25), fill=(*accent,235), width=3)
+        elif suit == "swords":
+            draw.line((x,y-size*1.15,x,y+size), fill=(*accent,235), width=3)
+            draw.line((x-size*.65,y+size*.45,x+size*.65,y+size*.45), fill=(*accent,235), width=3)
+            draw.polygon(((x,y-size*1.5),(x-size*.3,y-size),(x+size*.3,y-size)), fill=(*accent,235))
+        else:
+            draw.ellipse((x-size,y-size,x+size,y+size), outline=(*accent,235), width=3)
+            star=[]
+            for i in range(10):
+                angle=-math.pi/2+i*math.pi/5; radius=size*(.72 if i%2==0 else .3)
+                star.append((x+math.cos(angle)*radius,y+math.sin(angle)*radius))
+            draw.line(star+[star[0]], fill=(*accent,220), width=2, joint="curve")
+    if card["arcana"] != "major":
+        count = rank_count.get(card["rank"])
+        if count:
+            left=(count+1)//2; right=count-left
+            for side, total in ((52,left),(668,right)):
+                if total:
+                    for i in range(total): pip(side, 180+i*(650/max(1,total-1)) if total>1 else 500, card["suit"], 10)
+        else:
+            pip(52,500,card["suit"],16); pip(668,500,card["suit"],16)
     # translucent title plate
     draw.rounded_rectangle((55,944,665,1075), radius=18, fill=(5,10,18,215), outline=(*accent,235), width=4)
     title_font = ImageFont.truetype(FONT_BOLD, 31)
@@ -235,7 +265,9 @@ def make_frame(raw_path: Path, card: dict, target: Path):
     draw.text((360,989), card["name"].upper(), font=title_font, fill=(246,238,220,255), anchor="mm", stroke_width=1, stroke_fill=(0,0,0,180))
     subtitle = "MAJOR ARCANA" if card["arcana"]=="major" else f"{card['rank'].upper()} · {card['suit'].upper()}"
     draw.text((360,1031), subtitle, font=sub_font, fill=(*accent,255), anchor="mm")
-    draw.text((360,61), str(card["symbol"]), font=ImageFont.truetype(FONT_REG,25), fill=(245,234,205,245), anchor="mm", stroke_width=1, stroke_fill=(0,0,0,180))
+    top_rank = {"ace":"A","two":"II","three":"III","four":"IV","five":"V","six":"VI","seven":"VII","eight":"VIII","nine":"IX","ten":"X","page":"PAGE","knight":"KNIGHT","queen":"QUEEN","king":"KING"}
+    top_label = str(card["symbol"]) if card["arcana"] == "major" else top_rank[card["rank"]]
+    draw.text((360,61), top_label, font=ImageFont.truetype(FONT_REG,25), fill=(245,234,205,245), anchor="mm", stroke_width=1, stroke_fill=(0,0,0,180))
     image.convert("RGB").save(target, "WEBP", quality=94, method=6)
 
 

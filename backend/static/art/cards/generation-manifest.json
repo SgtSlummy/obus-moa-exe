@@ -1,0 +1,801 @@
+{
+  "deck": "The Realms of Arcana",
+  "style": "fantasy-realistic-painterly",
+  "provider": "Pollinations legacy Flux anonymous",
+  "model": "flux",
+  "rate_limit": "one request per 16 seconds; bounded retries; no parallel requests",
+  "credentials": "none",
+  "research_sources": [
+    "https://www.themorgan.org/collection/tarot-cards",
+    "https://commons.wikimedia.org/wiki/Category:Pierpont_Morgan-Bergamo_Visconti-Sforza_Tarot",
+    "https://www.britishmuseum.org/collection/object/P_1845-0825-485",
+    "https://commons.wikimedia.org/wiki/Sola-Busca_tarot_deck",
+    "https://sacred-texts.com/tarot/pkt/",
+    "https://wellcomecollection.org/works/vvhjuc5a",
+    "https://www.britishmuseum.org/collection/object/P_1904-0511-47-1-78",
+    "https://bookofadeptus.ryanginter.com/",
+    "https://www.nataliaweedy.com/projects/tarot-campaign"
+  ],
+  "cards": [
+    {
+      "id": "card-fool",
+      "name": "The Fool",
+      "file": "fool.webp",
+      "seed": 1769206152,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Fool. a fully human young traveler walking on foot toward a mountain cliff at dawn, layered leather and linen clothing, an ordinary realistic four-legged white wolf walking separately beside their boots as a small companion, never ridden and never anthropomorphic, wildflowers, small travel pack, hopeful expression. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "8fc3e8f7f2de490fa30ffc382ac19b443e2b88032a011de78bef332e0ef00b29",
+      "final_sha256": "5988b9f6da534e4643e6076ab6de0121c2a7070ad258e29ea8b8173fc8915f59"
+    },
+    {
+      "id": "card-magician",
+      "name": "The Magician",
+      "file": "magician.webp",
+      "seed": 1435563859,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Magician. a focused human mage at an obsidian altar bearing a wand, chalice, sword and golden pentacle, one hand raised to the stars and one toward the earth, arcane observatory, violet energy. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "0812741bd4e6a534346599273ccbe6a4dea05952e906a24e87055ad069316512",
+      "final_sha256": "9848cb2e4221bec6dd8fa890c15ff775b023d9621cecd4efff6e3f40e04d0179"
+    },
+    {
+      "id": "card-high-priestess",
+      "name": "The High Priestess",
+      "file": "high-priestess.webp",
+      "seed": 1268807010,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The High Priestess. a serene fully clothed human oracle between one black marble pillar and one ivory pillar, silver moon crown, blue veil over a high-necked layered blue and silver ceremonial gown, ancient scroll, moonlit temple and dark reflecting pool. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "18ac2a07bac9dd03a86b160df4be76acd6a16e4a2056832e572f0fcf205997ae",
+      "final_sha256": "71f2afddb54996db86c960f0f8e7108b4b2d99f7a3faec5622e1a92c936a4798"
+    },
+    {
+      "id": "card-empress",
+      "name": "The Empress",
+      "file": "empress.webp",
+      "seed": 2021864724,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Empress. a regal human empress seated in a living garden throne, embroidered crimson and gold gown, wheat field, waterfall, pomegranate branches, maternal strength. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "6bb4694a790fde040cdfc6d045a542190d19ed6e84affda9ef750409f95d11f7",
+      "final_sha256": "b09034ae48588c02af17a37430b0b73ef3c411d47610d5d8376e52d9b33ac839"
+    },
+    {
+      "id": "card-emperor",
+      "name": "The Emperor",
+      "file": "emperor.webp",
+      "seed": 1877338517,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Emperor. a mature human emperor in engraved bronze plate armor on a stone throne, red cloak, ram motifs, mountain citadel, austere sunrise. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "6d9f2cee9759b2f2d9688c244c2a17613f5a6fcb4c3fb7f2c679ec4c419445df",
+      "final_sha256": "14b19869939a8ff7aff9085b70a4eb72d477ec62ff6be0d49dd26c39b678aa90"
+    },
+    {
+      "id": "card-hierophant",
+      "name": "The Hierophant",
+      "file": "hierophant.webp",
+      "seed": 1760972593,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Hierophant. a venerable human high priest in an immense candlelit cathedral archive, ornate ceremonial robes, two acolytes kneeling, crossed keys, compassionate authority. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "27152663920396b7cd5c94fcb09d9a7341322d3a663b13a63f0acf24ffa34699",
+      "final_sha256": "a5c5e50560125fc56e89299b4996f7920b8c7423528a3ab932d2f74ab7aa2614"
+    },
+    {
+      "id": "card-lovers",
+      "name": "The Lovers",
+      "file": "lovers.webp",
+      "seed": 702682674,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Lovers. two adult human lovers facing each other in an enchanted grove, a luminous winged guardian high above them, flowering tree and flame tree, intimate choice and sacred union. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "23501c790862ba7d7b1d6ec828f22ed29dfcf053b94ebc3473940c27cc067ebc",
+      "final_sha256": "66d2de80d73411bf2769502ec6a0a667984b2c554fba5aceaaeb80a233a02b51"
+    },
+    {
+      "id": "card-chariot",
+      "name": "The Chariot",
+      "file": "chariot.webp",
+      "seed": 283743463,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Chariot. an armored human champion driving a celestial chariot through a storm, one black and one white lion pulling in balance, star canopy, wind-torn blue cloak. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "cc6eacdb263ae383b015f8424c9edf9979ecca2e078ff2d12365b17b3d491027",
+      "final_sha256": "7fa954f8e13cee7d71f2d0eee3b7bdb6c710f04aee144065cff453488b6d1e29"
+    },
+    {
+      "id": "card-strength",
+      "name": "Strength",
+      "file": "strength.webp",
+      "seed": 593909557,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Strength. a calm adult human woman gently closing the jaws of a realistic golden lion without force, sunlit overgrown ruins, white dress, red sash, infinity halo. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "197480c8869e6c89dd77d42a7dc00731e297bd0b36c28f222f57a903bdd41953",
+      "final_sha256": "0a84c0dfb4e141d76b2f47f46cb5d9f6cdfdd37690eb4179882671b6ad01d7c2"
+    },
+    {
+      "id": "card-hermit",
+      "name": "The Hermit",
+      "file": "hermit.webp",
+      "seed": 1874179889,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Hermit. an elderly human sage alone on a snowy mountain ridge, weathered wool cloak, raised six-pointed star lantern, staff, distant valley in blue twilight. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "7058f1042b0b0cc2004cfd9c61e67a776057f52bdacac63e49dcf8a8268ff167",
+      "final_sha256": "305627ca32967d2a33ce76faa84d215e1c07828f407fdd3ea937ce87e9df2357"
+    },
+    {
+      "id": "card-wheel-of-fortune",
+      "name": "Wheel of Fortune",
+      "file": "wheel-of-fortune.webp",
+      "seed": 1322613700,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Wheel of Fortune. a colossal luminous wheel turning inside a cosmic temple, four mythic guardians reading books at the corners, human seer below, clouds and constellations. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "0860e785d5454f7e03ac5fd3cc8fe2b0869c5fd39c6ffd57c105a39043fdd5ab",
+      "final_sha256": "9faa2c6b0c0f84745ff07c19496ef3b5cd67e848a43c0785c538357f50b58e63"
+    },
+    {
+      "id": "card-justice",
+      "name": "Justice",
+      "file": "justice.webp",
+      "seed": 378719527,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Justice. an armored human judge seated frontally in a marble tribunal, perfectly balanced golden scales in one hand and upright silver sword in the other, red robe, clear gaze. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "3e0222b1fecceea80b7a048e50491d7198a37633be77b1dc9b338aaeb46021ec",
+      "final_sha256": "c420d4a337d72756e5e05ab5a0dd3dd0678af07fa9b56d20847b5724c2965278"
+    },
+    {
+      "id": "card-hanged-man",
+      "name": "The Hanged Man",
+      "file": "hanged-man.webp",
+      "seed": 1287096977,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Hanged Man. a human knight suspended upside down by one ankle from a vast living world tree, calm illuminated face, free leg bent into a cross, green-gold halo, misty forest. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "6b6921a5cea9d5b9592c5fdf58e54d1480686906b4163ffbea9b93ebb732d983",
+      "final_sha256": "8eceaf925544c28747593c81add7e51232be5afc77746c933dc69661a07345d8"
+    },
+    {
+      "id": "card-death",
+      "name": "Death",
+      "file": "death.webp",
+      "seed": 513831355,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Death. a black-armored human knight riding a realistic pale horse across an ashen battlefield, black banner with white rose, fallen crown, distant sunrise promising renewal. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "bf9d5404d5d45549bf7b0b172c69c049d14db8914fdfd5484626a312b2a15343",
+      "final_sha256": "a9ed43882aa00ca5947243784ee4981b64d7583bda44aebc26bcbf3c92a1288d"
+    },
+    {
+      "id": "card-temperance",
+      "name": "Temperance",
+      "file": "temperance.webp",
+      "seed": 1531741039,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Temperance. a luminous winged human healer standing with one foot in a river and one on stone, pouring glowing water between two vessels, iris flowers, path to sunrise. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "e00b64145715301b96492ed7591d0b26ca32085e2c385c07a1e9c055df85197e",
+      "final_sha256": "6e3575d4e64044253166d5747df183fd500b23cfca41d9d75d3b3040793db94d"
+    },
+    {
+      "id": "card-devil",
+      "name": "The Devil",
+      "file": "devil.webp",
+      "seed": 1536096497,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Devil. an imposing horned fantasy sovereign with believable humanoid anatomy seated in an obsidian cavern, two adults freeing themselves from loose chains, ember light, temptation and liberation, nonsexual. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "722382b1e032defaa1fb827fdb52b80afca3ebc628374733d6d89c433e499539",
+      "final_sha256": "c88acd0029d570dcc42c371dec9eb10b18405a954f44bec515e1fdc05ced22e7"
+    },
+    {
+      "id": "card-tower",
+      "name": "The Tower",
+      "file": "tower.webp",
+      "seed": 705239257,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Tower. a tall stone tower on a mountain struck by branching lightning, crown blasted from the roof, two fully clothed human figures escaping falling masonry, violent rain and fire, extreme cinematic drama. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "f9f3ebb876de9866fc240eacb2ca1a2622c3321a907aac66c5c7e2ddd5e75f4a",
+      "final_sha256": "dd7effb2fb344e519285097107cc8c7968e74d2b95d071c1899218d27deab628"
+    },
+    {
+      "id": "card-star",
+      "name": "The Star",
+      "file": "star.webp",
+      "seed": 1531392064,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Star. a human stargazer kneeling beside a crystal lake, pouring water from two silver vessels onto land and water, one huge eight-pointed star and seven smaller stars, serene blue night. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "c91eca5277329582e6c9033b48be6d68e0670d459465797ebc0c0edb8d292008",
+      "final_sha256": "abc9da2f9e42003b1bfccca80435f7f23d12b2fea1f03c4f723ce6409da11d25"
+    },
+    {
+      "id": "card-moon",
+      "name": "The Moon",
+      "file": "moon.webp",
+      "seed": 1511615109,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Moon. a cloaked human wanderer on a moonlit causeway between two ancient towers, a realistic wolf and hound calling to a vast crescent moon, river crab emerging, dreamlike fog. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "942ef4eb4df7ccb23225827c391911f6ea267967a641706b698d991046dd0215",
+      "final_sha256": "771a9435f9646dc0fdf0f1df017d2421595e7371e6818562db9adcb753974358"
+    },
+    {
+      "id": "card-sun",
+      "name": "The Sun",
+      "file": "sun.webp",
+      "seed": 792778554,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The Sun. a joyful young human champion riding a realistic white horse through sunflowers, red solar banner, vast radiant sun, warm clear daylight, innocence and vitality. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "e1fa5e2d9b4da5cec3572dc7f58957923d99d99882761a1acf2062dde3ec204e",
+      "final_sha256": "9149cc245321bd6b4246cd993b4d7a23a73367dca8a6193d8ee3675bb779094d"
+    },
+    {
+      "id": "card-judgement",
+      "name": "Judgement",
+      "file": "judgement.webp",
+      "seed": 251690509,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Judgement. a magnificent winged angel sounding a golden trumpet above a valley, fully clothed human souls rising from opened stone tombs, white-gold dawn, awakening and forgiveness. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "3419e513ad2a197843351cca79e05f2a658b9a812775952a25ef5cd9a07d2411",
+      "final_sha256": "33b306ace8ba5862fcd0a64d11e4814799ef824867b3fb108b6908d74d492f32"
+    },
+    {
+      "id": "card-world",
+      "name": "The World",
+      "file": "world.webp",
+      "seed": 192564549,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for The World. an adult human dancer wrapped in flowing violet cloth inside a living laurel wreath suspended above a celestial garden, four realistic guardian creatures at the corners, completion and harmony. a coherent original late-medieval high-fantasy world. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "e2feaea7a5032ee53395c5e466800e1ff48062d095c7c29931f5bbd67a5bedf5",
+      "final_sha256": "8b870409d8dcb4200e5df0fc14378f3c94ef928825252a20893aef1bbd93499e"
+    },
+    {
+      "id": "card-ace-of-wands",
+      "name": "Ace of Wands",
+      "file": "ace-of-wands.webp",
+      "seed": 1169897349,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ace of Wands. a solitary human hand raising a living wooden wand sprouting green leaves from a volcanic valley, divine firelight. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "5e3efb33c587451cb782ded5c6c659dd2a40d0e6bb800ee88a8a10fd66bccb9f",
+      "final_sha256": "5a05b3a287e65817b61add2fda40e0d555a0860b995e6efd26f4b949be1491a5"
+    },
+    {
+      "id": "card-two-of-wands",
+      "name": "Two of Wands",
+      "file": "two-of-wands.webp",
+      "seed": 732074609,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Two of Wands. a human noble on a battlement holding a wand and a small globe while choosing between two distant roads across the Emberwild. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "e3cf8dcfa44af49811deb408942e431a8076f126c9082eb850db4a42efdb719d",
+      "final_sha256": "543b4cfd643d2c927ac3704a193331a4f0f7d125c7631c4f03774191f2cb3592"
+    },
+    {
+      "id": "card-three-of-wands",
+      "name": "Three of Wands",
+      "file": "three-of-wands.webp",
+      "seed": 2076354401,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Three of Wands. a human explorer watching three crimson-sailed ships cross a glowing lava sea, three planted wands, expansion and foresight. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "178a97d2b487731966b810f6eb9df687d11349db43ff83cdbda8239b06888db9",
+      "final_sha256": "c25f250fd9573af58f6995d6a0b3786042be4c631bd7045f8b61841f9326d14d"
+    },
+    {
+      "id": "card-four-of-wands",
+      "name": "Four of Wands",
+      "file": "four-of-wands.webp",
+      "seed": 647370068,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Four of Wands. four flowering wands forming a ceremonial arch while a group of fully clothed human villagers celebrate at a hilltop sanctuary. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "cbff27ef5fd838d9b90f8273701c6a8e8ffbcd694fd4af7a97cac3747c849224",
+      "final_sha256": "17b9c81b5d36a945a3498b3e622a76039aad39fee15e6d25f8890e41f29f2148"
+    },
+    {
+      "id": "card-five-of-wands",
+      "name": "Five of Wands",
+      "file": "five-of-wands.webp",
+      "seed": 1247057829,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Five of Wands. five young human warriors practicing with wooden staves in an energetic but nonlethal sparring circle, embers and dust. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "3235fceae20be3ccd4cea5b781812c9d8d3c01cdc56c1faff8533e6c320ec659",
+      "final_sha256": "33d21b905bf751d5dab108d2c6c26d7dde4640d356c85cf7103f9b5ee8c89b00"
+    },
+    {
+      "id": "card-six-of-wands",
+      "name": "Six of Wands",
+      "file": "six-of-wands.webp",
+      "seed": 501805168,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Six of Wands. a victorious human rider returning through a city on a realistic horse, laurel-topped wand, cheering procession, warm copper light. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "af8dedda5645f3ed40f55b663ecfc13ad3c9e219d2ff51bc760a0c995dad6597",
+      "final_sha256": "03615329eaca703958cdd6e8b053e1395e134b851adbcfaf84f8e08b29dd5578"
+    },
+    {
+      "id": "card-seven-of-wands",
+      "name": "Seven of Wands",
+      "file": "seven-of-wands.webp",
+      "seed": 1876415907,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Seven of Wands. a determined human defender on high ground holding one wand against six challengers below, volcanic sunset, courage. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "b816ece57488f74551892ee3b9c88fbb4cf31b78f1aa9c37b0d9e6370a0828a4",
+      "final_sha256": "ec898e0242ad13d137e39809cd1d7564988b1a65d9703417ec769a748ef9667c"
+    },
+    {
+      "id": "card-eight-of-wands",
+      "name": "Eight of Wands",
+      "file": "eight-of-wands.webp",
+      "seed": 743347841,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Eight of Wands. eight burning wands streaking like meteors across a vast valley toward a distant citadel, one human messenger watching, speed. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "b244f4fb16ae99f25271c1876d10fcb6ac7f0f87c09954875529554e103c5514",
+      "final_sha256": "54bc051a0bb0df714a6a4a836bc6c9c7fc61e2bb7e0a25baa0d8348ea5d263a1"
+    },
+    {
+      "id": "card-nine-of-wands",
+      "name": "Nine of Wands",
+      "file": "nine-of-wands.webp",
+      "seed": 55346907,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Nine of Wands. a wounded but standing human guardian leaning on a wand before a fence of eight wands, bandaged brow, dawn endurance. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "05148ec87efbd72e998dfd725e4951d35b565505ad5b7975d7c103d42187d037",
+      "final_sha256": "0e6ed38b46355efd2250d6e2497c3bab05a5518173b4208943f0241f197a1d07"
+    },
+    {
+      "id": "card-ten-of-wands",
+      "name": "Ten of Wands",
+      "file": "ten-of-wands.webp",
+      "seed": 489995328,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ten of Wands. a burdened human traveler carrying ten heavy wands toward a distant town through ash and sunset, believable strain. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "9be8cac78ae8e617560235c8e2c6188fe97c44d0982603de6d7b2756dbde598c",
+      "final_sha256": "8cf97b3cf48e337e8c163b1423d2c7d6b7b021276b5ba4c4c7e2a5a65daf9c7d"
+    },
+    {
+      "id": "card-page-of-wands",
+      "name": "Page of Wands",
+      "file": "page-of-wands.webp",
+      "seed": 284748227,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Page of Wands. a youthful human messenger studying a budding wand in a desert of red cliffs, curious expression, light leather clothing. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "94c64801e598d1ca28b159f19cb4fa00fa599c48e965e2711ad02fc21c8cc7e4",
+      "final_sha256": "34fa4bf34a06853b8831faf99eff49842d42f17f1528a5c640da913bde5d4de8"
+    },
+    {
+      "id": "card-knight-of-wands",
+      "name": "Knight of Wands",
+      "file": "knight-of-wands.webp",
+      "seed": 1751734587,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Knight of Wands. a human knight in copper armor charging on a realistic dark horse while raising a fiery wand, sparks and wind. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "9f7104292e59834f217931625912908d6685972938f2c8ad19e0206a1a7e4df7",
+      "final_sha256": "84dbad9fb49d4a280488c8c5fe0c4f0385d0249bdc18be38d54899c7683cd423"
+    },
+    {
+      "id": "card-queen-of-wands",
+      "name": "Queen of Wands",
+      "file": "queen-of-wands.webp",
+      "seed": 564504052,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Queen of Wands. a powerful human queen on a carved sunflower throne, black cat at her feet, blooming wand, copper and crimson fabrics. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "63c37718cc55045af72b0321d79bf7531a2d80ea0b4699a515a554ef1005143a",
+      "final_sha256": "afeade36b39a8ea58fa0f7f7b08cc55450cbd4271aca9f5964176cd938abc5ae"
+    },
+    {
+      "id": "card-king-of-wands",
+      "name": "King of Wands",
+      "file": "king-of-wands.webp",
+      "seed": 1214539163,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for King of Wands. a mature human king in ember-forged armor on a basalt throne, living wand, salamander motifs, volcanic kingdom. the Emberwild realm of volcanic cliffs, charcoal forests, copper armor and cinematic orange firelight. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "20ecf25c8227c7d3aa6ca0d1fa260ffa6446918bdcb4a707a065aa6881756bd7",
+      "final_sha256": "146885d94958fc95e29b87f173212d69f0049f9efca23a0486aef1c0b398e3dd"
+    },
+    {
+      "id": "card-ace-of-cups",
+      "name": "Ace of Cups",
+      "file": "ace-of-cups.webp",
+      "seed": 1355004297,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ace of Cups. an ornate silver chalice overflowing with luminous water above a moonlit pool, a white dove descending, lotus flowers. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "143f3e77106740bd336cd55d6fcc75d13a18c87d8096d9249812ad0ae1cbeb39",
+      "final_sha256": "b03d7e9f8a0eb3a9ec68f84982c10736d8326602a000aaefa85c23fa999ea407"
+    },
+    {
+      "id": "card-two-of-cups",
+      "name": "Two of Cups",
+      "file": "two-of-cups.webp",
+      "seed": 644735140,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Two of Cups. two adult humans exchanging jeweled cups beneath a winged lion emblem, moonlit coast, mutual trust. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "0cc4f11a7e9a092b61051ff0795d891c8a0e30e868b408b05746f7f5fadb0b3c",
+      "final_sha256": "aac72300673ce2ee58905f216ae21b1fecf32a73d3e1d80c2d3fb8c7f596aebf"
+    },
+    {
+      "id": "card-three-of-cups",
+      "name": "Three of Cups",
+      "file": "three-of-cups.webp",
+      "seed": 572997196,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Three of Cups. three adult human friends raising silver cups in celebration beside a moonlit garden fountain, abundance and friendship. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "8c26bebe3b9ed2b0d6fcc68df68636871c3b5919d8d53b51040de14a9308239b",
+      "final_sha256": "c70ce6ec392a1964091b648f1499ad2f1f1200141cf813552136eff0d4e5c8ec"
+    },
+    {
+      "id": "card-four-of-cups",
+      "name": "Four of Cups",
+      "file": "four-of-cups.webp",
+      "seed": 1916146144,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Four of Cups. a contemplative human seated beneath a coastal tree ignoring three cups while a luminous fourth cup appears from mist. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "cc6e279ba18b2b41a62a70469f7fd614b038cf969fab042b89f32d0ceaa9384e",
+      "final_sha256": "8987eeda514f467c578d36f6f014286dedbab2d212bac9e7a29305a22ddeabdf"
+    },
+    {
+      "id": "card-five-of-cups",
+      "name": "Five of Cups",
+      "file": "five-of-cups.webp",
+      "seed": 976399626,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Five of Cups. a grieving cloaked human before three spilled cups while two upright cups remain behind, ruined bridge and rain. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "7ec86c89934bcff11af98b200bb9a7354d7ce4e80fb8234938d174064043f9ac",
+      "final_sha256": "c5e5adc5c4590487a18afd0bf06ce1b38436e113f3b7512ee8253af1a8c5505a"
+    },
+    {
+      "id": "card-six-of-cups",
+      "name": "Six of Cups",
+      "file": "six-of-cups.webp",
+      "seed": 751512788,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Six of Cups. one human child offering a flower-filled cup to another in an old seaside courtyard, four cups nearby, memory and kindness. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "ea52632c57e32e0dc618cf8c52aca944aa7c4245828523146c5ab5c490404914",
+      "final_sha256": "2b18e9f80c457c42c66f8898a3bada363d7c528cf84ee6357670c6d96db6579d"
+    },
+    {
+      "id": "card-seven-of-cups",
+      "name": "Seven of Cups",
+      "file": "seven-of-cups.webp",
+      "seed": 1179814224,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Seven of Cups. a human dreamer facing seven floating cups containing visions of a jewel, laurel, dragon, tower, shrouded figure, serpent and face. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "849852eb58290505ed0fb89433d64d4bc0e2c3d2b3800044a42c7eb4193361a9",
+      "final_sha256": "bf0ab040b077893135250b9735aa789c44f5b4e9a0db23be10f4b4369dfa04b2"
+    },
+    {
+      "id": "card-eight-of-cups",
+      "name": "Eight of Cups",
+      "file": "eight-of-cups.webp",
+      "seed": 117974109,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Eight of Cups. a solitary human leaving eight carefully stacked cups and walking toward moonlit mountains, difficult departure. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "b37e3bc6e9a2526adc3f4f9956d98b4226c904c731c98886f26b96fb40a40a39",
+      "final_sha256": "c567c834b7c99aaa22cc3b75f6e83628ff43ccbed986bcedd9af4edddf3eed40"
+    },
+    {
+      "id": "card-nine-of-cups",
+      "name": "Nine of Cups",
+      "file": "nine-of-cups.webp",
+      "seed": 73809985,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Nine of Cups. a satisfied human host seated before nine displayed golden cups in a warm coastal hall, earned contentment. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "e7d2c6540cef9ad61402bcaa98a5b2f0acff91e5c5221655735e163f550a962b",
+      "final_sha256": "035890baac1042e665c55952f2541df19972524e85ae0b90ff65b072e8ad4c9b"
+    },
+    {
+      "id": "card-ten-of-cups",
+      "name": "Ten of Cups",
+      "file": "ten-of-cups.webp",
+      "seed": 1789248933,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ten of Cups. a fully clothed human family of four beneath a rainbow of ten luminous cups overlooking a peaceful sea village. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "9bb6578b8bc60a10c35d5bc977f9b75639d570446e63d315d21b00d25d34b273",
+      "final_sha256": "8b3952e419c8b74acfdf5ff703c17b2b3938eee2bd2eb0d53dd3da9a90f40d66"
+    },
+    {
+      "id": "card-page-of-cups",
+      "name": "Page of Cups",
+      "file": "page-of-cups.webp",
+      "seed": 1122445708,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Page of Cups. a youthful human messenger holding a silver cup from which a small realistic fish leaps, blue silk, moonlit beach. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "bf5eaf1729f7ac1358c96a929225f2f084c71ab245e1f90c58f8026cbca489a0",
+      "final_sha256": "481d457a0b66948c2579923e14fba4a74151e5fb8229cb40e1bc6482a6950ba2"
+    },
+    {
+      "id": "card-knight-of-cups",
+      "name": "Knight of Cups",
+      "file": "knight-of-cups.webp",
+      "seed": 988932716,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Knight of Cups. a human knight in silver-blue armor on a realistic white horse offering a cup, slow river crossing. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "ad7444577bef25d4ac483a99728d8b9a97c2cd23f0ce3f42ed5db8ddd6860ebf",
+      "final_sha256": "5bdaabcd827c7b1da5e7da6c213278a6d966557bcc9b25a9997ece6eb7a09b96"
+    },
+    {
+      "id": "card-queen-of-cups",
+      "name": "Queen of Cups",
+      "file": "queen-of-cups.webp",
+      "seed": 1881027574,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Queen of Cups. a regal human queen beside the sea holding an intricate lidded chalice, silver crown, layered blue silk, reflective water. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "10a073aadc7b6f5cf89f92ec8f537b4b912418f4cae089666a2a50a93ab0947d",
+      "final_sha256": "847df78f0423559d6435f772607d30b03d728b02798ebf7322b84f8c709289cf"
+    },
+    {
+      "id": "card-king-of-cups",
+      "name": "King of Cups",
+      "file": "king-of-cups.webp",
+      "seed": 365838233,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for King of Cups. a mature human king on a stone throne surrounded by turbulent sea yet perfectly calm, golden cup and scepter. the Tidemoon realm of moonlit coasts, blue glass, silver cloth, water reflections and cool cinematic light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "aecba91798b95688f6455b390ebbf259ebf19eb14c63eaa51c4cdb27b4ba986f",
+      "final_sha256": "bdbb20aace0190bdde7f45c48afddc2f116144047b106289788c59efb21438d7"
+    },
+    {
+      "id": "card-ace-of-swords",
+      "name": "Ace of Swords",
+      "file": "ace-of-swords.webp",
+      "seed": 1420216778,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ace of Swords. a powerful human hand raising one flawless silver sword through storm clouds, golden crown and laurel around the blade. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "db3cf7fc3d6479209f7b4a00b14350b48afa4893a727c95b94f519a9fe69dc0a",
+      "final_sha256": "b7cfc0da8b3962407ab825aad60f36a09fb9017f67fe03da09d3268f53191ebe"
+    },
+    {
+      "id": "card-two-of-swords",
+      "name": "Two of Swords",
+      "file": "two-of-swords.webp",
+      "seed": 2115600769,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Two of Swords. a blindfolded fully clothed human woman seated at a moonlit shore holding two crossed swords in perfect balance. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "42c7bd8b8e5e657ba1a7ced4e73a2197b973ce4ba3944a12fd0ffd7e14299cb8",
+      "final_sha256": "61da9915a4c8afce6d2539864d2889329f3376c334ac1b92d97c9be7bd3b0985"
+    },
+    {
+      "id": "card-three-of-swords",
+      "name": "Three of Swords",
+      "file": "three-of-swords.webp",
+      "seed": 43760250,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Three of Swords. a realistic crimson heart pierced by three silver swords beneath cold rain clouds, distant human silhouette, emotional consequence. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "d045950aeb4df10c80bbc49093110cce12a12958cce9ce29fbd1db72cf15fd74",
+      "final_sha256": "0282448771b05212431c9d2b7c5469e67ec2ea6829d176ae18472cf258b30711"
+    },
+    {
+      "id": "card-four-of-swords",
+      "name": "Four of Swords",
+      "file": "four-of-swords.webp",
+      "seed": 2021661577,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Four of Swords. an armored human knight resting on a stone bier inside a quiet chapel, three swords above and one below, stained glass light. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "254cc17cec1190ca38969bd4130769607494cfba74c983bb8980bd7a40d29820",
+      "final_sha256": "dad553a3f366bfc0e332d919eacea7a18cdd5fc8bc4ed3b85d7817a7535e7f5f"
+    },
+    {
+      "id": "card-five-of-swords",
+      "name": "Five of Swords",
+      "file": "five-of-swords.webp",
+      "seed": 1875637652,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Five of Swords. a human victor gathering three swords while two defeated figures leave a windy shore, two swords on the ground, moral ambiguity. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "422e95f6c19b3c9469940fa5ead183e15c89d8616037c304bbcb802baad7bcfb",
+      "final_sha256": "7aa4f760f6abd29aa628f17a83e7ac31ea0a1b854a05d0be1d148472391c841a"
+    },
+    {
+      "id": "card-six-of-swords",
+      "name": "Six of Swords",
+      "file": "six-of-swords.webp",
+      "seed": 25749427,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Six of Swords. a human ferryman carrying an adult and child across dark water in a narrow boat, six swords planted upright, passage through grief. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "86dd96a70255b836b14489ca4f962cca3653a6f626d212aafb56596757daffa6",
+      "final_sha256": "77ccb0700825f7e6197d2d97c9c6ddec52ed21b49cfdb3ea3f719c110c85fd0d"
+    },
+    {
+      "id": "card-seven-of-swords",
+      "name": "Seven of Swords",
+      "file": "seven-of-swords.webp",
+      "seed": 438353149,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Seven of Swords. a stealthy human scout carrying five swords from a military camp while two remain planted, dawn strategy, no violence. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "46de244457bb3eac95c804e9aa79b5a0a190d6dfe4716079492ebe23bbe8960d",
+      "final_sha256": "903cecca61eabd49ced600c54ed37698fb8da9a897557e0ead9b4eae089f304a"
+    },
+    {
+      "id": "card-eight-of-swords",
+      "name": "Eight of Swords",
+      "file": "eight-of-swords.webp",
+      "seed": 55319069,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Eight of Swords. a blindfolded fully clothed human woman loosely bound among eight swords in shallow water, distant open path, self-limitation. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "faa14598e237d8276ec89f36c8070f9df2de5a890d37aef5881775b008b7c71a",
+      "final_sha256": "74eede9f9c11ee286782bcfdf9672695b7515c5e1e80357fe718122ee614a6a6"
+    },
+    {
+      "id": "card-nine-of-swords",
+      "name": "Nine of Swords",
+      "file": "nine-of-swords.webp",
+      "seed": 1401316730,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Nine of Swords. a human waking from a nightmare in a stone chamber, nine swords aligned on the wall, moonlight, grief and anxiety. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "ade17eb597ac3d29d86a0406bf6d05892882ec3964139bdfbc5a156b4c26b9a2",
+      "final_sha256": "5a94c8ddfeb544ce58f33bd6a5b60767e89a96c18f0efa9027b0917c7a692340"
+    },
+    {
+      "id": "card-ten-of-swords",
+      "name": "Ten of Swords",
+      "file": "ten-of-swords.webp",
+      "seed": 398972258,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ten of Swords. a fallen armored human warrior on a stormy plain with ten swords planted around rather than graphically through the body, sunrise on horizon, ending and renewal. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "4c5a88d2e2a175ec4093c619c227d8ce0ad21383c376a24b4aac0edeaabe4e05",
+      "final_sha256": "293f7caf0de9aadbe8bfcaa80c38c078abaf0c062c9ed31a2e066a0da16d3959"
+    },
+    {
+      "id": "card-page-of-swords",
+      "name": "Page of Swords",
+      "file": "page-of-swords.webp",
+      "seed": 1116055927,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Page of Swords. a youthful human scout holding a raised sword on a windy hill, alert stance, storm birds, light steel armor. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "ff41b45bf99edad701032481e19572b51baedf97b5f8c4599a1ddb90f8114dfa",
+      "final_sha256": "016d044c0932e9091a2ea3a6eef734597520705e482ee8b5e82edfe57ae5d6b5"
+    },
+    {
+      "id": "card-knight-of-swords",
+      "name": "Knight of Swords",
+      "file": "knight-of-swords.webp",
+      "seed": 1661171314,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Knight of Swords. a human knight in polished steel charging a realistic gray horse through violent wind, sword forward, dynamic anatomy. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "013d7c8b8d3df1bfb7930631178dd7934298384c7b980cdf14255072d4f37abb",
+      "final_sha256": "83149ea53c9c4e51540db6d704c30cc09bd5f9e1b673ea0c3b0df27817bf767c"
+    },
+    {
+      "id": "card-queen-of-swords",
+      "name": "Queen of Swords",
+      "file": "queen-of-swords.webp",
+      "seed": 1867278009,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Queen of Swords. a stern human queen seated on a high stone throne, upright sword, crown of butterflies, windblown silver cloak. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "409f4d470cf06ec3c84c3e855c363b9924b23fdbf76ed6f6670eb22be2e7f752",
+      "final_sha256": "0e307d1b75cc0a7569d0cf94b71d70f6a72ea4290f969db43ae439c30b6a462c"
+    },
+    {
+      "id": "card-king-of-swords",
+      "name": "King of Swords",
+      "file": "king-of-swords.webp",
+      "seed": 1296514692,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for King of Swords. a mature human king in dark steel armor on a storm citadel throne, upright sword, blue mantle, intellectual command. the Stormhold realm of wind-carved citadels, realistic steel plate, rain, clouds and cold directional light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "2e36fbc8ec67092ca049a96e4dcb5c2a3075fda89a9002b783adcfb1f16e8844",
+      "final_sha256": "cc8f9574b70a44651e2af9f383fc94ec6275a97011d6d97f97ba8e97f2d84161"
+    },
+    {
+      "id": "card-ace-of-pentacles",
+      "name": "Ace of Pentacles",
+      "file": "ace-of-pentacles.webp",
+      "seed": 1826449011,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ace of Pentacles. a powerful human hand presenting one engraved golden pentacle above a lush garden gate, mountain path, harvest sunlight. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "525321a7758fcc443dbe8b93fda83f548939f0681c22fad3a5ef2788bd8d6108",
+      "final_sha256": "b0b85389dff8d2d176e6fa6581c043f561f2373a5c912d6f6c241f1d6b4dff69"
+    },
+    {
+      "id": "card-two-of-pentacles",
+      "name": "Two of Pentacles",
+      "file": "two-of-pentacles.webp",
+      "seed": 1583242351,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Two of Pentacles. a nimble human merchant balancing two golden pentacles connected by an infinity ribbon, ships on rough water behind. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "fba99be49384e63ed2a616a6eb4acd48b83b6320ce1a711d7430d2cbe697ef6a",
+      "final_sha256": "a53771e45e62e082e0eeb22738b213523aaf41b18f20b90461d1390c2b2b7041"
+    },
+    {
+      "id": "card-three-of-pentacles",
+      "name": "Three of Pentacles",
+      "file": "three-of-pentacles.webp",
+      "seed": 553495930,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Three of Pentacles. three human artisans collaborating beneath a carved cathedral arch, architect plans, stonework and three pentacles. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "686b4e24eba37824a57d41d97f032c408bb2cea39c246bd91e9a9ae4bde395a1",
+      "final_sha256": "2db31b3880c60e045e5cc18aec592aeca5817413da10ea7083b6c14eda76cfbc"
+    },
+    {
+      "id": "card-four-of-pentacles",
+      "name": "Four of Pentacles",
+      "file": "four-of-pentacles.webp",
+      "seed": 1049719605,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Four of Pentacles. a guarded human noble holding one pentacle while two rest beneath their boots and one above the crown, walled city. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "2d2ac896f401798704242c5d5c40d41fd80fec9340896ab9b9a28bc94db4a5d3",
+      "final_sha256": "66592b9b86ece9e977b836e86b25ffc4b2a74c7f8dd8f9452a523a6222a97598"
+    },
+    {
+      "id": "card-five-of-pentacles",
+      "name": "Five of Pentacles",
+      "file": "five-of-pentacles.webp",
+      "seed": 1542023636,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Five of Pentacles. two poor but resilient human travelers crossing snow beneath a glowing stained-glass window with five pentacles. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "79374f9145fe6bcf2077643ffc362a17c36d68d90d400265df39d49323fd0c6b",
+      "final_sha256": "a6e5e046ff55861dac268504acfbdad83fee5b3809cdfa873c047ee9f782532c"
+    },
+    {
+      "id": "card-six-of-pentacles",
+      "name": "Six of Pentacles",
+      "file": "six-of-pentacles.webp",
+      "seed": 1783353349,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Six of Pentacles. a wealthy human benefactor distributing coins to two kneeling adults while holding balanced scales, public square. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "5e9d41831fadb033049daf258dfefa14aa1a7b4b98884f041851fbbe4f87927a",
+      "final_sha256": "60c232fe94503b62c825990687fcd249e43bf48da3801119baa0f41455775dfc"
+    },
+    {
+      "id": "card-seven-of-pentacles",
+      "name": "Seven of Pentacles",
+      "file": "seven-of-pentacles.webp",
+      "seed": 311850925,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Seven of Pentacles. a tired human gardener leaning on a tool and assessing seven golden pentacles growing on a living vine, evening light. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "dfd5febc38ae806937093fa442dc57d67d3476b35ce084141316ae466437f332",
+      "final_sha256": "442093985a7a4d45ac302cd73c9f104824784615a02b1c7cdbe6d8fb0c68b98f"
+    },
+    {
+      "id": "card-eight-of-pentacles",
+      "name": "Eight of Pentacles",
+      "file": "eight-of-pentacles.webp",
+      "seed": 1728556027,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Eight of Pentacles. a focused human metalsmith engraving the eighth pentacle at a workbench while seven finished pieces hang nearby. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "9438e6b5f17a255fc7a9bb4c33d5e7a362eab7c069705612a86dcefa9e295ecc",
+      "final_sha256": "3b5e8554628cd54e7090b5b001e285bbd02e32b15bb82916ab03012c263236b4"
+    },
+    {
+      "id": "card-nine-of-pentacles",
+      "name": "Nine of Pentacles",
+      "file": "nine-of-pentacles.webp",
+      "seed": 1751981047,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Nine of Pentacles. an independent human noble in an embroidered garden with nine pentacles and a hooded falcon, vineyard at golden hour. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "f2aff7cc359003af93eee172a81eb40446d5fc39a0dbdeaddbb986a748463d3c",
+      "final_sha256": "996f27bd7767889d704fb15f8f01626ca98822437d05364836d2684817689cfa"
+    },
+    {
+      "id": "card-ten-of-pentacles",
+      "name": "Ten of Pentacles",
+      "file": "ten-of-pentacles.webp",
+      "seed": 1431686566,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Ten of Pentacles. three generations of a fully clothed human family beneath an arch of ten pentacles, dogs, ancestral estate, legacy. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "268be3af810606e39ea06f6810b22773669a146465f059b32b4f8bb4d2f9b902",
+      "final_sha256": "5e918092b452b0ea0f29047edb4e43a9f496bbac4d90ac7f3910f39387d741d9"
+    },
+    {
+      "id": "card-page-of-pentacles",
+      "name": "Page of Pentacles",
+      "file": "page-of-pentacles.webp",
+      "seed": 1151616297,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Page of Pentacles. a youthful human scholar holding a glowing pentacle in both hands in a spring meadow, green-gold traveling clothes. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "4d19e9d880ad2b0bbbac784f4fc6cf928f84469a945aae2167ed945ef464ced1",
+      "final_sha256": "58a9c5f8c41b492025801f618dd52c22a5672171f7f81d648dedf576c21bd696"
+    },
+    {
+      "id": "card-knight-of-pentacles",
+      "name": "Knight of Pentacles",
+      "file": "knight-of-pentacles.webp",
+      "seed": 1287280709,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Knight of Pentacles. a human knight in bronze armor on a realistic sturdy black horse holding one pentacle, plowed fields and mountains. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "839c338ddc65447158e4b62e9582152ca09ff0c5621c2526343fcb855572abf8",
+      "final_sha256": "a165b296a40c1723a35bccee980c29366fbd89f8c510f23722d30a18d1e8c57e"
+    },
+    {
+      "id": "card-queen-of-pentacles",
+      "name": "Queen of Pentacles",
+      "file": "queen-of-pentacles.webp",
+      "seed": 248264109,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for Queen of Pentacles. a regal human queen in green velvet and gold embroidery cradling a pentacle on a garden throne, rabbit and roses. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "581c40765be5be39ebe3734f7d711e0d2fc02517e8f38b531af5370c4b4686ea",
+      "final_sha256": "34d1d37be19387394af9e28019d40e006f6fe1a4de5c3dcc10534b95c39c4590"
+    },
+    {
+      "id": "card-king-of-pentacles",
+      "name": "King of Pentacles",
+      "file": "king-of-pentacles.webp",
+      "seed": 323042549,
+      "model": "flux",
+      "prompt": "Original fantasy realistic Tarot painting for King of Pentacles. a mature human king in ornate bronze and emerald armor on a vine-carved throne, golden pentacle, castle and harvest fields. the Verdant Crown realm of mountain gardens, mossy ruins, bronze, gold, harvest fields and warm natural light. Anatomically believable human characters, natural hands, detailed expressive faces, all people fully clothed in layered practical fantasy garments, nonsexual presentation, physically believable skin, hair, leather, cloth, metal, stone and water, cinematic vertical full-scene composition, foreground subject with midground event and distant environment, atmospheric perspective, volumetric rim lighting, rich oil-painted texture, intricate but readable symbolism, dramatic fantasy realism, museum-quality digital painting, entirely original character and costume design, no text, no border, no logo, no signature.",
+      "raw_sha256": "0928178f40d5529969149846139b5613381440e4d9062f62612ca28b6ddfa8cb",
+      "final_sha256": "77266800b379f03f3fd02b382d88cb1db8809a482d57753dbdd5f014b6da69fc"
+    }
+  ]
+}
