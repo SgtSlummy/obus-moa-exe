@@ -75,7 +75,7 @@ function Install-Autostart {
     Status
 }
 function Remove-Autostart {
-    & schtasks.exe /Delete /TN $TaskName /F 2>$null
+    try { & schtasks.exe /Delete /TN $TaskName /F 2>&1 | Out-Null } catch { }
     if (Test-Path $StartupShortcut) { Remove-Item $StartupShortcut -Force }
     Write-Host 'OBus autostart removed.' -ForegroundColor Green
 }
