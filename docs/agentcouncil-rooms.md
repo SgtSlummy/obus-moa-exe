@@ -47,7 +47,7 @@ Adversarial mode follows the stress-test protocol:
 3. Non-leading seats attack the leading position.
 4. Chymeria delivers a verdict and records whether the position survived, was modified, or was overturned.
 
-The complexity gate short-circuits obvious one-step prompts. If no ready and connected Key is available, the room is blocked rather than silently activating a staged Key or rotating accounts.
+The complexity gate short-circuits obvious one-step prompts. If no ready and connected Key is available, OBus uses the offline deterministic planner instead of failing. Offline results are explicitly labeled and record the task/room state without pretending to be model-generated analysis.
 
 ## API contract
 

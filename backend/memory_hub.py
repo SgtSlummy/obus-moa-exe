@@ -16,6 +16,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from backend.process_utils import silent_process_kwargs
+
 
 class MemoryHub:
     def __init__(
@@ -150,7 +152,7 @@ class MemoryHub:
             "--results", str(max(1, limit)),
         ])
         try:
-            completed = subprocess.run(command, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
+            completed = subprocess.run(command, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace", **silent_process_kwargs())
         except (OSError, subprocess.SubprocessError):
             return []
         if completed.returncode != 0:

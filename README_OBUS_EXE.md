@@ -26,7 +26,7 @@ A fully portable Windows EXE that bundles the complete OccultBus Mixture-of-Agen
 | Key ID | Provider | Model | Role |
 |--------|----------|-------|------|
 | key-codex-oauth | OpenAI Codex | gpt-5.6-terra | Final aggregator |
-| key-local-ollama | Local Ollama | llama3.2:latest | Routing/scouting |
+| key-local-ollama | Local Ollama | gpt-oss:20b | Routing/scouting |
 | key-nous-oauth | Nous | upstage/solar-pro4:free | Generalist |
 | key-nvidia-nim | NVIDIA NIM | nvidia/nemotron-3-super-120b-a12b | Reasoning/research |
 
@@ -134,6 +134,7 @@ This means:
 - **Windows DPAPI** encrypts all stored credentials
 - **Local-only** by default (binds to 127.0.0.1)
 - **Environment references only** in UI (no secret input fields)
+- **Offline planning mode** keeps rooms, forums, and route planning usable before any provider is configured
 
 ## Isolated Rooms and Chymeria Forum
 

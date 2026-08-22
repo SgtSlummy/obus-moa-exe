@@ -125,7 +125,7 @@ if cloud_exe and cloud_exe.exists():
     # Launch EXE
     subprocess.Popen([str(cloud_exe)], shell=True)
     print(f"✅ Launched: {cloud_exe}")
-    print(f"\n🌐 Dashboard: http://127.0.0.1:8080/")
+    print(f"\n🌐 Dashboard: http://127.0.0.1:38173/")
     print(f"🧭 First run: Ollama setup wizard")
 
 print(f"\n" + "=" * 70)

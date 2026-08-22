@@ -33,7 +33,9 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.text
-        self.assertIn('data-build="obus-modern-11"', html)
+        self.assertNotIn("data-build", html)
+        self.assertNotIn("build obus", html.lower())
+        self.assertIn("Local → GPT 5.6 Luna", html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
             'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list'
@@ -79,6 +81,7 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/api/dashboard")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
+        self.assertNotIn("build", payload)
         self.assertIn("ollama", payload)
         self.assertIsInstance(payload["ollama"]["connected"], bool)
         self.assertIn("providers", payload)
@@ -112,9 +115,15 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("dynamic_assignments", payload["agents"])
 
     def test_launcher_waits_for_server_before_opening_browser(self):
+        self.assertEqual(obus_launcher.APP_PORT, 38173)
+        self.assertEqual(obus_launcher.APP_URL, "http://127.0.0.1:38173/")
+        self.assertEqual(obus_launcher.HEALTH_URL, "http://127.0.0.1:38173/health")
+        launcher_source = (Path(__file__).parents[1] / "obus_launcher.py").read_text(encoding="utf-8")
+        self.assertNotIn("8080", launcher_source)
+        self.assertNotIn("?build=", launcher_source)
         with patch.object(obus_launcher.urllib.request, "urlopen") as open_mock:
             open_mock.side_effect = [OSError("not ready"), object()]
-            self.assertTrue(obus_launcher.wait_for_server("http://127.0.0.1:8080/health", attempts=2, delay=0))
+            self.assertTrue(obus_launcher.wait_for_server(obus_launcher.HEALTH_URL, attempts=2, delay=0))
             self.assertEqual(open_mock.call_count, 2)
 
     def test_spec_packages_static_files_beside_backend_module(self):
@@ -536,15 +545,14 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(payload["room"]["revision"], 1)
             self.assertEqual(len(payload["private_messages"]), 5)
 
-    def test_room_run_blocks_when_local_key_is_not_connected(self):
+    def test_room_run_uses_offline_planner_when_local_key_is_not_connected(self):
         with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
-            created = self.client.post("/api/rooms", json={"name": "Blocked room", "card_ids": ["card-hermit"]})
+            created = self.client.post("/api/rooms", json={"name": "Offline room", "card_ids": ["card-hermit"]})
             self.assertEqual(created.status_code, 200)
             room_id = created.json()["id"]
             response = self.client.post(f"/api/rooms/{room_id}/run", json={"prompt": "Design a secure service"})
-            self.assertEqual(response.status_code, 503)
-            self.assertIn("ready and connected", response.json()["detail"])
-            self.assertEqual(self.client.get(f"/api/rooms/{room_id}").json()["status"], "blocked")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["decision_packet"]["status"], "offline")
 
     def test_room_runs_in_honest_offline_mode_without_a_provider(self):
         with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
@@ -691,6 +699,149 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("btn.dataset.page==='forge'&&!state.forge", html)
         self.assertNotIn("loadGitHubStatus(),loadForge(),loadRooms()", html)
         self.assertNotIn("const prompt=window.prompt(`Question for", html)
+
+    def test_persistent_agent_runtime_caps_registry_at_thirty(self):
+        for index in range(30):
+            response = self.client.post("/api/runtime/agents", json={
+                "name": f"Agent {index}", "card_id": "card-hermit",
+                "objective": f"Investigate task {index}", "max_steps": 1,
+            })
+            self.assertEqual(response.status_code, 200)
+        overflow = self.client.post("/api/runtime/agents", json={
+            "name": "Agent 31", "card_id": "card-magician", "objective": "Overflow",
+        })
+        self.assertEqual(overflow.status_code, 409)
+        self.assertEqual(len(self.client.get("/api/runtime/agents").json()), 30)
+
+    def test_persistent_agent_executes_in_background_and_keeps_history(self):
+        spawned = self.client.post("/api/runtime/agents", json={
+            "name": "Persistent Hermit", "card_id": "card-hermit",
+            "objective": "Analyze the service architecture", "max_steps": 2,
+        }).json()
+
+        def fake_complete(**kwargs):
+            return f"step {kwargs['step']} from {kwargs['key']['name']}"
+
+        with patch.object(backend, "PERSISTENT_AGENT_COMPLETE", side_effect=fake_complete):
+            started = self.client.post(f"/api/runtime/agents/{spawned['id']}/run", json={"prompt": "Review reliability"})
+            self.assertEqual(started.status_code, 202)
+            deadline = time.time() + 4
+            while time.time() < deadline:
+                agent = self.client.get(f"/api/runtime/agents/{spawned['id']}").json()
+                if agent["status"] in {"complete", "failed", "stopped"}:
+                    break
+                time.sleep(.04)
+        self.assertEqual(agent["status"], "complete")
+        self.assertEqual(agent["run_count"], 1)
+        self.assertEqual(len(agent["history"]), 2)
+        self.assertEqual(agent["history"][0]["provider"], "Local Ollama")
+        serialized = json.dumps(agent).lower()
+        self.assertNotIn("api_key", serialized)
+        self.assertNotIn("bearer ", serialized)
+
+    def test_runtime_provider_matching_uses_capabilities_load_and_cooldown(self):
+        state = backend.load_state()
+        for key in state["keys"]:
+            if key["id"] == "key-codex-oauth":
+                key.update(state="ready", verified=True, approved=True, capabilities=["coding", "analysis", "reasoning"])
+        card = next(card for card in state["cards"] if card["id"] == "card-magician")
+        statuses = {key["id"]: {"connected": key["id"] in {"key-local-ollama", "key-codex-oauth"}} for key in state["keys"]}
+        chosen = backend.select_persistent_agent_key(card, "Implement and review Python code", state, statuses, {})
+        self.assertEqual(chosen["id"], "key-codex-oauth")
+        chosen["cooldown_until"] = time.time() + 600
+        fallback = backend.select_persistent_agent_key(card, "Implement Python code", state, statuses, {})
+        self.assertEqual(fallback["id"], "key-local-ollama")
+
+    def test_runtime_recovers_orphaned_running_agent_as_interrupted(self):
+        state = backend.load_state()
+        state["persistent_agents"] = [{
+            "id": "agent-orphan", "name": "Orphan", "card_id": "card-hermit", "objective": "Recover",
+            "status": "running", "provider_mode": "auto", "key_id": None, "max_steps": 1,
+            "history": [], "run_count": 0, "created_at": "now", "updated_at": "now",
+        }]
+        backend.save_state(state)
+        agents = self.client.get("/api/runtime/agents").json()
+        self.assertEqual(agents[0]["status"], "interrupted")
+
+    def test_primary_local_orchestrator_can_create_agents_rooms_and_forum(self):
+        plan = {
+            "agents": [
+                {"name": "Researcher", "card_id": "card-hermit", "objective": "Research options", "max_steps": 1},
+                {"name": "Builder", "card_id": "card-magician", "objective": "Build solution", "max_steps": 1},
+            ],
+            "rooms": [
+                {"name": "Research room", "card_ids": ["card-hermit", "card-high-priestess"], "mode": "collaborative", "prompt": "Research options", "run": False},
+                {"name": "Build room", "card_ids": ["card-magician", "card-emperor"], "mode": "adversarial", "prompt": "Stress-test implementation", "run": False},
+            ],
+            "forums": [{"title": "Architecture forum", "prompt": "Compare room decisions", "room_names": ["Research room", "Build room"], "run": False}],
+        }
+        with patch.object(backend, "PRIMARY_ORCHESTRATOR_COMPLETE", return_value=json.dumps(plan)):
+            response = self.client.post("/api/runtime/orchestrate", json={"objective": "Create a research and implementation council", "max_agents": 4, "execute": True})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["created_agents"]), 2)
+        self.assertEqual(len(payload["created_rooms"]), 2)
+        self.assertEqual(len(payload["created_forums"]), 1)
+        self.assertEqual(len(self.client.get("/api/runtime/agents").json()), 2)
+        self.assertEqual(len(self.client.get("/api/rooms").json()), 2)
+        self.assertEqual(len(self.client.get("/api/forum/threads").json()), 1)
+
+    def test_gpt_56_luna_is_reserved_aggregate_after_local_stage(self):
+        state = backend.normalize_state({})
+        luna = next(key for key in state["keys"] if key["id"] == "key-codex-oauth")
+        self.assertEqual(state["aggregator_key_id"], "key-codex-oauth")
+        self.assertEqual(luna["name"], "GPT 5.6 Luna")
+        self.assertEqual(luna["model"], "gpt-5.6-luna")
+        self.assertTrue(luna["can_aggregate"])
+        statuses = [
+            {"id": "key-local-ollama", "connected": True},
+            {"id": "key-codex-oauth", "connected": True},
+        ]
+        with patch.object(backend, "provider_statuses", return_value=statuses):
+            assignments = backend.match_cards_to_keys(state["cards"][:4], state, "analyze and code")
+        self.assertTrue(all(item["llm_key"] != "key-codex-oauth" for item in assignments))
+
+    def test_route_executes_local_first_then_luna_aggregate(self):
+        calls = []
+        def local(prompt, model, plan):
+            calls.append(("local", prompt, model))
+            return "LOCAL FIRST PASS"
+        def aggregate(key, original_prompt, local_answer, plan):
+            calls.append(("luna", original_prompt, local_answer, key["model"]))
+            return "LUNA FINAL ANSWER"
+        statuses = [
+            {"id": "key-local-ollama", "connected": True},
+            {"id": "key-codex-oauth", "connected": True},
+        ]
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}), \
+             patch.object(backend, "provider_statuses", return_value=statuses), \
+             patch.object(backend, "build_moa_router_command", return_value=None), \
+             patch.object(backend, "generate_with_ollama", side_effect=local), \
+             patch.object(backend, "AGGREGATE_WITH_KEY", side_effect=aggregate):
+            response = self.client.post("/api/route/run", json={"prompt": "Solve this", "model": "llama3.2:latest", "rag_enabled": False})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([call[0] for call in calls], ["local", "luna"])
+        self.assertEqual(payload["local_result"], "LOCAL FIRST PASS")
+        self.assertEqual(payload["final"], "LUNA FINAL ANSWER")
+        self.assertEqual(payload["aggregate"]["model"], "gpt-5.6-luna")
+        self.assertEqual(payload["stages"], ["local", "aggregate"])
+
+    def test_local_orchestrator_clamps_agent_steps_to_safety_limit(self):
+        raw = json.dumps({"agents": [{"name": "A", "card_id": "card-hermit", "objective": "Research", "max_steps": 100}], "rooms": [], "forums": []})
+        plan = backend.parse_orchestrator_plan(raw, 2)
+        self.assertEqual(plan.agents[0].max_steps, 8)
+
+    def test_agent_runtime_ui_has_persistent_spawn_and_orchestrator_controls(self):
+        html = self.client.get("/").text
+        for control_id in (
+            "runtime-agent-list", "runtime-spawn-card", "runtime-spawn-objective", "runtime-spawn-agent",
+            "runtime-orchestrator-objective", "runtime-orchestrator-max", "runtime-orchestrate",
+            "runtime-event-log",
+        ):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("Persistent Agents", html)
+        self.assertIn("maximum 30", html)
 
     def test_forum_question_and_room_configuration_invalidate_stale_round_state(self):
         with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):

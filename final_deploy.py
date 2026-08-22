@@ -106,7 +106,7 @@ if exe_src:
 ## How to Run
 1. **First Run**: Double-click OBus.exe → Ollama setup wizard
 2. **Install Ollama**: https://ollama.com/download
-3. **Run**: Select model `llama3.2:latest`
+3. **Run**: Select model `gpt-oss:20b`
 4. **Dashboard**: Opens automatically
 
 ## Features
@@ -143,7 +143,7 @@ except Exception as e:
 try:
     subprocess.Popen([str(CLOUD_ROOT / 'OBus.exe')], shell=True)
     print(f"✅ Launched {CLOUD_ROOT / 'OBus.exe'}")
-    print(f"\n🌐 URL: http://127.0.0.1:8080/")
+    print(f"\n🌐 URL: http://127.0.0.1:38173/")
     print(f"🧭 First run: Ollama setup wizard opens")
 except Exception as e:
     print(f"⚠ Launch: {e}")
