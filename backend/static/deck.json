@@ -1,0 +1,97 @@
+{
+  "decks": [
+    {
+      "id": "rider-waite-smith",
+      "name": "Rider–Waite–Smith",
+      "symbol": "🃏",
+      "description": "Classic deck with accessible archetypes. Broad coverage across all domains.",
+      "style": "clear symbolic archetypes, accessible language, broad coverage",
+      "best_for": ["general_routing", "creative_briefs", "copywriting", "campaigns", "user_facing_strategy"],
+      "image_pack": "/static/tarot/rws/",
+      "enabled": true,
+      "priority": 5,
+      "cards": ["card-high-priestess", "card-magician", "card-hermit", "card-emperor", "card-fool"]
+    },
+    {
+      "id": "thoth",
+      "name": "Thoth",
+      "symbol": "📚",
+      "description": "Dense esoteric correspondences. Analytical, abstract, structural thinking.",
+      "style": "dense esoteric correspondences, analytical, abstract, structural",
+      "best_for": ["systems_architecture", "deep_analysis", "research_synthesis", "technical_planning", "multi_agent_decomposition"],
+      "image_pack": "/static/tarot/thoth/",
+      "enabled": true,
+      "priority": 3,
+      "cards": ["card-hermit", "card-emperor", "card-pyramid", "card-astrology"]
+    },
+    {
+      "id": "marseille",
+      "name": "Tarot de Marseille",
+      "symbol": "♎",
+      "description": "Historical minimalist design. Crisp archetypes, logical clarity.",
+      "style": "minimalist, historical, crisp archetypes, logical",
+      "best_for": ["logic_checks", "legal_policy_reasoning", "audit_trails", "simple_deterministic_decisions"],
+      "image_pack": "/static/tarot/marseille/",
+      "enabled": true,
+      "priority": 4,
+      "cards": ["card-emperor", "card-fortune", "card-strength", "card-tower"]
+    },
+    {
+      "id": "wild-unknown",
+      "name": "Wild Unknown",
+      "symbol": "🐾",
+      "description": "Animal-centric visual style. Atmospheric, intuitive, symbolic artistic work.",
+      "style": "visual, atmospheric, intuitive, symbolic, artistic",
+      "best_for": ["visual_storyboards", "brand_moodboards", "emotion_led_creative_work", "narrative_tone"],
+      "image_pack": "/static/tarot/wild-unknown/",
+      "enabled": true,
+      "priority": 2,
+      "cards": ["card-high-priestess", "card-magician", "card-fool", "card-devil"]
+    },
+    {
+      "id": "hermetic",
+      "name": "Hermetic Tarot",
+      "symbol": "🔺",
+      "description": "Authoritative symbolism. Analytical, correspondence-driven esoteric reasoning.",
+      "style": "symbol-dense, analytical, correspondence-driven, esoteric, authoritative",
+      "best_for": ["security_review", "threat_modeling", "occult_esoteric_research", "symbol_heavy_reasoning"],
+      "image_pack": "/static/tarot/hermetic/",
+      "enabled": true,
+      "priority": 1,
+      "cards": ["card-hermit", "card-high-priestess", "card-hierophant", "card-devil"]
+    },
+    {
+      "id": "golden-dawn",
+      "name": "Golden Dawn",
+      "symbol": "✶",
+      "description": "Rich correspondences and color symbolism. Structured ceremonial logic, system mapping.",
+      "style": "structured correspondences, ceremonial logic, system mapping, complex, ritualized",
+      "best_for": ["agent_orchestration", "ritualized_workflows", "complex_multi_step_planning", "classification"],
+      "image_pack": "/static/tarot/golden-dawn/",
+      "enabled": true,
+      "priority": 2,
+      "cards": ["card-emperor", "card-hierophant", "card-chariot", "card-world"]
+    },
+    {
+      "id": "urban-tarot",
+      "name": "Urban Tarot",
+      "symbol": "🏙️",
+      "description": "Modern urban aesthetic. Practical business contexts, startup scenarios.",
+      "style": "contemporary, pragmatic, business, urban, commercial, modern",
+      "best_for": ["startup_planning", "product_launches", "market_positioning", "modern_business_scenarios"],
+      "image_pack": "/static/tarot/urban/",
+      "enabled": true,
+      "priority": 3,
+      "cards": ["card-magician", "card-empress", "card-emperor", "card-world"]
+    }
+  ],
+  "deck_keywords": {
+    "hermetic": ["security", "attack", "threat", "security review", "audit", "vulnerability", "pentest", "risk", "occult", "esoteric", "symbol", "threat modeling", "penetration test", "vulnerability assessment"],
+    "thoth": ["architecture", "systems", "research synthesis", "planning", "decomposition", "technical", "deep", "intellectual", "abstract", "systems architecture", "deep analysis", "research"],
+    "marseille": ["logic", "legal", "policy", "compliance", "audit", "deterministic", "legal/policy", "audit trail", "rational", "deterministic decision"],
+    "wild-unknown": ["storyboard", "visual", "moodboard", "brand feel", "atmospheric", "intuitive", "narrative", "emotional", "visual storyboards", "brand moodboards"],
+    "golden-dawn": ["orchestration", "workflow", "classification", "multi-step", "complex", "ceremonial", "agent", "agent orchestration", "ritualized workflows", "classification"],
+    "urban-tarot": ["startup", "product", "launch", "market", "business", "commercial", "scaling", "modern", "startup planning", "product launches", "market positioning"],
+    "rider-waite-smith": ["general", "brief", "campaign", "user", "client", "copy", "creative", "strategy", "general routing", "creative briefs", "copywriting"]
+  }
+}

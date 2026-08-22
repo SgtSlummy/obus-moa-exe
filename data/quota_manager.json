@@ -1,0 +1,52 @@
+{
+  "provider_quotas": {
+    "key-codex-oauth": {
+      "status": "active",
+      "source": "headers",
+      "message": "Waiting for API response to determine quota",
+      "reset_seconds": null
+    },
+    "key-local-ollama": {
+      "status": "active",
+      "source": "local",
+      "message": "Local provider - no credit limits",
+      "reset_seconds": null
+    },
+    "key-nous-oauth": {
+      "status": "unknown",
+      "source": "unknown",
+      "message": "Connect and verify to determine quota",
+      "reset_seconds": null
+    },
+    "key-nvidia-nim": {
+      "status": "unknown", 
+      "source": "unknown",
+      "message": "Connect and verify to determine quota",
+      "reset_seconds": null
+    }
+  },
+  "agent_windows": {
+    "card-high-priestess:key-codex-oauth": {
+      "status": "active",
+      "credits_remaining": 100,
+      "credits_total": 100,
+      "message": "Ready",
+      "reset_seconds": 3600
+    },
+    "card-hermit:key-nous-oauth": {
+      "status": "unknown",
+      "credits_remaining": null,
+      "credits_total": null,
+      "message": "Waiting for verification",
+      "reset_seconds": null
+    },
+    "card-emperor:key-nvidia-nim": {
+      "status": "unknown",
+      "credits_remaining": null,
+      "credits_total": null,
+      "message": "Waiting for verification",
+      "reset_seconds": null
+    }
+  },
+  "last_updated": "2026-08-21T12:00:00Z"
+}

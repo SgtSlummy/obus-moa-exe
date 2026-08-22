@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0a0033"/>
+      <stop offset="100%" stop-color="#070418"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFC845"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="115" fill="none" stroke="#151030" stroke-width="6"/>
+  <polygon points="128,48 153,96 128,144 103,96" fill="url(#gold)" stroke="#FFD700" stroke-width="4"/>
+  <polygon points="128,48 114,72 95,96 128,112 161,96 180,72" fill="none" stroke="url(#gold)" stroke-width="4"/>
+  <circle cx="128" cy="128" r="45" fill="none" stroke="url(#cyan)" stroke-width="2"/>
+  <text x="128" y="175" font-family="Arial" font-size="42" font-weight="bold" fill="url(#cyan)" text-anchor="middle" letter-spacing="6">OBUS</text>
+  <circle cx="34" cy="128" r="12" fill="url(#gold)"/>
+  <circle cx="222" cy="128" r="12" fill="url(#cyan)"/>
+  <circle cx="128" cy="34" r="12" fill="url(#gold)"/>
+  <circle cx="128" cy="222" r="12" fill="url(#cyan)"/>
+</svg>

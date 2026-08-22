@@ -1,0 +1,6 @@
+fastapi>=0.116,<1
+uvicorn>=0.35,<1
+pydantic>=2.11,<3
+pyinstaller>=6.15,<7
+pillow>=11,<13
+cryptography>=45,<51
