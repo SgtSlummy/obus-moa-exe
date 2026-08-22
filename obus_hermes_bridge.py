@@ -80,9 +80,8 @@ def extract_prompt(messages: Any) -> str:
     if not isinstance(messages, list):
         return str(messages or "")[:32_000]
     lines: list[str] = []
-    system_messages = [message for message in messages if isinstance(message, dict) and message.get("role") == "system"]
-    conversation = [message for message in messages if isinstance(message, dict) and message.get("role") != "system"][-8:]
-    for message in system_messages[:2] + conversation:
+    conversation = [message for message in messages if isinstance(message, dict) and message.get("role") != "system"][-6:]
+    for message in conversation:
         if not isinstance(message, dict):
             continue
         role = str(message.get("role", "user"))
@@ -95,7 +94,7 @@ def extract_prompt(messages: Any) -> str:
 
 def run_obus(prompt: str, model: str) -> str:
     runtime.ensure_running()
-    body = json.dumps({"prompt": prompt, "model": None, "deck_mode": "auto", "rag_enabled": True}).encode("utf-8")
+    body = json.dumps({"prompt": "Answer the user's request directly in plain text.\n\n" + prompt, "model": None, "deck_mode": "auto", "rag_enabled": True}).encode("utf-8")
     request = Request(
         f"{OBUS_URL}/api/route/run",
         data=body,
@@ -143,7 +142,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            state = runtime.health()
+            try:
+                state = runtime.ensure_running()
+            except RuntimeError:
+                state = runtime.health()
             self._json({"status": "ok" if state.get("reachable") else "degraded", "service": "obus-hermes-bridge", "obus": state})
             return
         if self.path == "/v1/models":
@@ -174,6 +176,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
 def serve(stop_event: threading.Event | None = None) -> None:
     server = ThreadingHTTPServer((BRIDGE_HOST, BRIDGE_PORT), BridgeHandler)
     print(f"OBus Hermes bridge listening at http://{BRIDGE_HOST}:{BRIDGE_PORT}")
+    try:
+        runtime.ensure_running()
+    except RuntimeError as exc:
+        print(f"OBus startup is deferred until the next health/request check: {exc}")
     try:
         if stop_event is None:
             server.serve_forever()
