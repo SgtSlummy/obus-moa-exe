@@ -27,9 +27,9 @@ function Require-Admin {
     Start-Process powershell.exe -Verb RunAs -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$PSCommandPath,'-Action',$Action) -WorkingDirectory $ProjectRoot | Out-Null
     exit 0
 }
-function Invoke-Wrapper([string[]]$Args) {
+function Invoke-Wrapper([string[]]$CommandArgs) {
     if (-not (Test-Path $Python)) { throw "Python runtime not found: $Python" }
-    & $Python $Wrapper @Args
+    & $Python $Wrapper @CommandArgs
     if ($LASTEXITCODE -ne 0) { throw "OBus service command failed with exit code $LASTEXITCODE." }
 }
 function Service-Text { return ((& sc.exe query $ServiceName 2>&1 | Out-String).Trim()) }
