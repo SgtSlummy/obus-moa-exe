@@ -11,7 +11,8 @@ hiddenimports = [
     "jinja2", "jinja2.environment", "jinja2.loaders", "jinja2.exceptions",
     "markupsafe", "itsdangerous", "click", "h11", "httpcore", "anyio",
     "sniffio", "json", "dataclasses", "datetime", "typing",
-    "backend.main", "backend.credit_manager", "backend",
+    "backend.main", "backend.credit_manager", "backend.room_models", "backend.room_council",
+    "backend.room_runner", "backend.forum_runtime", "backend",
 ]
 
 datas = []

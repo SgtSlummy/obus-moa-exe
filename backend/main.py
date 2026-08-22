@@ -11,6 +11,7 @@ import mimetypes
 import math
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 import asyncio
@@ -24,6 +25,7 @@ import subprocess
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -35,7 +37,10 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE = DATA_DIR / 'obus_state.json'
 MEMORY_FILE = DATA_DIR / 'memory.json'
-UI_BUILD = "obus-modern-8"
+STATE_LOCK = threading.RLock()
+ROOM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
+FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
+UI_BUILD = "obus-modern-11"
 OLLAMA_URL = "http://127.0.0.1:11434"
 MOA_ROUTER_ROOT = Path(os.environ.get("MOA_ROUTER_ROOT", Path.home() / "MoA-source"))
 MOA_ROUTER_SCRIPT = MOA_ROUTER_ROOT / "moa_router.py"
@@ -153,6 +158,11 @@ def select_deck_for_prompt(prompt: str) -> dict:
 from backend.card_catalog import DEFAULT_CARDS
 from backend.forge_catalog import FORGE_NAME, PROJECTS, PROJECT_BY_ID
 from backend.memory_hub import default_memory_hub
+from backend.solomon_seals import BUILTIN_KEY_IDS, SOLOMON_SEALS
+from backend.room_models import ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate
+from backend.room_council import build_card_prompt, build_chymeria_prompt, build_room_council_plan
+from backend.room_runner import OFFLINE_ROOM_KEY, RoomRuntimeError, offline_room_complete, run_room_council
+from backend.forum_runtime import append_packet_message, append_question_message, public_packet
 
 
 # ==================== SOLOMON'S KEYS ====================
@@ -188,6 +198,14 @@ DEFAULT_KEYS = [
     key_template("key-azure-openai", "Azure OpenAI", "azure", "deployment", "https://example.openai.azure.com", "AZURE_OPENAI_API_KEY", 131072, ["coding", "analysis", "enterprise"], "AZ")
 ]
 
+for _key in DEFAULT_KEYS:
+    _seal = SOLOMON_SEALS[_key["id"]]
+    _key.update(
+        solomon_seal=_seal["name"], solomon_seal_number=_seal["number"],
+        solomon_seal_reason=_seal["reason"],
+        solomon_seal_source="https://commons.wikimedia.org/wiki/" + urllib.parse.quote(_seal["file"].replace(" ", "_"), safe=":_"),
+    )
+
 
 # ==================== STATE MANAGEMENT ====================
 
@@ -198,7 +216,11 @@ def normalize_state(state: dict) -> dict:
     for template in DEFAULT_KEYS:
         value = copy.deepcopy(template)
         value.update(existing_keys.pop(template["id"], {}))
-        value.setdefault("sigil", template["sigil"])
+        value["sigil"] = template["sigil"]
+        value["solomon_seal"] = template["solomon_seal"]
+        value["solomon_seal_number"] = template["solomon_seal_number"]
+        value["solomon_seal_reason"] = template["solomon_seal_reason"]
+        value["solomon_seal_source"] = template["solomon_seal_source"]
         value.setdefault("max_context_tokens", template["max_context_tokens"])
         value.setdefault("capabilities", template["capabilities"])
         value.setdefault("state", template["state"])
@@ -225,25 +247,45 @@ def normalize_state(state: dict) -> dict:
     merged_cards.extend(existing_cards.values())
     state["cards"] = merged_cards
     state.setdefault("aggregator_key_id", "key-codex-oauth")
+    state.setdefault("rooms", [])
+    state.setdefault("room_messages", [])
+    state.setdefault("forum_threads", [])
+    # Keep malformed legacy values from breaking the room/forum runtime.
+    if not isinstance(state["rooms"], list):
+        state["rooms"] = []
+    if not isinstance(state["room_messages"], list):
+        state["room_messages"] = []
+    if not isinstance(state["forum_threads"], list):
+        state["forum_threads"] = []
     return state
 
 
 def load_state() -> dict:
     """Load and migrate state without ever storing secret values."""
-    if STATE_FILE.exists():
-        try:
-            with open(STATE_FILE, encoding="utf-8") as f:
-                return normalize_state(json.load(f))
-        except (OSError, json.JSONDecodeError):
-            pass
-    return normalize_state({})
+    with STATE_LOCK:
+        if STATE_FILE.exists():
+            try:
+                with open(STATE_FILE, encoding="utf-8") as f:
+                    return normalize_state(json.load(f))
+            except (OSError, json.JSONDecodeError):
+                pass
+        return normalize_state({})
 
 
 def save_state(state: dict):
-    """Save state to JSON file"""
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(STATE_FILE, 'w', encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
+    """Atomically save state so concurrent readers never see a partial JSON file."""
+    with STATE_LOCK:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = STATE_FILE.with_name(f".{STATE_FILE.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            with open(temp_path, 'w', encoding="utf-8") as f:
+                json.dump(state, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, STATE_FILE)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
 
 
 # ==================== API MODELS ====================
@@ -266,8 +308,6 @@ class KeyUpdate(BaseModel):
     model: Optional[str] = None
     base_url: Optional[str] = None
     env_var: Optional[str] = None
-    verified: Optional[bool] = None
-    approved: Optional[bool] = None
     state: Optional[str] = None
     symbol: Optional[str] = None
     capabilities: Optional[List[str]] = None
@@ -481,6 +521,85 @@ def parse_codex_device_output(value: str) -> dict:
     }
 
 
+def _models_url(base_url: str) -> str:
+    return base_url.rstrip("/") + "/models"
+
+
+def probe_key_live(key: dict) -> dict:
+    """Run a minimal provider-specific live probe without returning credentials."""
+    provider = str(key.get("provider", "")).lower()
+    if provider == "ollama":
+        status = get_ollama_status()
+        return {
+            "success": bool(status.get("connected")),
+            "status_code": 200 if status.get("connected") else None,
+            "reason": None if status.get("connected") else "runtime_offline",
+            "message": "Ollama runtime and model catalog are reachable" if status.get("connected") else "Ollama runtime is offline",
+        }
+    if provider == "codex":
+        command = codex_command("login", "status")
+        if not command:
+            return {"success": False, "status_code": None, "reason": "cli_missing", "message": "Codex CLI is not installed"}
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
+            output = sanitize_auth_output((result.stdout or "") + (result.stderr or "")).lower()
+            logged_in = result.returncode == 0 and "logged in" in output
+            return {
+                "success": logged_in, "status_code": 200 if logged_in else None,
+                "reason": None if logged_in else "oauth_logged_out",
+                "message": "Codex CLI OAuth session is logged in" if logged_in else "Codex CLI is not logged in",
+            }
+        except (OSError, subprocess.SubprocessError):
+            return {"success": False, "status_code": None, "reason": "cli_unavailable", "message": "Codex CLI status check failed"}
+
+    env_var = key.get("env_var")
+    secret = os.getenv(env_var) if env_var else None
+    if not secret and not key.get("local"):
+        return {"success": False, "status_code": None, "reason": "missing_reference", "message": f"Authorization reference {env_var or 'not configured'} is unavailable"}
+
+    base_url = str(key.get("base_url") or "").strip()
+    parsed = urllib.parse.urlsplit(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        return {"success": False, "status_code": None, "reason": "invalid_url", "message": "Key base URL must be a secret-free HTTP or HTTPS URL"}
+
+    headers = {"Accept": "application/json", "User-Agent": "OBus-Key-Probe/1.0"}
+    if provider == "anthropic":
+        url = _models_url(base_url)
+        headers.update({"x-api-key": secret or "", "anthropic-version": "2023-06-01"})
+    elif provider in {"google", "gemini"}:
+        url = _models_url(base_url)
+        headers["x-goog-api-key"] = secret or ""
+    elif provider == "huggingface":
+        url = "https://huggingface.co/api/whoami-v2"
+        headers["Authorization"] = f"Bearer {secret}"
+    elif provider == "azure":
+        url = base_url.rstrip("/") + "/openai/deployments?api-version=2024-10-21"
+        headers["api-key"] = secret or ""
+    else:
+        url = _models_url(base_url)
+        if secret:
+            headers["Authorization"] = f"Bearer {secret}"
+
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            response.read(4096)
+            status_code = int(getattr(response, "status", 200))
+        return {"success": 200 <= status_code < 300, "status_code": status_code, "reason": None, "message": "Live authorization and model-catalog probe succeeded"}
+    except urllib.error.HTTPError as exc:
+        if exc.code in {401, 403}:
+            reason, message = "authentication_rejected", "Provider rejected the authorization reference"
+        elif exc.code == 429:
+            reason, message = "rate_limited", "Provider authorization reached the service but is rate limited"
+        elif exc.code == 404:
+            reason, message = "endpoint_not_found", "Provider model-catalog endpoint was not found; check the base URL"
+        else:
+            reason, message = "provider_error", f"Provider returned HTTP {exc.code}"
+        return {"success": False, "status_code": exc.code, "reason": reason, "message": message}
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return {"success": False, "status_code": None, "reason": "unreachable", "message": "Provider could not be reached"}
+
+
 CODEX_LOGIN_JOBS: dict[str, dict] = {}
 FORGE_INSTALL_JOBS: dict[str, dict] = {}
 
@@ -657,7 +776,12 @@ def provider_statuses(state: Optional[dict] = None) -> list:
     ollama = get_ollama_status()
     providers = []
     for key in state.get("keys", DEFAULT_KEYS):
-        configured = bool(key.get("local")) or bool(key.get("env_var") and os.getenv(key["env_var"]))
+        if key.get("local"):
+            configured = True
+        elif key.get("provider") == "codex":
+            configured = bool(key.get("verified"))
+        else:
+            configured = bool(key.get("env_var") and os.getenv(key["env_var"]))
         connection_ok = ollama["connected"] if key.get("provider") == "ollama" else bool(key.get("verified") and configured)
         connected = bool(connection_ok and key.get("state", "staged") == "ready")
         context_tokens = int(key.get("max_context_tokens") or 131072)
@@ -671,12 +795,20 @@ def provider_statuses(state: Optional[dict] = None) -> list:
             "model": key["model"],
             "symbol": key.get("symbol", "🗝️"),
             "sigil": key.get("sigil", f"/static/art/keys/{key['id']}.svg"),
+            "solomon_seal": key.get("solomon_seal"),
+            "solomon_seal_number": key.get("solomon_seal_number"),
+            "solomon_seal_reason": key.get("solomon_seal_reason"),
+            "solomon_seal_source": key.get("solomon_seal_source"),
             "base_url": key.get("base_url", ""),
             "env_var": key.get("env_var"),
             "state": key.get("state", "staged"),
             "capabilities": key.get("capabilities", []),
             "max_context_tokens": context_tokens,
             "configured": configured,
+            "verified": bool(key.get("verified")),
+            "verified_at": key.get("verified_at"),
+            "last_probe_reason": key.get("last_probe_reason"),
+            "last_probe_message": key.get("last_probe_message"),
             "connected": connected,
             "status": "ready" if connected else ("configured" if configured else "not configured"),
             "local": bool(key.get("local")),
@@ -1004,20 +1136,354 @@ async def clear_memory():
 
 @app.post("/api/providers/{key_id}/test")
 async def test_provider(key_id: str):
-    provider = next((item for item in provider_statuses() if item["id"] == key_id), None)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    if provider["provider"] == "ollama":
-        result = get_ollama_status()
-        return {"success": result["connected"], **result}
+    """Run a live probe and atomically promote/demote a Solomon Key."""
+    state = load_state()
+    key = next((item for item in state["keys"] if item["id"] == key_id), None)
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+
+    original_state = key.get("state", "staged")
+    env_var = key.get("env_var")
+    needs_reference = not key.get("local") and key.get("provider") != "codex"
+    if needs_reference and (not env_var or not os.getenv(env_var)):
+        key.update(verified=False, approved=False, active=False, last_probe_reason="missing_reference",
+                   last_probe_message=f"Authorization reference {env_var or 'not configured'} is unavailable")
+        if original_state != "disabled":
+            key["state"] = "staged"
+        save_state(state)
+        return {
+            "success": False, "connected": False, "configured": False, "verified": False,
+            "state": key["state"], "reason": "missing_reference", "status_code": None,
+            "message": key["last_probe_message"],
+        }
+
+    result = await asyncio.to_thread(probe_key_live, copy.deepcopy(key))
+    succeeded = bool(result.get("success"))
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    key["last_probe_reason"] = result.get("reason")
+    key["last_probe_message"] = result.get("message")
+    key["last_probe_status_code"] = result.get("status_code")
+    if succeeded:
+        key.update(verified=True, approved=True, active=True, verified_at=now)
+        if original_state != "disabled":
+            key["state"] = "ready"
+    else:
+        key.update(verified=False, approved=False, active=False)
+        if original_state != "disabled":
+            key["state"] = "staged"
+    save_state(state)
+    public = next(item for item in provider_statuses(state) if item["id"] == key_id)
     return {
-        "success": provider["connected"],
-        "connected": provider["connected"],
-        "configured": provider["configured"],
-        "message": ("Provider connection verified" if provider["connected"] else
-                    "Authorization reference found but live provider is not verified" if provider["configured"] else
-                    "Provider authorization is not configured"),
+        "success": succeeded, "connected": public["connected"], "configured": public["configured"],
+        "verified": bool(key.get("verified")), "verified_at": key.get("verified_at"),
+        "state": key["state"], "reason": result.get("reason"), "status_code": result.get("status_code"),
+        "message": result.get("message"),
     }
+
+
+# ==================== ROOMS AND FORUM ====================
+
+
+def _room_slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "room"
+
+
+def room_public(room: dict) -> dict:
+    value = copy.deepcopy(room)
+    value.pop("get_chymeria_card_id", None)
+    value.pop("private_messages", None)
+    return value
+
+
+def room_provider_ready(key: dict) -> bool:
+    if key.get("state") != "ready":
+        return False
+    if key.get("provider") == "offline":
+        return True
+    # The first room executor intentionally supports only the existing local boundary.
+    # Remote Keys remain visible and reference-only until their provider adapter is added.
+    if key.get("provider") == "ollama":
+        status = get_ollama_status()
+        return bool(status.get("connected") and key.get("model") in status.get("models", []))
+    return False
+
+
+def choose_room_chymeria(room_card_ids: list[str], requested_card: Optional[str], requested_key: Optional[str], state: dict) -> dict:
+    if requested_card and requested_card not in room_card_ids:
+        raise HTTPException(status_code=400, detail="Chymeria card must belong to the room hand")
+    card_id = requested_card or room_card_ids[0]
+    keys = state.get("keys", [])
+    if requested_key:
+        key = OFFLINE_ROOM_KEY if requested_key == OFFLINE_ROOM_KEY["id"] else next((item for item in keys if item["id"] == requested_key), None)
+        if not key:
+            raise HTTPException(status_code=404, detail="Chymeria Key not found")
+        if key.get("state") != "ready":
+            raise HTTPException(status_code=400, detail="Chymeria Key must be Ready")
+        if key.get("provider") not in {"ollama", "offline"}:
+            raise HTTPException(status_code=400, detail="Room Chymeria currently supports local Ollama or offline planning Keys only")
+    else:
+        key = next((item for item in keys if item["id"] == "key-local-ollama" and item.get("state") == "ready"), None)
+        key = key or next((item for item in keys if item.get("state") == "ready" and item.get("provider") == "ollama"), None)
+        key = key or OFFLINE_ROOM_KEY
+    return {"card_id": card_id, "key_id": key["id"]}
+
+
+def default_room_complete(**kwargs) -> str:
+    assignment = kwargs["assignment"]
+    prompt = kwargs["prompt"]
+    model = assignment["model"]
+    if assignment.get("llm_key") == OFFLINE_ROOM_KEY["id"]:
+        return offline_room_complete(**kwargs)
+    room_plan = {"selected_deck": {"name": "Room Council"}, "agents": {"dynamic_assignments": []}}
+    if build_moa_router_command(prompt, model) is not None:
+        return generate_with_moa_router(prompt, model, room_plan)
+    return generate_with_ollama(prompt, model, room_plan)
+
+
+ROOM_COMPLETE = default_room_complete
+
+
+def execution_lock(registry: dict[str, threading.Lock], key: str) -> threading.Lock:
+    with STATE_LOCK:
+        return registry.setdefault(key, threading.Lock())
+
+
+@app.post("/api/rooms")
+async def create_room(request: RoomCreate):
+    state = load_state()
+    cards = {card["id"]: card for card in state["cards"]}
+    unknown = [card_id for card_id in request.card_ids if card_id not in cards]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown Tarot cards: {', '.join(unknown)}")
+    room_id_base = "room-" + _room_slug(request.name)
+    room_id = room_id_base
+    suffix = 2
+    existing_ids = {room["id"] for room in state["rooms"]}
+    while room_id in existing_ids:
+        room_id = f"{room_id_base}-{suffix}"
+        suffix += 1
+    now = datetime.now(timezone.utc).isoformat()
+    room = {
+        "id": room_id, "name": request.name, "card_ids": request.card_ids,
+        "mode": request.mode, "chymeria": choose_room_chymeria(request.card_ids, request.chymeria_card_id, request.chymeria_key_id, state),
+        "status": "idle", "revision": 0, "config_revision": 0, "created_at": now, "updated_at": now,
+    }
+    state["rooms"].append(room)
+    save_state(state)
+    return room_public(room)
+
+
+@app.get("/api/rooms")
+async def list_rooms():
+    return [room_public(room) for room in load_state()["rooms"]]
+
+
+@app.get("/api/rooms/{room_id}")
+async def get_room(room_id: str):
+    room = next((item for item in load_state()["rooms"] if item["id"] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return room_public(room)
+
+
+@app.put("/api/rooms/{room_id}")
+async def update_room(room_id: str, request: RoomUpdate):
+    state = load_state()
+    room = next((item for item in state["rooms"] if item["id"] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("status") == "archived":
+        raise HTTPException(status_code=400, detail="Archived rooms cannot be edited")
+    changes = request.model_dump(exclude_unset=True)
+    cards = {card["id"]: card for card in state["cards"]}
+    card_ids = changes.get("card_ids", room["card_ids"])
+    unknown = [card_id for card_id in card_ids if card_id not in cards]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown Tarot cards: {', '.join(unknown)}")
+    configuration_changed = any(key in changes for key in ("card_ids", "mode", "chymeria_card_id", "chymeria_key_id"))
+    if "card_ids" in changes or "chymeria_card_id" in changes or "chymeria_key_id" in changes:
+        current = room.get("chymeria", {})
+        current_card = current.get("card_id") if current.get("card_id") in card_ids else card_ids[0]
+        room["chymeria"] = choose_room_chymeria(card_ids, changes.get("chymeria_card_id", current_card), changes.get("chymeria_key_id", current.get("key_id")), state)
+    for key in ("name", "card_ids", "mode"):
+        if key in changes and changes[key] is not None:
+            room[key] = changes[key]
+    if changes.get("archived"):
+        room["status"] = "archived"
+    if configuration_changed:
+        room["config_revision"] = int(room.get("config_revision", 0)) + 1
+        room.pop("last_packet", None)
+        room["status"] = "idle"
+    room["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_state(state)
+    return room_public(room)
+
+
+@app.delete("/api/rooms/{room_id}")
+async def archive_room(room_id: str):
+    state = load_state()
+    room = next((item for item in state["rooms"] if item["id"] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    room["status"] = "archived"
+    room["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_state(state)
+    return {"success": True, "room": room_public(room)}
+
+
+@app.get("/api/rooms/{room_id}/messages")
+async def get_room_messages(room_id: str):
+    state = load_state()
+    if not any(room["id"] == room_id for room in state["rooms"]):
+        raise HTTPException(status_code=404, detail="Room not found")
+    return [message for message in state["room_messages"] if message.get("room_id") == room_id]
+
+
+@app.post("/api/rooms/{room_id}/run")
+async def run_room(room_id: str, request: RoomRunRequest):
+    lock = execution_lock(ROOM_EXECUTION_LOCKS, room_id)
+    if not lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Room already has a run in progress")
+    try:
+        state = load_state()
+        room = next((item for item in state["rooms"] if item["id"] == room_id), None)
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+        if room.get("status") == "archived":
+            raise HTTPException(status_code=400, detail="Archived rooms cannot run")
+        room.update(status="running", current_phase="starting", progress_count=0,
+                    last_prompt=request.prompt, run_started_at=datetime.now(timezone.utc).isoformat())
+        state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
+        save_state(state)
+        room_prompt = request.prompt
+        rag_results = get_memory_hub().search(request.prompt, limit=4) if request.rag_enabled else []
+        if rag_results:
+            context = "\n".join(f"- {item.get('source')}: {item.get('text', '')}" for item in rag_results)
+            room_prompt = f"{request.prompt}\n\nRelevant local memory context:\n{context}"
+
+        def persist_deliberation(message: dict) -> None:
+            state["room_messages"].append(message)
+            room["current_phase"] = message.get("phase", "deliberating")
+            room["progress_count"] = len([item for item in state["room_messages"] if item.get("room_id") == room_id])
+            room["updated_at"] = datetime.now(timezone.utc).isoformat()
+            save_state(state)
+
+        try:
+            result = await asyncio.to_thread(
+                run_room_council, room, state, room_prompt, ROOM_COMPLETE, room_provider_ready, [], persist_deliberation
+            )
+        except RoomRuntimeError as exc:
+            room["status"] = "blocked"
+            room["current_phase"] = "blocked"
+            save_state(state)
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except Exception as exc:
+            room["status"] = "failed"
+            room["current_phase"] = "failed"
+            room["last_error"] = type(exc).__name__
+            save_state(state)
+            raise HTTPException(status_code=502, detail="Room execution failed") from exc
+        room["current_phase"] = "complete"
+        room["progress_count"] = len(result["private_messages"])
+        state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
+        state["room_messages"].extend(result["private_messages"])
+        save_state(state)
+        return {"room": room_public(room), "plan": result["plan"], "decision_packet": public_packet(result["decision_packet"]), "private_messages": result["private_messages"], "assignments": result["assignments"], "rag": {"enabled": request.rag_enabled, "sources": [item.get("source") for item in rag_results], "snippets": len(rag_results)}}
+    finally:
+        lock.release()
+
+
+@app.post("/api/forum/threads")
+async def create_forum_thread(request: ForumThreadCreate):
+    state = load_state()
+    rooms = {room["id"]: room for room in state["rooms"]}
+    unknown = [room_id for room_id in request.room_ids if room_id not in rooms]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown rooms: {', '.join(unknown)}")
+    if any(rooms[room_id].get("status") == "archived" for room_id in request.room_ids):
+        raise HTTPException(status_code=400, detail="Archived rooms cannot join a forum")
+    base_id = "forum-" + _room_slug(request.title)
+    thread_id = base_id
+    suffix = 2
+    existing = {thread["id"] for thread in state["forum_threads"]}
+    while thread_id in existing:
+        thread_id = f"{base_id}-{suffix}"
+        suffix += 1
+    now = datetime.now(timezone.utc).isoformat()
+    thread = {"id": thread_id, "title": request.title, "prompt": request.prompt, "room_ids": request.room_ids, "revision": 0, "messages": [], "status": "idle", "created_at": now, "updated_at": now}
+    state["forum_threads"].append(thread)
+    save_state(state)
+    return thread
+
+
+@app.get("/api/forum/threads")
+async def list_forum_threads():
+    return load_state()["forum_threads"]
+
+
+@app.get("/api/forum/threads/{thread_id}")
+async def get_forum_thread(thread_id: str):
+    thread = next((item for item in load_state()["forum_threads"] if item["id"] == thread_id), None)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Forum thread not found")
+    return thread
+
+
+@app.post("/api/forum/threads/{thread_id}/messages")
+async def post_forum_message(thread_id: str, request: ForumMessageCreate):
+    state = load_state()
+    thread = next((item for item in state["forum_threads"] if item["id"] == thread_id), None)
+    room = next((item for item in state["rooms"] if item["id"] == request.room_id), None)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Forum thread not found")
+    if not room or request.room_id not in thread["room_ids"]:
+        raise HTTPException(status_code=400, detail="Room is not a participant in this forum")
+    if request.reply_to and not any(message.get("id") == request.reply_to for message in thread.get("messages", [])):
+        raise HTTPException(status_code=400, detail="reply_to must reference a message in this forum thread")
+    message = append_question_message(thread, request.model_dump(), room)
+    save_state(state)
+    return message
+
+
+@app.post("/api/forum/threads/{thread_id}/round")
+async def run_forum_round(thread_id: str):
+    lock = execution_lock(FORUM_EXECUTION_LOCKS, thread_id)
+    if not lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Forum thread already has a round in progress")
+    try:
+        state = load_state()
+        thread = next((item for item in state["forum_threads"] if item["id"] == thread_id), None)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Forum thread not found")
+        rooms = {room["id"]: room for room in state["rooms"]}
+        if any(room_id not in rooms or rooms[room_id].get("status") == "archived" for room_id in thread["room_ids"]):
+            raise HTTPException(status_code=400, detail="Forum contains an unavailable room")
+        signature = f"thread:{thread.get('revision', 0)}|" + ":".join(f"{room_id}:{rooms[room_id].get('revision', 0)}:{rooms[room_id].get('config_revision', 0)}" for room_id in thread["room_ids"])
+        if thread.get("last_round_signature") == signature:
+            return {"thread": thread, "messages": thread.get("messages", []), "idempotent": True}
+        thread["status"] = "running"
+        public_packets = [rooms[room_id].get("last_packet") for room_id in thread["room_ids"] if rooms[room_id].get("last_packet")]
+        new_messages = []
+        try:
+            for room_id in thread["room_ids"]:
+                room = rooms[room_id]
+                peer_packets = [packet for packet in public_packets if packet.get("room_id") != room_id]
+                result = await asyncio.to_thread(run_room_council, room, state, thread["prompt"], ROOM_COMPLETE, room_provider_ready, peer_packets)
+                state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
+                state["room_messages"].extend(result["private_messages"])
+                message = append_packet_message(thread, result["decision_packet"], room)
+                if message:
+                    new_messages.append(message)
+        except RoomRuntimeError as exc:
+            thread["status"] = "blocked"
+            save_state(state)
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        thread["status"] = "complete"
+        thread["last_round_signature"] = f"thread:{thread.get('revision', 0)}|" + ":".join(f"{room_id}:{rooms[room_id].get('revision', 0)}:{rooms[room_id].get('config_revision', 0)}" for room_id in thread["room_ids"])
+        save_state(state)
+        return {"thread": thread, "messages": thread.get("messages", []), "new_messages": new_messages, "idempotent": False}
+    finally:
+        lock.release()
 
 
 # ==================== DECK ENDPOINTS ====================
@@ -1126,6 +1592,8 @@ async def create_key(create: KeyCreate):
     """Create a reference-only Solomon's Key; raw credential values are forbidden."""
     if create.state not in {"ready", "staged", "disabled"}:
         raise HTTPException(status_code=400, detail="state must be ready, staged, or disabled")
+    if create.state == "ready" and not create.local:
+        raise HTTPException(status_code=400, detail="Create the Key as staged, then use Test & enable")
     if create.max_context_tokens <= 0:
         raise HTTPException(status_code=400, detail="Context window must be positive")
     state = load_state()
@@ -1139,8 +1607,8 @@ async def create_key(create: KeyCreate):
         suffix += 1
     key = create.model_dump()
     key.update({
-        "id": key_id, "oauth": False, "verified": bool(create.local),
-        "approved": bool(create.local), "active": bool(create.local),
+        "id": key_id, "oauth": False, "verified": False,
+        "approved": False, "active": False,
         "sigil": f"/api/keys/{key_id}/sigil.svg",
     })
     state["keys"].append(key)
@@ -1167,7 +1635,18 @@ async def update_key(key_id: str, update: KeyUpdate = Body(...)):
         raise HTTPException(status_code=400, detail="state must be ready, staged, or disabled")
     if changes.get("max_context_tokens") is not None and changes["max_context_tokens"] <= 0:
         raise HTTPException(status_code=400, detail="Context window must be positive")
+    sensitive_fields = {"provider", "model", "base_url", "env_var"}
+    sensitive_changed = any(field in changes and changes[field] != key.get(field) for field in sensitive_fields)
+    prospective_verified = bool(key.get("verified")) and not sensitive_changed
+    prospective_approved = bool(key.get("approved")) and not sensitive_changed
+    if changes.get("state") == "ready" and not sensitive_changed and not (prospective_verified and prospective_approved):
+        raise HTTPException(status_code=400, detail="Run Test & enable successfully before setting this Key to Ready")
     key.update(changes)
+    if sensitive_changed:
+        key.update(verified=False, approved=False, active=False, verified_at=None,
+                   last_probe_reason="configuration_changed", last_probe_message="Configuration changed; run Test & enable again")
+        if key.get("state") != "disabled":
+            key["state"] = "staged"
     save_state(state)
     return key
 
@@ -1208,23 +1687,8 @@ async def custom_key_sigil(key_id: str):
 
 @app.post("/api/keys/{key_id}/verify")
 async def verify_key(key_id: str):
-    """Verify a Solomon's key"""
-    state = load_state()
-    key = next((k for k in state["keys"] if k["id"] == key_id), None)
-    if not key:
-        raise HTTPException(status_code=404, detail="Key not found")
-    
-    if key.get("env_var"):
-        from os import getenv
-        env_value = getenv(key["env_var"])
-        if not env_value:
-            return {"status": "missing_env", "message": f"Set environment variable {key['env_var']}"}
-    
-    key["verified"] = True
-    key["approved"] = True
-    save_state(state)
-    
-    return {"status": "success", "message": f"Key {key['name']} verified and approved"}
+    """Backward-compatible alias for the full live Test & enable transition."""
+    return await test_provider(key_id)
 
 
 # ==================== AUTHENTICATION ====================
@@ -1327,7 +1791,14 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
         if key.get("state", "staged") == "ready" and statuses.get(key["id"], {}).get("connected")
     ]
     if not eligible:
-        return []
+        return [{
+            "agent_id": card["id"], "agent_title": card["name"], "persona": card["persona"],
+            "provider": OFFLINE_ROOM_KEY["name"], "model": OFFLINE_ROOM_KEY["model"],
+            "llm_key": OFFLINE_ROOM_KEY["id"], "pairing_mode": "offline",
+            "confidence": 0.0, "active_in_deck": True, "capabilities": card.get("capabilities", []),
+            "tool_ids": [], "configured_tool_ids": card.get("tool_ids", []),
+            "max_context_tokens": OFFLINE_ROOM_KEY["max_context_tokens"], "sigil": None,
+        } for card in cards]
     prompt_words = set(re.findall(r"[a-z_]+", prompt.lower()))
     assignments = []
     use_counts = {key["id"]: 0 for key in eligible}
@@ -1388,6 +1859,8 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None):
     aggregator = next((key for key in ready_aggregators if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None and ready_aggregators:
         aggregator = ready_aggregators[0]
+    if aggregator is None:
+        aggregator = OFFLINE_ROOM_KEY
     hub_results = get_memory_hub().search(prompt, limit=4)
     hub_characters = sum(len(str(item.get("text", ""))) for item in hub_results)
     
@@ -1415,7 +1888,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None):
                 "model": aggregator["model"],
                 "llm_key": aggregator["id"],
                 "max_context_tokens": aggregator.get("max_context_tokens", 131072),
-            } if aggregator else None
+            }
         },
         "rag": {
             "enabled": True,
@@ -1502,14 +1975,32 @@ def generate_with_ollama(prompt: str, model: str, plan: dict) -> str:
     return answer
 
 
+def generate_offline_answer(prompt: str, plan: dict) -> str:
+    """Keep routing usable without pretending that a model answered the task."""
+    assignments = plan["agents"].get("dynamic_assignments", [])
+    seats = ", ".join(item["agent_title"] for item in assignments[:5]) or "no provider-backed seats"
+    return (
+        "Offline planning mode is active because no provider/model is configured.\n"
+        f"Selected deck: {plan['selected_deck']['name']}\n"
+        f"Room seats: {seats}\n"
+        f"Task recorded: {prompt[:500]}\n\n"
+        "Configure and verify a Solomon's Key to receive model-generated analysis."
+    )
+
+
 @app.post("/api/route/run")
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     plan = await plan_route(request.prompt, request.deck_mode)
     settings = get_settings()
     model = request.model or settings["selected_model"]
-    if model not in get_ollama_status().get("models", []):
-        raise HTTPException(status_code=503, detail=f"Ollama model is not installed: {model}")
+    ollama_status = get_ollama_status()
+    if model not in ollama_status.get("models", []):
+        return {
+            "status": "complete", "engine": "offline-planner", "model": OFFLINE_ROOM_KEY["model"],
+            "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "final": generate_offline_answer(request.prompt, plan),
+        }
     try:
         routed_prompt = request.prompt
         if request.rag_enabled and plan.get("rag", {}).get("hub_results"):

@@ -1,5 +1,8 @@
 import json
+import os
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -30,7 +33,7 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.text
-        self.assertIn('data-build="obus-modern-8"', html)
+        self.assertIn('data-build="obus-modern-11"', html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
             'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list'
@@ -174,7 +177,99 @@ class RuntimeContractTests(unittest.TestCase):
         for control_id in ("add-key", "key-dialog", "key-provider", "key-name", "key-model", "key-env-var", "save-key"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("pairing-select", html)
+        self.assertIn("Test &amp; enable", html)
+        self.assertIn("Ready — set automatically after successful live test", html)
+        self.assertIn("Configured:", html)
+        self.assertIn("Verified:", html)
+        self.assertIn('data-page="providers">⌘ Keys</button>', html)
+        self.assertIn("Solomon’s Key registry", html)
+        self.assertNotIn(">⌘ Providers</button>", html)
+        self.assertNotIn("Provider readiness", html)
         self.assertNotIn('name="api_key"', html)
+
+    def test_key_live_test_promotes_staged_to_ready_atomically(self):
+        secret = "unit-test-secret-that-must-never-leak"
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": secret}, clear=False), patch.object(
+            backend, "probe_key_live", return_value={"success": True, "message": "Live model-list probe succeeded", "status_code": 200}
+        ):
+            response = self.client.post("/api/providers/key-anthropic/test")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["state"], "ready")
+        self.assertTrue(payload["verified"])
+        self.assertNotIn(secret, json.dumps(payload))
+        persisted = next(item for item in json.loads(self.state_file.read_text(encoding="utf-8"))["keys"] if item["id"] == "key-anthropic")
+        self.assertEqual(persisted["state"], "ready")
+        self.assertTrue(persisted["verified"])
+        self.assertTrue(persisted["approved"])
+        self.assertTrue(persisted["active"])
+        self.assertTrue(persisted["verified_at"])
+
+    def test_failed_live_test_demotes_ready_key_and_redacts_credentials(self):
+        secret = "invalid-secret-that-must-never-leak"
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": secret}, clear=False), patch.object(
+            backend, "probe_key_live", return_value={"success": True, "message": "Initial live probe succeeded", "status_code": 200}
+        ):
+            promoted = self.client.post("/api/providers/key-anthropic/test").json()
+        self.assertEqual(promoted["state"], "ready")
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": secret}, clear=False), patch.object(
+            backend, "probe_key_live", return_value={"success": False, "message": "Authentication rejected", "status_code": 401, "reason": "authentication_rejected"}
+        ):
+            response = self.client.post("/api/providers/key-anthropic/test")
+        payload = response.json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["state"], "staged")
+        self.assertFalse(payload["verified"])
+        self.assertEqual(payload["reason"], "authentication_rejected")
+        self.assertNotIn(secret, json.dumps(payload))
+
+    def test_successful_test_keeps_disabled_key_disabled(self):
+        self.client.put("/api/keys/key-anthropic", json={"state": "disabled"})
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-only"}, clear=False), patch.object(
+            backend, "probe_key_live", return_value={"success": True, "message": "Live probe succeeded", "status_code": 200}
+        ):
+            payload = self.client.post("/api/providers/key-anthropic/test").json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["state"], "disabled")
+        self.assertTrue(payload["verified"])
+        self.assertFalse(payload["connected"])
+
+    def test_missing_authorization_reference_never_calls_live_probe(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GOOGLE_API_KEY", None)
+            with patch.object(backend, "probe_key_live") as probe:
+                payload = self.client.post("/api/providers/key-google-gemini/test").json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["reason"], "missing_reference")
+        self.assertEqual(payload["state"], "staged")
+        probe.assert_not_called()
+
+    def test_manual_ready_cannot_bypass_live_verification(self):
+        response = self.client.put("/api/keys/key-google-gemini", json={"state": "ready"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Test & enable", response.json()["detail"])
+
+    def test_builtin_keys_use_distinct_public_domain_solomon_seals(self):
+        dashboard = self.client.get("/api/dashboard").json()
+        providers = [item for item in dashboard["providers"] if item["id"] in backend.BUILTIN_KEY_IDS]
+        self.assertEqual(len(providers), 16)
+        self.assertEqual(len({item["solomon_seal"] for item in providers}), 16)
+        self.assertEqual(len({item["solomon_seal_number"] for item in providers}), 16)
+        manifest_path = Path(__file__).resolve().parents[1] / "backend" / "static" / "art" / "keys" / "solomon-key-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(manifest["keys"]), 16)
+        self.assertTrue(all(item["license"] == "Public domain" for item in manifest["keys"]))
+        self.assertTrue(all(item["source_page"].startswith("https://commons.wikimedia.org/wiki/File:") for item in manifest["keys"]))
+        self.assertEqual({item["key_id"] for item in manifest["keys"]}, {item["id"] for item in providers})
+        hashes = set()
+        for provider in providers:
+            response = self.client.get(provider["sigil"])
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers["content-type"], "image/svg+xml")
+            self.assertIn(provider["solomon_seal"].upper().encode(), response.content.upper())
+            hashes.add(__import__("hashlib").sha256(response.content).hexdigest())
+        self.assertEqual(len(hashes), 16)
 
     def test_dashboard_lists_full_key_catalog_with_context_windows_and_unique_sigils(self):
         dashboard = self.client.get("/api/dashboard").json()
@@ -365,6 +460,259 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         ids = {item["agent_id"] for item in response.json()["agents"]["dynamic_assignments"]}
         self.assertTrue(ids & {"card-devil", "card-tower", "card-strength", "card-hermit"}, ids)
+
+    def test_default_state_contains_empty_room_and_forum_collections(self):
+        state = backend.load_state()
+        self.assertEqual(state["rooms"], [])
+        self.assertEqual(state["forum_threads"], [])
+        self.assertEqual(state["room_messages"], [])
+
+    def test_create_room_validates_cards_and_selects_one_chymeria(self):
+        cards = backend.load_state()["cards"]
+        selected = [cards[0]["id"], cards[1]["id"]]
+        response = self.client.post("/api/rooms", json={
+            "name": "Security hand",
+            "card_ids": selected,
+            "mode": "adversarial",
+        })
+        self.assertEqual(response.status_code, 200)
+        room = response.json()
+        self.assertTrue(room["id"].startswith("room-"))
+        self.assertEqual(room["card_ids"], selected)
+        self.assertEqual(room["mode"], "adversarial")
+        self.assertIn("card_id", room["chymeria"])
+        self.assertIn("key_id", room["chymeria"])
+
+        duplicate = self.client.post("/api/rooms", json={
+            "name": "Bad hand", "card_ids": [selected[0], selected[0]],
+        })
+        self.assertEqual(duplicate.status_code, 422)
+
+    def test_room_council_plan_has_collaborative_and_adversarial_phases(self):
+        room = {
+            "id": "room-test", "name": "Test", "card_ids": ["card-hermit", "card-devil"],
+            "mode": "collaborative", "chymeria": {"card_id": "card-hermit", "key_id": "key-local-ollama"},
+        }
+        collaborative = backend.build_room_council_plan(room, "Design a secure service")
+        self.assertEqual([phase["name"] for phase in collaborative["phases"]], ["draft", "improve", "synthesize"])
+        room["mode"] = "adversarial"
+        adversarial = backend.build_room_council_plan(room, "Stress-test room isolation")
+        self.assertEqual([phase["name"] for phase in adversarial["phases"]], ["draft", "triage", "attack", "verdict"])
+
+    def test_simple_room_prompt_short_circuits_council(self):
+        room = {
+            "id": "room-test", "name": "Test", "card_ids": ["card-hermit"],
+            "mode": "collaborative", "chymeria": {"card_id": "card-hermit", "key_id": "key-local-ollama"},
+        }
+        plan = backend.build_room_council_plan(room, "What is 2 + 2?")
+        self.assertTrue(plan["short_circuit"])
+
+    def test_room_run_persists_one_public_chymeria_decision(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
+            created = self.client.post("/api/rooms", json={
+                "name": "Room Alpha", "card_ids": ["card-hermit", "card-magician"],
+            })
+            self.assertEqual(created.status_code, 200)
+            room_id = created.json()["id"]
+
+            def fake_complete(**kwargs):
+                phase = kwargs["phase"]
+                return json.dumps({
+                    "position": f"{phase} position",
+                    "confidence": "high",
+                    "rationale": "deterministic test result",
+                    "evidence_refs": [],
+                    "unresolved_questions": [],
+                    "requested_responses": [],
+                    "status": "approved" if phase in {"synthesize", "verdict"} else "provisional",
+                })
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                response = self.client.post(f"/api/rooms/{room_id}/run", json={"prompt": "Design a secure service"})
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["decision_packet"]["room_id"], room_id)
+            self.assertEqual(payload["decision_packet"]["status"], "approved")
+            self.assertEqual(payload["room"]["revision"], 1)
+            self.assertEqual(len(payload["private_messages"]), 5)
+
+    def test_room_run_blocks_when_local_key_is_not_connected(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            created = self.client.post("/api/rooms", json={"name": "Blocked room", "card_ids": ["card-hermit"]})
+            self.assertEqual(created.status_code, 200)
+            room_id = created.json()["id"]
+            response = self.client.post(f"/api/rooms/{room_id}/run", json={"prompt": "Design a secure service"})
+            self.assertEqual(response.status_code, 503)
+            self.assertIn("ready and connected", response.json()["detail"])
+            self.assertEqual(self.client.get(f"/api/rooms/{room_id}").json()["status"], "blocked")
+
+    def test_room_runs_in_honest_offline_mode_without_a_provider(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            created = self.client.post("/api/rooms", json={"name": "Provider-free room", "card_ids": ["card-hermit"]})
+            self.assertEqual(created.status_code, 200)
+            response = self.client.post(f"/api/rooms/{created.json()['id']}/run", json={"prompt": "Design a secure service"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["assignments"]["card-hermit"]["llm_key"], "key-offline-room")
+            self.assertEqual(response.json()["decision_packet"]["status"], "offline")
+            self.assertIn("Offline planning mode", response.json()["decision_packet"]["position"])
+
+    def test_global_route_returns_offline_planner_without_a_provider(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            response = self.client.post("/api/route/run", json={"prompt": "Design a secure service", "deck_mode": "auto", "rag_enabled": False})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["engine"], "offline-planner")
+            self.assertIn("Offline planning mode", response.json()["final"])
+
+    def test_adversarial_room_executes_triage_before_attack(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
+            created = self.client.post("/api/rooms", json={
+                "name": "Adversarial room", "card_ids": ["card-hermit", "card-magician"], "mode": "adversarial",
+            })
+            phases = []
+
+            def fake_complete(**kwargs):
+                phases.append(kwargs["phase"])
+                leader = "card-magician" if kwargs["phase"] == "triage" else None
+                return json.dumps({
+                    "position": f"{kwargs['phase']} position", "leader_id": leader,
+                    "confidence": "high", "rationale": "test", "evidence_refs": [],
+                    "unresolved_questions": [], "requested_responses": [],
+                    "status": "approved" if kwargs["phase"] == "verdict" else "provisional",
+                })
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                response = self.client.post(f"/api/rooms/{created.json()['id']}/run", json={"prompt": "Stress-test a secure service"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(phases, ["draft", "draft", "triage", "attack", "verdict"])
+
+    def test_public_decision_packet_redacts_secret_and_private_context_markers(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
+            created = self.client.post("/api/rooms", json={"name": "Redaction room", "card_ids": ["card-hermit"]})
+
+            def fake_complete(**kwargs):
+                return json.dumps({
+                    "position": "api_key=sk-123456789012345678 hidden prompt: private transcript",
+                    "confidence": "high", "rationale": "safe", "evidence_refs": [],
+                    "unresolved_questions": [], "requested_responses": [], "status": "approved",
+                })
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                packet = self.client.post(f"/api/rooms/{created.json()['id']}/run", json={"prompt": "Design a secure service"}).json()["decision_packet"]
+            serialized = json.dumps(packet).lower()
+            self.assertNotIn("sk-123456789012345678", serialized)
+            self.assertNotIn("private transcript", serialized)
+
+    def test_room_run_reports_memoryhub_context_when_rag_enabled(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}), patch.object(backend, "get_memory_hub") as hub:
+            hub.return_value.search.return_value = [{"source": "obus", "text": "Room memory context"}]
+            created = self.client.post("/api/rooms", json={"name": "RAG room", "card_ids": ["card-hermit"]})
+            prompts = []
+
+            def fake_complete(**kwargs):
+                prompts.append(kwargs["prompt"])
+                return json.dumps({"position": "answer", "confidence": "high", "rationale": "test", "evidence_refs": [], "unresolved_questions": [], "requested_responses": [], "status": "approved"})
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                response = self.client.post(f"/api/rooms/{created.json()['id']}/run", json={"prompt": "Design a secure service", "rag_enabled": True})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["rag"]["sources"], ["obus"])
+            self.assertTrue(any("Room memory context" in prompt for prompt in prompts))
+
+    def test_forum_round_uses_chymeria_packets_without_private_transcript_leak(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
+            room_ids = []
+            for name, card_ids in (("Room Alpha", ["card-hermit", "card-magician"]), ("Room Beta", ["card-devil", "card-tower"])):
+                created = self.client.post("/api/rooms", json={"name": name, "card_ids": card_ids})
+                self.assertEqual(created.status_code, 200)
+                room_ids.append(created.json()["id"])
+
+            counter = {"value": 0}
+
+            def fake_complete(**kwargs):
+                counter["value"] += 1
+                return json.dumps({
+                    "position": f"room decision {counter['value']}",
+                    "confidence": "medium", "rationale": "room-only reasoning",
+                    "evidence_refs": [], "unresolved_questions": ["open question"],
+                    "requested_responses": [], "status": "approved",
+                })
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                for room_id in room_ids:
+                    self.assertEqual(self.client.post(f"/api/rooms/{room_id}/run", json={"prompt": "Choose a sync design"}).status_code, 200)
+                thread = self.client.post("/api/forum/threads", json={
+                    "title": "Sync design", "prompt": "Choose a sync design", "room_ids": room_ids,
+                })
+                self.assertEqual(thread.status_code, 200)
+                thread_id = thread.json()["id"]
+                round_response = self.client.post(f"/api/forum/threads/{thread_id}/round")
+
+            self.assertEqual(round_response.status_code, 200)
+            messages = round_response.json()["messages"]
+            self.assertEqual({message["author_type"] for message in messages}, {"chymeria"})
+            serialized = json.dumps(messages).lower()
+            self.assertNotIn("private_messages", serialized)
+            self.assertNotIn("api_key", serialized)
+            self.assertEqual(self.client.post(f"/api/forum/threads/{thread_id}/round").status_code, 200)
+            self.assertEqual(len(self.client.get(f"/api/forum/threads/{thread_id}").json()["messages"]), len(messages))
+
+    def test_room_runner_emits_each_deliberation_message_incrementally(self):
+        state = backend.load_state()
+        room = {
+            "id": "room-visible", "name": "Visible council",
+            "card_ids": ["card-hermit", "card-magician"], "mode": "collaborative",
+            "chymeria": {"card_id": "card-hermit", "key_id": "key-local-ollama"}, "revision": 0,
+        }
+        emitted = []
+
+        def fake_complete(**kwargs):
+            return json.dumps({"position": f"{kwargs['phase']} deliberation", "confidence": "high", "rationale": "visible test", "evidence_refs": [], "unresolved_questions": [], "requested_responses": [], "status": "approved"})
+
+        result = backend.run_room_council(
+            room, state, "Design and compare two secure service architectures", fake_complete,
+            lambda key: key.get("id") == "key-local-ollama", [], on_message=emitted.append,
+        )
+        self.assertEqual(emitted, result["private_messages"])
+        self.assertEqual([message["phase"] for message in emitted], ["draft", "draft", "improve", "improve", "synthesize"])
+        self.assertTrue(all(message["visibility"] == "room" for message in emitted))
+
+    def test_rooms_and_forum_ui_have_real_controls(self):
+        html = self.client.get("/").text
+        for control_id in (
+            "room-list", "room-dialog", "room-name", "room-card-picker", "room-mode", "room-chymeria",
+            "save-room", "room-detail", "room-task-input", "room-run-deliberation", "room-deliberation",
+            "room-decision", "forum-thread-list", "forum-message-list", "forum-round", "forum-composer",
+            "send-forum-message",
+        ):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("Chymeria", html)
+        self.assertIn("Offline planning mode", html)
+        self.assertIn("!state.selectedRoom&&state.rooms.length", html)
+        self.assertIn("btn.dataset.page==='forge'&&!state.forge", html)
+        self.assertNotIn("loadGitHubStatus(),loadForge(),loadRooms()", html)
+        self.assertNotIn("const prompt=window.prompt(`Question for", html)
+
+    def test_forum_question_and_room_configuration_invalidate_stale_round_state(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
+            created = [self.client.post("/api/rooms", json={"name": name, "card_ids": [card]}).json() for name, card in (("A", "card-hermit"), ("B", "card-magician"))]
+            room_ids = [room["id"] for room in created]
+
+            def fake_complete(**kwargs):
+                return json.dumps({"position": "decision", "confidence": "high", "rationale": "test", "evidence_refs": [], "unresolved_questions": [], "requested_responses": [], "status": "approved"})
+
+            with patch.object(backend, "ROOM_COMPLETE", side_effect=fake_complete):
+                for room_id in room_ids:
+                    self.client.post(f"/api/rooms/{room_id}/run", json={"prompt": "Design a secure service"})
+                thread = self.client.post("/api/forum/threads", json={"title": "T", "prompt": "Compare", "room_ids": room_ids}).json()
+                first = self.client.post(f"/api/forum/threads/{thread['id']}/round").json()
+                self.assertFalse(first["idempotent"])
+                self.client.post(f"/api/forum/threads/{thread['id']}/messages", json={"room_id": room_ids[0], "body": "Please address cost", "kind": "question"})
+                second = self.client.post(f"/api/forum/threads/{thread['id']}/round").json()
+                self.assertFalse(second["idempotent"])
+            updated = self.client.put(f"/api/rooms/{room_ids[0]}", json={"mode": "adversarial"})
+            self.assertEqual(updated.status_code, 200)
+            self.assertIsNone(updated.json().get("last_packet"))
+            self.assertGreater(updated.json()["config_revision"], created[0]["config_revision"])
 
 
 if __name__ == "__main__":

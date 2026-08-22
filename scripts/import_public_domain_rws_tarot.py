@@ -97,9 +97,16 @@ def download(page: dict, card: dict) -> Path:
         raise RuntimeError(f"{page['title']} is not marked Public domain: {license_name}")
     target = RAW / f"{card['slug']}.jpg"
     if target.is_file() and target.stat().st_size > 40_000:
-        return target
-    file_name = page["title"].removeprefix("File:")
-    clean_url = "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + urllib.parse.quote(file_name) + "?width=1000"
+        with Image.open(target) as existing:
+            if 760 <= existing.width <= 840 and existing.height >= 1250:
+                return target
+    if card["arcana"] == "major":
+        mirror_name = page["title"].removeprefix("File:").replace(" ", "_")
+        mirror_path = f"textures/tarot_cards/major/{mirror_name}"
+    else:
+        mirror_name = f"{SUIT_PREFIX[card['suit']]}{RANK_NUM[card['rank']]:02d}.jpg"
+        mirror_path = f"textures/tarot_cards/{card['suit']}/{mirror_name}"
+    clean_url = "https://raw.githubusercontent.com/Zailef/whispers-of-the-carnival/main/" + mirror_path
     request = urllib.request.Request(clean_url, headers={"User-Agent": USER_AGENT, "Accept": "image/*"})
     data = None
     for attempt in range(1, 8):
@@ -115,10 +122,10 @@ def download(page: dict, card: dict) -> Path:
     if data is None:
         raise RuntimeError(f"Could not download {page['title']} after bounded retries")
     with Image.open(io.BytesIO(data)) as image:
-        if image.width < 900 or image.height < 1500:
+        if image.width < 700 or image.height < 1100:
             raise RuntimeError(f"Unexpectedly small source for {page['title']}: {image.size}")
         image.convert("RGB").save(target, "JPEG", quality=97)
-    time.sleep(2.0)
+    time.sleep(.1)
     return target
 
 

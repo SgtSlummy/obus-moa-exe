@@ -134,3 +134,15 @@ This means:
 - **Windows DPAPI** encrypts all stored credentials
 - **Local-only** by default (binds to 127.0.0.1)
 - **Environment references only** in UI (no secret input fields)
+
+## Isolated Rooms and Chymeria Forum
+
+OBus now supports AgentCouncil-style isolated rooms. Each room owns a Tarot hand/spread, a private council transcript, a collaborative or adversarial mode, and one Chymeria representative. Chymeria publishes one versioned decision packet for the room; other rooms receive packets through a Forum thread, never raw private card deliberation.
+
+The implementation is documented in `docs/agentcouncil-rooms.md`. The primary endpoints are:
+
+- `POST /api/rooms` and `POST /api/rooms/{room_id}/run`
+- `POST /api/forum/threads`
+- `POST /api/forum/threads/{thread_id}/round`
+
+AgentCouncil is used as a protocol reference. OBus does not require Copilot CLI, does not vendor upstream files, and continues to enforce ready Solomon's Keys, provider cooldowns, and secret-safe authorization references.
