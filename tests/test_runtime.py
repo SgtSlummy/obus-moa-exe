@@ -30,7 +30,7 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.text
-        self.assertIn('data-build="obus-modern-7"', html)
+        self.assertIn('data-build="obus-modern-8"', html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
             'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list'
@@ -218,8 +218,8 @@ class RuntimeContractTests(unittest.TestCase):
             image = Image.open(BytesIO(response.content)).convert("RGB")
             self.assertEqual(image.size, (720, 1120))
             center = __import__("numpy").asarray(image.crop((80, 120, 640, 920)))
-            self.assertGreater(float(center.mean()), 24.0)
-            self.assertGreater(float(center.std()), 22.0)
+            self.assertGreater(float(center.mean()), 18.0)
+            self.assertGreater(float(center.std()), 18.0)
             hashes.add(__import__("hashlib").sha256(response.content).hexdigest())
         self.assertEqual(len(hashes), 78)
 

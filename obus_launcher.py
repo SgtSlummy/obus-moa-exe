@@ -70,7 +70,7 @@ def wait_for_server(url: str, attempts: int = 80, delay: float = 0.1) -> bool:
 
 def open_browser_when_ready():
     if wait_for_server("http://127.0.0.1:8080/health"):
-        open_browser("http://127.0.0.1:8080/?build=obus-modern-7")
+        open_browser("http://127.0.0.1:8080/?build=obus-modern-8")
 
 
 def main():
@@ -80,7 +80,7 @@ def main():
     print("=" * 50)
     
     if wait_for_server("http://127.0.0.1:8080/health", attempts=1, delay=0):
-        open_browser("http://127.0.0.1:8080/?build=obus-modern-7")
+        open_browser("http://127.0.0.1:8080/?build=obus-modern-8")
         return
 
     print("\nStarting local dashboard server...")

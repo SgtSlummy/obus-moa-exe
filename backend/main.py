@@ -35,7 +35,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE = DATA_DIR / 'obus_state.json'
 MEMORY_FILE = DATA_DIR / 'memory.json'
-UI_BUILD = "obus-modern-7"
+UI_BUILD = "obus-modern-8"
 OLLAMA_URL = "http://127.0.0.1:11434"
 MOA_ROUTER_ROOT = Path(os.environ.get("MOA_ROUTER_ROOT", Path.home() / "MoA-source"))
 MOA_ROUTER_SCRIPT = MOA_ROUTER_ROOT / "moa_router.py"
