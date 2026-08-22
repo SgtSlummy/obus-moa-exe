@@ -197,19 +197,23 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.headers["content-type"], "image/webp")
 
-    def test_complete_deck_uses_distinct_fantasy_realistic_webp_art(self):
+    def test_complete_deck_uses_distinct_public_domain_hand_drawn_webp_art(self):
         from io import BytesIO
         from PIL import Image
         cards = self.client.get("/api/dashboard").json()["cards"]
         manifest_path = Path(__file__).resolve().parents[1] / "backend" / "static" / "art" / "cards" / "generation-manifest.json"
         self.assertTrue(manifest_path.is_file())
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["provider"], "Pollinations legacy Flux anonymous")
+        self.assertEqual(manifest["provider"], "Wikimedia Commons public-domain scans")
+        self.assertEqual(manifest["artist"], "Pamela Colman Smith")
+        self.assertEqual(manifest["style"], "restored-public-domain-hand-drawn-watercolor")
         self.assertEqual(len(manifest["cards"]), 78)
         self.assertGreaterEqual(len(manifest["research_sources"]), 7)
+        self.assertTrue(all(record["license"] == "Public domain" for record in manifest["cards"]))
+        self.assertTrue(all(record["source_page"].startswith("https://commons.wikimedia.org/wiki/File:") for record in manifest["cards"]))
         hashes = set()
         for card in cards:
-            self.assertEqual(card["art_style"], "fantasy-realistic-painterly")
+            self.assertEqual(card["art_style"], "restored-public-domain-hand-drawn-watercolor")
             self.assertTrue(card["image"].endswith(".webp"))
             response = self.client.get(card["image"])
             self.assertEqual(response.status_code, 200)
