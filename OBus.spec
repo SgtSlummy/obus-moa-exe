@@ -11,6 +11,7 @@ hiddenimports = [
     "jinja2", "jinja2.environment", "jinja2.loaders", "jinja2.exceptions",
     "markupsafe", "itsdangerous", "click", "h11", "httpcore", "anyio",
     "sniffio", "json", "dataclasses", "datetime", "typing",
+    "pystray", "pystray._win32", "PIL.Image", "PIL.ImageDraw",
     "backend.main", "backend.credit_manager", "backend.room_models", "backend.room_council",
     "backend.room_runner", "backend.forum_runtime", "backend",
 ]
@@ -39,6 +40,8 @@ for py_file in Path(PROJECT_ROOT).glob("*.py"):
 # Check for emblem/ICO
 ico_path = Path(PROJECT_ROOT) / "assets" / "obus_emblem.ico"
 icon_arg = str(ico_path) if ico_path.exists() else None
+if ico_path.exists():
+    datas.append((str(ico_path), "assets"))
 
 # Analysis - using launcher as entry point
 a = Analysis(

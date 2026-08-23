@@ -4,3 +4,4 @@ pydantic>=2.11,<3
 pyinstaller>=6.15,<7
 pillow>=11,<13
 cryptography>=45,<51
+pystray>=0.19,<1

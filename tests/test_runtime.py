@@ -19,12 +19,16 @@ class RuntimeContractTests(unittest.TestCase):
         self.tempdir = tempfile.TemporaryDirectory()
         self.state_file = Path(self.tempdir.name) / "obus_state.json"
         self.memory_file = Path(self.tempdir.name) / "memory.json"
+        self.usage_file = Path(self.tempdir.name) / "usage.json"
         self.state_patch = patch.object(backend, "STATE_FILE", self.state_file)
         self.memory_patch = patch.object(backend, "MEMORY_FILE", self.memory_file, create=True)
+        self.usage_patch = patch.object(backend, "USAGE_FILE", self.usage_file, create=True)
         self.state_patch.start()
         self.memory_patch.start()
+        self.usage_patch.start()
 
     def tearDown(self):
+        self.usage_patch.stop()
         self.memory_patch.stop()
         self.state_patch.stop()
         self.tempdir.cleanup()
@@ -41,6 +45,7 @@ class RuntimeContractTests(unittest.TestCase):
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
             'performance-profile', 'warm-gpu', 'warm-status',
+            'context-window', 'usage-last-tokens', 'usage-total-tokens', 'usage-last-latency', 'usage-call-count',
             'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list',
             'quantum-inference-status', 'quantum-refresh'
         ):
@@ -57,6 +62,23 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("tarot_rag", hub)
         self.assertIn("mythos_router", hub)
         self.assertIn("moa_router", hub)
+
+    def test_obus_provider_connection_info_is_manual_and_secret_safe(self):
+        response = self.client.get("/api/provider/connection")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["provider"], "obus")
+        self.assertEqual(payload["model"], "OBus")
+        self.assertEqual(payload["base_url"], "http://127.0.0.1:38174/v1")
+        self.assertEqual(payload["api_key_env"], "OCCULTBUS_API_KEY")
+        self.assertNotIn("api_key", {key: value for key, value in payload.items() if key != "api_key_env"})
+
+    def test_route_ui_has_live_agent_windows_and_connection_panel(self):
+        html = self.client.get("/").text
+        for control_id in ("provider-connection", "provider-base-url", "provider-model", "provider-key-ref", "agent-stage-grid"):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("renderAgentStages", html)
+        self.assertIn("result.trace", html)
 
     def test_memory_hub_search_endpoint_is_local_and_secret_safe(self):
         self.memory_file.write_text(json.dumps([{"id": "x", "text": "OBus integration memory"}]), encoding="utf-8")
@@ -88,6 +110,46 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(len(fast[fast.index("--models") + 1].split(",")), 2)
         self.assertEqual(deep[deep.index("--parallel-workers") + 1], "5")
         self.assertEqual(len(deep[deep.index("--models") + 1].split(",")), 5)
+        self.assertIn("--skip-verify", fast)
+        self.assertNotIn("--skip-verify", deep)
+
+    def test_moa_metrics_are_parsed_and_usage_is_persisted(self):
+        stdout = (
+            "[parallel:direct solver] gpt-oss:20b ready\n"
+            "--- OBus metrics ---\n"
+            '{"calls":3,"specialist_calls":2,"prompt_tokens":120,"completion_tokens":30,'
+            '"total_tokens":150,"max_prompt_tokens":70,"provider_seconds":2.5}\n'
+            "--- Routed answer ---\nVERIFIED"
+        )
+        answer, metrics = backend.parse_moa_router_output(stdout)
+        self.assertEqual(answer, "VERIFIED")
+        self.assertEqual(metrics["total_tokens"], 150)
+        summary = backend.record_route_usage({
+            **metrics,
+            "model": "gpt-oss:20b",
+            "profile": "fast",
+            "context_window": 32768,
+            "route_seconds": 3.0,
+        })
+        self.assertEqual(summary["last"]["total_tokens"], 150)
+        self.assertEqual(summary["totals"]["tokens"], 150)
+        self.assertEqual(summary["totals"]["calls"], 3)
+        self.assertEqual(summary["context_window"], 32768)
+
+    def test_dashboard_exposes_runtime_context_and_usage(self):
+        backend.record_route_usage({
+            "model": "gpt-oss:20b", "profile": "balanced", "context_window": 32768,
+            "calls": 5, "total_tokens": 250, "max_prompt_tokens": 100, "route_seconds": 4.5,
+        })
+        ollama = {
+            "connected": True, "models": ["gpt-oss:20b"], "model_contexts": {},
+            "runtime_contexts": {"gpt-oss:20b": 32768}, "url": backend.OLLAMA_URL,
+        }
+        with patch.object(backend, "get_ollama_status", return_value=ollama):
+            payload = self.client.get("/api/dashboard").json()
+        self.assertEqual(payload["usage"]["context_window"], 32768)
+        self.assertEqual(payload["usage"]["last"]["total_tokens"], 250)
+        self.assertEqual(payload["usage"]["totals"]["calls"], 5)
 
     def test_route_plan_exposes_selected_performance_profile(self):
         response = self.client.post("/api/route/plan", json={
@@ -225,6 +287,16 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("hub_results", response.json()["rag"])
 
+    def test_route_plan_skips_memory_hub_when_rag_is_disabled(self):
+        with patch.object(backend, "get_memory_hub") as hub:
+            hub.return_value.search.return_value = []
+            response = self.client.post("/api/route/plan", json={
+                "prompt": "Direct local task", "deck_mode": "auto", "rag_enabled": False,
+            })
+        self.assertEqual(response.status_code, 200)
+        hub.return_value.search.assert_not_called()
+        self.assertFalse(response.json()["rag"]["enabled"])
+
     def test_dashboard_reports_live_ollama_and_provider_state(self):
         response = self.client.get("/api/dashboard")
         self.assertEqual(response.status_code, 200)
@@ -302,6 +374,36 @@ class RuntimeContractTests(unittest.TestCase):
             open_mock.side_effect = [OSError("not ready"), object()]
             self.assertTrue(obus_launcher.wait_for_server(obus_launcher.HEALTH_URL, attempts=2, delay=0))
             self.assertEqual(open_mock.call_count, 2)
+
+    def test_launcher_uses_standalone_window_and_system_tray(self):
+        edge = Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe")
+        command = obus_launcher.build_standalone_window_command(obus_launcher.APP_URL, edge)
+        self.assertEqual(command[0], str(edge))
+        self.assertIn(f"--app={obus_launcher.APP_URL}", command)
+        self.assertNotIn("--new-tab", command)
+        source = (Path(__file__).parents[1] / "obus_launcher.py").read_text(encoding="utf-8")
+        self.assertIn("Open OBus", source)
+        self.assertIn("Exit OBus", source)
+        spec = (Path(__file__).parents[1] / "OBus.spec").read_text(encoding="utf-8")
+        self.assertIn("pystray._win32", spec)
+        self.assertIn("obus_emblem.ico", spec)
+
+    def test_launcher_enforces_one_backend_and_tray_owner(self):
+        with patch.object(obus_launcher, "_create_windows_mutex", return_value=(123, False)):
+            self.assertTrue(obus_launcher.acquire_single_instance())
+        obus_launcher.INSTANCE_MUTEX_HANDLE = None
+        with patch.object(obus_launcher, "_create_windows_mutex", return_value=(None, True)):
+            self.assertFalse(obus_launcher.acquire_single_instance())
+        obus_launcher.INSTANCE_MUTEX_HANDLE = None
+
+    def test_secondary_launch_activates_existing_window_without_opening_another(self):
+        with patch.object(obus_launcher, "acquire_single_instance", return_value=False), \
+             patch.object(obus_launcher, "wait_for_server", return_value=True), \
+             patch.object(obus_launcher, "activate_existing_app_window", return_value=True) as activate, \
+             patch.object(obus_launcher, "open_app_window") as open_window:
+            obus_launcher.main()
+        activate.assert_called_once()
+        open_window.assert_not_called()
 
     def test_spec_packages_static_files_beside_backend_module(self):
         spec = (Path(__file__).parents[1] / "OBus.spec").read_text(encoding="utf-8")

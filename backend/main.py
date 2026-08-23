@@ -37,7 +37,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE = DATA_DIR / 'obus_state.json'
 MEMORY_FILE = DATA_DIR / 'memory.json'
+USAGE_FILE = DATA_DIR / 'usage.json'
 STATE_LOCK = threading.RLock()
+USAGE_LOCK = threading.RLock()
 ROOM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 PERSISTENT_AGENT_THREADS: dict[str, threading.Thread] = {}
@@ -45,6 +47,8 @@ PERSISTENT_AGENT_STOP_EVENTS: dict[str, threading.Event] = {}
 PERSISTENT_AGENT_KEY_LOADS: dict[str, int] = {}
 PERSISTENT_AGENT_SEMAPHORE = threading.Semaphore(8)
 OLLAMA_URL = "http://127.0.0.1:11434"
+OBUS_PROVIDER_BASE_URL = os.environ.get("OBUS_PROVIDER_BASE_URL", "http://127.0.0.1:38174/v1").rstrip("/")
+OBUS_PROVIDER_KEY_ENV = "OCCULTBUS_API_KEY"
 
 
 def normalize_ollama_keep_alive(value):
@@ -528,6 +532,61 @@ def update_quantum_inference(state: dict, now: Optional[float] = None) -> tuple[
 
 
 
+def _load_usage_events() -> list[dict]:
+    with USAGE_LOCK:
+        if not USAGE_FILE.exists():
+            return []
+        try:
+            value = json.loads(USAGE_FILE.read_text(encoding="utf-8"))
+            return value if isinstance(value, list) else []
+        except (OSError, json.JSONDecodeError):
+            return []
+
+
+def get_usage_summary(context_window: int = 0) -> dict:
+    events = _load_usage_events()
+    last = copy.deepcopy(events[-1]) if events else None
+    active_context = int(context_window or (last or {}).get("context_window") or 0)
+    max_prompt = int((last or {}).get("max_prompt_tokens") or 0)
+    return {
+        "last": last,
+        "context_window": active_context,
+        "context_used_tokens": max_prompt,
+        "context_used_percent": round((max_prompt / active_context) * 100, 2) if active_context else 0,
+        "totals": {
+            "routes": len(events),
+            "calls": sum(int(item.get("calls") or 0) for item in events),
+            "tokens": sum(int(item.get("total_tokens") or 0) for item in events),
+            "prompt_tokens": sum(int(item.get("prompt_tokens") or 0) for item in events),
+            "completion_tokens": sum(int(item.get("completion_tokens") or 0) for item in events),
+        },
+        "token_scope": "local provider-reported usage; external aggregate tokens unavailable",
+    }
+
+
+def record_route_usage(event: dict) -> dict:
+    allowed = {
+        "model", "profile", "context_window", "calls", "specialist_calls", "synthesis_calls",
+        "verification_calls", "aggregate_calls", "prompt_tokens", "completion_tokens", "total_tokens",
+        "max_prompt_tokens", "provider_seconds", "aggregate_seconds", "route_seconds", "engine",
+    }
+    clean = {key: event.get(key) for key in allowed if key in event}
+    clean["id"] = "usage-" + uuid.uuid4().hex[:16]
+    clean["created_at"] = datetime.now(timezone.utc).isoformat()
+    with USAGE_LOCK:
+        events = _load_usage_events()
+        events.append(clean)
+        events = events[-500:]
+        USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = USAGE_FILE.with_name(f".{USAGE_FILE.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(json.dumps(events, indent=2), encoding="utf-8")
+            os.replace(temp_path, USAGE_FILE)
+        finally:
+            temp_path.unlink(missing_ok=True)
+    return get_usage_summary(int(clean.get("context_window") or 0))
+
+
 def get_memory() -> list:
     if not MEMORY_FILE.exists():
         return []
@@ -909,14 +968,39 @@ def get_ollama_status() -> dict:
     try:
         with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=2) as response:
             payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("invalid tags response")
         models = [item.get("name", "") for item in payload.get("models", [])]
         contexts = {
             item.get("name", ""): int(item.get("details", {}).get("context_length") or 0)
             for item in payload.get("models", [])
         }
-        return {"connected": True, "models": models, "model_contexts": contexts, "url": OLLAMA_URL}
-    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
-        return {"connected": False, "models": [], "model_contexts": {}, "url": OLLAMA_URL, "error": str(exc)}
+        runtime_contexts = {}
+        vram_bytes = {}
+        running_models = []
+        try:
+            with urllib.request.urlopen(f"{OLLAMA_URL}/api/ps", timeout=2) as response:
+                running = json.loads(response.read().decode("utf-8"))
+            if isinstance(running, dict):
+                for item in running.get("models", []):
+                    name = item.get("name", "")
+                    if name:
+                        running_models.append(name)
+                        runtime_contexts[name] = int(item.get("context_length") or 0)
+                        vram_bytes[name] = int(item.get("size_vram") or 0)
+        except (OSError, urllib.error.URLError, ValueError, TypeError):
+            pass
+        return {
+            "connected": True, "models": models, "model_contexts": contexts,
+            "runtime_contexts": runtime_contexts, "running_models": running_models,
+            "vram_bytes": vram_bytes, "url": OLLAMA_URL,
+        }
+    except (OSError, urllib.error.URLError, ValueError, TypeError) as exc:
+        return {
+            "connected": False, "models": [], "model_contexts": {},
+            "runtime_contexts": {}, "running_models": [], "vram_bytes": {},
+            "url": OLLAMA_URL, "error": str(exc),
+        }
 
 
 def get_gpu_warm_status() -> dict:
@@ -1030,7 +1114,10 @@ def provider_statuses(state: Optional[dict] = None) -> list:
         connection_ok = ollama["connected"] if key.get("provider") == "ollama" else bool(key.get("verified") and configured)
         connected = bool(connection_ok and key.get("state", "staged") == "ready")
         context_tokens = int(key.get("max_context_tokens") or 131072)
-        detected_context = ollama.get("model_contexts", {}).get(key.get("model")) if key.get("provider") == "ollama" else None
+        detected_context = (
+            ollama.get("runtime_contexts", {}).get(key.get("model"))
+            or ollama.get("model_contexts", {}).get(key.get("model"))
+        ) if key.get("provider") == "ollama" else None
         if detected_context:
             context_tokens = detected_context
         providers.append({
@@ -1079,6 +1166,27 @@ async def health():
     return {"status": "ok", "service": "obus-moa"}
 
 
+@app.get("/api/provider/connection")
+async def provider_connection():
+    """Return manual OpenAI-compatible connection data without credential values."""
+    bridge_connection = OBUS_PROVIDER_BASE_URL.removesuffix("/v1") + "/connection"
+    reachable = False
+    try:
+        with urllib.request.urlopen(bridge_connection, timeout=2) as response:
+            reachable = response.status == 200
+    except (OSError, urllib.error.URLError):
+        pass
+    return {
+        "provider": "obus", "display_name": "OBus", "model": "OBus",
+        "base_url": OBUS_PROVIDER_BASE_URL,
+        "models_url": f"{OBUS_PROVIDER_BASE_URL}/models",
+        "chat_completions_url": f"{OBUS_PROVIDER_BASE_URL}/chat/completions",
+        "api_key_env": OBUS_PROVIDER_KEY_ENV,
+        "api_key_required": bool(os.getenv(OBUS_PROVIDER_KEY_ENV)),
+        "bind_scope": "loopback-only", "reachable": reachable,
+    }
+
+
 @app.get("/api/warmup")
 async def warmup_status():
     return get_gpu_warm_status()
@@ -1117,13 +1225,23 @@ async def dashboard():
     if changed:
         save_state(state)
     memory = get_memory()
+    ollama = get_ollama_status()
+    settings = get_settings(state)
+    selected_model = settings.get("selected_model", "")
+    context_window = int(
+        ollama.get("runtime_contexts", {}).get(selected_model)
+        or ollama.get("model_contexts", {}).get(selected_model)
+        or next((key.get("max_context_tokens", 0) for key in state.get("keys", []) if key.get("model") == selected_model), 0)
+        or 0
+    )
     return {
-        "ollama": get_ollama_status(),
+        "ollama": ollama,
         "warm_runtime": get_gpu_warm_status(),
         "providers": provider_statuses(state),
         "cards": state.get("cards", DEFAULT_CARDS),
         "decks": [d for d in ALL_DECKS if d.get("enabled", True)],
-        "settings": get_settings(state),
+        "settings": settings,
+        "usage": get_usage_summary(context_window),
         "quantum_inference": quantum_inference,
         "memory": {
             "chunks": len(memory),
@@ -1137,6 +1255,15 @@ async def dashboard():
             "aggregate_model": "gpt-5.6-luna",
         },
     }
+
+
+@app.get("/api/usage")
+async def route_usage():
+    state = load_state()
+    model = get_settings(state).get("selected_model", "")
+    ollama = get_ollama_status()
+    context_window = int(ollama.get("runtime_contexts", {}).get(model) or 0)
+    return get_usage_summary(context_window)
 
 
 @app.get("/api/quantum-inference")
@@ -2488,7 +2615,7 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
     return assignments
 
 @app.get("/api/plan")
-async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep"] = "balanced"):
+async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep"] = "balanced", rag_enabled: bool = True):
     """Get MOA routing plan with deck selection"""
     state = load_state()
     profile = resolve_performance_profile(performance_profile)
@@ -2508,7 +2635,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     aggregator = next((key for key in state["keys"] if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None:
         aggregator = OFFLINE_ROOM_KEY
-    hub_results = get_memory_hub().search(prompt, limit=4)
+    hub_results = get_memory_hub().search(prompt, limit=4) if rag_enabled else []
     hub_characters = sum(len(str(item.get("text", ""))) for item in hub_results)
     
     return {
@@ -2542,9 +2669,9 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
             }
         },
         "rag": {
-            "enabled": True,
-            "snippets": 4 + len(hub_results),
-            "characters": 3200 + hub_characters,
+            "enabled": bool(rag_enabled),
+            "snippets": (4 + len(hub_results)) if rag_enabled else 0,
+            "characters": (3200 + hub_characters) if rag_enabled else 0,
             "source": "local_sqlite+memory_hub",
             "hub_results": hub_results,
         }
@@ -2554,8 +2681,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
 @app.post("/api/route/plan")
 async def plan_route_post(request: RouteRequest):
     """POST contract used by the desktop UI."""
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile)
-    plan["rag"]["enabled"] = bool(request.rag_enabled)
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled))
     return plan
 
 
@@ -2565,7 +2691,7 @@ def build_moa_router_command(prompt: str, model: str, performance_profile: Optio
     if not python_executable or not MOA_ROUTER_SCRIPT.is_file():
         return None
     profile = resolve_performance_profile(performance_profile)
-    return [
+    command = [
         python_executable,
         str(MOA_ROUTER_SCRIPT),
         prompt,
@@ -2576,9 +2702,49 @@ def build_moa_router_command(prompt: str, model: str, performance_profile: Optio
         "--temperature", "0",
         "--parallel-workers", str(profile["parallel_workers"]),
     ]
+    if profile["id"] == "fast":
+        command.append("--skip-verify")
+    return command
 
 
-def generate_with_moa_router(prompt: str, model: str, plan: dict) -> str:
+def parse_moa_router_output_detailed(stdout: str) -> tuple[str, dict, list[dict]]:
+    trace_marker = "--- OBus trace ---"
+    metrics_marker = "--- OBus metrics ---"
+    answer_marker = "--- Routed answer ---"
+    metrics = {}
+    trace: list[dict] = []
+    if trace_marker in stdout and metrics_marker in stdout:
+        trace_text = stdout.split(trace_marker, 1)[1].split(metrics_marker, 1)[0]
+        for line in trace_text.splitlines():
+            line = line.strip()
+            if line.startswith("["):
+                try:
+                    value = json.loads(line)
+                    trace = value if isinstance(value, list) else []
+                except json.JSONDecodeError:
+                    trace = []
+                break
+    if metrics_marker in stdout and answer_marker in stdout:
+        metrics_text = stdout.split(metrics_marker, 1)[1].split(answer_marker, 1)[0]
+        for line in reversed(metrics_text.splitlines()):
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    value = json.loads(line)
+                    metrics = value if isinstance(value, dict) else {}
+                except json.JSONDecodeError:
+                    metrics = {}
+                break
+    answer = stdout.split(answer_marker, 1)[-1].strip() if answer_marker in stdout else stdout.strip()
+    return answer, metrics, trace
+
+
+def parse_moa_router_output(stdout: str) -> tuple[str, dict]:
+    answer, metrics, _trace = parse_moa_router_output_detailed(stdout)
+    return answer, metrics
+
+
+def generate_with_moa_router(prompt: str, model: str, plan: dict) -> tuple[str, dict]:
     profile = resolve_performance_profile(plan.get("moa", {}).get("profile"))
     command = build_moa_router_command(prompt, model, profile["id"])
     if command is None:
@@ -2590,14 +2756,14 @@ def generate_with_moa_router(prompt: str, model: str, plan: dict) -> str:
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "unknown router error").strip()[-1200:]
         raise RuntimeError(f"Local MoA router failed: {detail}")
-    marker = "--- Routed answer ---"
-    answer = result.stdout.split(marker, 1)[-1].strip() if marker in result.stdout else result.stdout.strip()
+    answer, metrics, trace = parse_moa_router_output_detailed(result.stdout)
     if not answer:
         raise RuntimeError("Local MoA router returned an empty response")
-    return answer
+    metrics["trace"] = trace
+    return answer, metrics
 
 
-def generate_with_ollama(prompt: str, model: str, plan: dict) -> str:
+def generate_with_ollama(prompt: str, model: str, plan: dict) -> tuple[str, dict]:
     agent_names = ", ".join(
         item["agent_title"] for item in plan["agents"].get("dynamic_assignments", [])
     )
@@ -2626,7 +2792,19 @@ def generate_with_ollama(prompt: str, model: str, plan: dict) -> str:
     answer = str(payload.get("response", "")).strip()
     if not answer:
         raise RuntimeError("Ollama returned an empty response")
-    return answer
+    prompt_tokens = int(payload.get("prompt_eval_count") or 0)
+    completion_tokens = int(payload.get("eval_count") or 0)
+    return answer, {
+        "calls": 1,
+        "specialist_calls": 0,
+        "synthesis_calls": 1,
+        "verification_calls": 0,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+        "max_prompt_tokens": prompt_tokens,
+        "provider_seconds": round(int(payload.get("total_duration") or 0) / 1_000_000_000, 6),
+    }
 
 
 def aggregate_with_key(key: dict, original_prompt: str, local_answer: str, plan: dict) -> str:
@@ -2661,15 +2839,23 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 @app.post("/api/route/run")
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile)
+    route_started = time.perf_counter()
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled))
     settings = get_settings()
     model = request.model or settings["selected_model"]
     ollama_status = get_ollama_status()
+    context_window = int(
+        ollama_status.get("runtime_contexts", {}).get(model)
+        or ollama_status.get("model_contexts", {}).get(model)
+        or 0
+    )
     if model not in ollama_status.get("models", []):
+        offline_answer = generate_offline_answer(request.prompt, plan)
         return {
             "status": "complete", "engine": "offline-planner", "model": OFFLINE_ROOM_KEY["model"],
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
-            "final": generate_offline_answer(request.prompt, plan),
+            "trace": [{"stage": "offline plan", "role": "OBus planner", "model": OFFLINE_ROOM_KEY["model"], "status": "complete", "output": offline_answer}],
+            "final": offline_answer,
         }
     try:
         routed_prompt = request.prompt
@@ -2681,44 +2867,88 @@ async def run_route(request: RouteRequest):
             routed_prompt = f"{request.prompt}\n\nRelevant local memory context:\n{memory_lines}"
         moa_command = build_moa_router_command(routed_prompt, model, request.performance_profile)
         if moa_command is not None:
-            local_answer = await asyncio.to_thread(generate_with_moa_router, routed_prompt, model, plan)
+            generated = await asyncio.to_thread(generate_with_moa_router, routed_prompt, model, plan)
             local_engine = "local-moa-router"
         else:
-            local_answer = await asyncio.to_thread(generate_with_ollama, routed_prompt, model, plan)
+            generated = await asyncio.to_thread(generate_with_ollama, routed_prompt, model, plan)
             local_engine = "ollama-single"
+        if isinstance(generated, tuple):
+            local_answer, local_usage = generated
+        else:
+            local_answer, local_usage = str(generated), {}
+        local_trace = list(local_usage.pop("trace", []))
+        if not local_trace:
+            local_trace = [{
+                "stage": "local synthesis", "role": "OBus local aggregator", "model": model,
+                "status": "complete", "output": local_answer,
+            }]
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    aggregate_calls = 0
+    aggregate_seconds = 0.0
+
+    def finish_usage(engine: str) -> dict:
+        event = dict(local_usage)
+        event.update({
+            "model": model,
+            "profile": request.performance_profile,
+            "context_window": context_window,
+            "aggregate_calls": aggregate_calls,
+            "calls": int(local_usage.get("calls") or 0) + aggregate_calls,
+            "aggregate_seconds": round(aggregate_seconds, 6),
+            "route_seconds": round(time.perf_counter() - route_started, 6),
+            "engine": engine,
+        })
+        return record_route_usage(event)
 
     state = load_state()
     aggregate_manifest = plan["agents"]["aggregator"]
     aggregate_key = next((key for key in state["keys"] if key["id"] == aggregate_manifest["llm_key"]), None)
     aggregate_status = next((item for item in provider_statuses(state) if aggregate_key and item["id"] == aggregate_key["id"]), None)
     if not aggregate_key or not aggregate_status or not aggregate_status.get("connected"):
+        usage = finish_usage(local_engine)
         return {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
+            "trace": local_trace,
             "aggregate": {"status": "unavailable", "name": "GPT 5.6 Luna", "model": "gpt-5.6-luna"},
+            "usage": usage,
         }
+    aggregate_calls = 1
+    aggregate_started = time.perf_counter()
     try:
         final_answer = await asyncio.to_thread(AGGREGATE_WITH_KEY, aggregate_key, request.prompt, local_answer, plan)
     except RuntimeError as exc:
+        aggregate_seconds = time.perf_counter() - aggregate_started
+        usage = finish_usage(local_engine)
         return {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
+            "trace": local_trace,
             "aggregate": {"status": "failed", "name": aggregate_key["name"], "model": aggregate_key["model"], "reason": type(exc).__name__},
+            "usage": usage,
         }
+    aggregate_seconds = time.perf_counter() - aggregate_started
+    final_engine = f"{local_engine}+luna-aggregate"
+    usage = finish_usage(final_engine)
     return {
         "status": "complete",
-        "engine": f"{local_engine}+luna-aggregate",
+        "engine": final_engine,
         "model": model,
         "selected_deck": plan["selected_deck"],
         "agents": plan["agents"],
         "stages": ["local", "aggregate"],
         "local_result": local_answer,
         "aggregate": {"status": "complete", "name": aggregate_key["name"], "model": aggregate_key["model"], "key_id": aggregate_key["id"]},
+        "trace": local_trace + [{
+            "stage": "aggregate", "role": aggregate_key["name"], "model": aggregate_key["model"],
+            "status": "complete", "output": final_answer,
+        }],
         "final": final_answer,
+        "usage": usage,
     }
 
 

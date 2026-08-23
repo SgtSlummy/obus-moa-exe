@@ -42,6 +42,20 @@ powershell -ExecutionPolicy Bypass -File "install_obus_permanent.ps1"
 # System Properties > Environment Variables > Add OBus to PATH
 ```
 
+## Standalone window, tray lifecycle, and usage
+
+OBus opens in Microsoft Edge app mode: a standalone window with no tabs or
+address bar. Closing that window leaves the warm backend running in the Windows
+notification area. Use the **OBus** tray icon to **Open OBus** again or choose
+**Exit OBus** to stop the runtime.
+
+The dashboard reports the loaded model's runtime context window from Ollama's
+`/api/ps`, last-route and cumulative local token usage, model-call count, and
+route latency. Token values are provider-reported for local specialist,
+synthesis, and verification calls. The external GPT 5.6 Luna CLI stage is
+counted as a call and timed, but its token count is explicitly unavailable.
+Usage history is retained in `%LOCALAPPDATA%\\OBus\\usage.json` (last 500 routes).
+
 ## Warm GPU and performance profiles
 
 OBus now preloads the configured local Ollama model at startup and requests
@@ -66,10 +80,33 @@ returned by the warmup API.
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check (returns JSON) |
-| `/api/status` | GET | System status with card/key counts |
-| `/api/plan` | GET | Get MOA routing plan (dry-run) |
-| `/api/execute` | POST | Execute task with full MOA |
+| `/api/provider/connection` | GET | Secret-safe OBus provider base URL, model, key reference, and live bridge state |
+| `/api/route/plan` | POST | Get the dynamic Tarot/Key MOA routing plan |
+| `/api/route/run` | POST | Execute the full local-first MOA and return the visible stage trace |
+| `/api/rooms/{room_id}/run` | POST | Run a persisted council with incremental deliberation messages |
 | `/` | GET | Frontend SPA entry point |
+
+## Connect OBus to Hermes or another OpenAI-compatible client
+
+OBus exposes a local OpenAI-compatible bridge. The dashboard shows these values live:
+
+- Provider: `obus`
+- Base URL / IP: `http://127.0.0.1:38174/v1`
+- Model: `OBus`
+- API-key reference: `OCCULTBUS_API_KEY` (the value is never displayed)
+- Models endpoint: `http://127.0.0.1:38174/v1/models`
+- Chat endpoint: `http://127.0.0.1:38174/v1/chat/completions`
+
+The default bridge is loopback-only. Set `OBUS_BRIDGE_HOST` explicitly only when
+you intend to expose it on another interface and have configured
+`OCCULTBUS_API_KEY`. In Hermes, the named provider entry belongs under
+`providers.obus` with `api`, `default_model`, `key_env`, and
+`transport: chat_completions`.
+
+The Route panel opens one visual window per real MOA event. It first shows the
+planned Tarot specialists as running, then replaces those placeholders with the
+actual specialist outputs emitted by the local MoA router, followed by local
+synthesis, verification, and the final external aggregate when available.
 
 ## Configuration
 

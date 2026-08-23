@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hmac
 import os
 import subprocess
 import threading
@@ -19,6 +20,7 @@ OBUS_EXE = Path(os.getenv("OBUS_EXE", r"C:\Users\Hermes\OneDrive\OBus-MOA-Digita
 OBUS_URL = os.getenv("OBUS_URL", "http://127.0.0.1:38173").rstrip("/")
 BRIDGE_HOST = os.getenv("OBUS_BRIDGE_HOST", "127.0.0.1")
 BRIDGE_PORT = int(os.getenv("OBUS_BRIDGE_PORT", "38174"))
+BRIDGE_API_KEY = os.getenv("OCCULTBUS_API_KEY", "").strip()
 LOG_PATH = Path(os.getenv("LOCALAPPDATA", Path.home())) / "OBus" / "logs" / "hermes-bridge.log"
 
 
@@ -124,6 +126,13 @@ def completion_payload(model: str, answer: str) -> dict[str, Any]:
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
+    def _authorized(self) -> bool:
+        if not BRIDGE_API_KEY:
+            return True
+        authorization = self.headers.get("Authorization", "")
+        supplied = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+        return bool(supplied and hmac.compare_digest(supplied, BRIDGE_API_KEY))
+
     def _json(self, payload: dict[str, Any], status: int = HTTPStatus.OK) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -148,7 +157,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 state = runtime.health()
             self._json({"status": "ok" if state.get("reachable") else "degraded", "service": "obus-hermes-bridge", "obus": state})
             return
+        if self.path == "/connection":
+            self._json({
+                "provider": "obus", "display_name": "OBus", "model": "OBus",
+                "base_url": f"http://{BRIDGE_HOST}:{BRIDGE_PORT}/v1",
+                "api_key_env": "OCCULTBUS_API_KEY", "api_key_required": bool(BRIDGE_API_KEY),
+                "bind_host": BRIDGE_HOST, "port": BRIDGE_PORT,
+            })
+            return
         if self.path == "/v1/models":
+            if not self._authorized():
+                self._json({"error": {"message": "invalid API key", "type": "authentication_error"}}, HTTPStatus.UNAUTHORIZED)
+                return
             self._json({"object": "list", "data": [{"id": "OBus", "object": "model", "owned_by": "OBus"}]})
             return
         self._json({"error": {"message": "not found", "type": "invalid_request_error"}}, HTTPStatus.NOT_FOUND)
@@ -156,6 +176,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path != "/v1/chat/completions":
             self._json({"error": {"message": "not found", "type": "invalid_request_error"}}, HTTPStatus.NOT_FOUND)
+            return
+        if not self._authorized():
+            self._json({"error": {"message": "invalid API key", "type": "authentication_error"}}, HTTPStatus.UNAUTHORIZED)
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
