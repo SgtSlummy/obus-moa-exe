@@ -10,7 +10,8 @@ A fully portable Windows EXE that bundles the complete OccultBus Mixture-of-Agen
 - **Dynamic Tarot/Solomon's routing** - No static card→key pairings
 - **Up to 20 concurrent specialist agents** with aggregators
 - **Encrypted key storage** using Windows DPAPI
-- **Local RAG** with SQLite FTS5 for contextual routing
+- **Local RAG** with bounded retrieval (five snippets / 3,200 characters) across durable OBus memory, Hermes memory, MemPalace, Mem0, and Tarot Router FTS5
+- **Durable memory CRUD** in the Memory screen: add, tag, search, list, delete, and clear; atomic JSON persistence under `%LOCALAPPDATA%\OBus\memory.json`
 - **Zero external dependencies** at runtime
 
 ## Quick Start

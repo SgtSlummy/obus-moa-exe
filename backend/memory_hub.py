@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -207,11 +208,19 @@ class MemoryHub:
         if not query:
             return False
         haystack = text.lower()
-        return query in haystack or all(token in haystack for token in query.split())
+        if query in haystack:
+            return True
+        stopwords = {"the", "and", "for", "with", "what", "when", "where", "which", "this", "that", "from", "into", "your", "about", "should", "would", "could"}
+        tokens = [token for token in re.findall(r"[a-z0-9_.-]+", query) if len(token) > 2 and token not in stopwords]
+        if not tokens:
+            return False
+        matches = sum(token in haystack for token in tokens)
+        return matches >= min(2, len(tokens))
 
     def search(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         source_limit = max(1, limit // 5)
-        results: list[dict[str, Any]] = self._mempalace_search(query, source_limit) + self._tarot_search(query, source_limit)
+        # User-authored OBus/Hermes memory is curated and must outrank broad indexes.
+        results: list[dict[str, Any]] = []
         if self.obus_memory.is_file():
             try:
                 value = json.loads(self.obus_memory.read_text(encoding="utf-8"))
@@ -253,6 +262,8 @@ class MemoryHub:
                 connection.close()
             except (OSError, sqlite3.Error):
                 pass
+        results.extend(self._mempalace_search(query, source_limit))
+        results.extend(self._tarot_search(query, source_limit))
         return results[: max(1, limit)]
 
 

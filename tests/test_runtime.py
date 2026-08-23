@@ -87,6 +87,64 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn(response.json()["results"][0]["source"], {"obus", "mempalace", "tarot_rag"})
         self.assertNotIn("api_key", json.dumps(response.json()).lower())
 
+    def test_local_memory_crud_is_persistent_deduplicated_and_rag_bounded(self):
+        created = self.client.post("/api/memory", json={
+            "text": "OBus should remember the lunar deployment checklist and verify rollback first.",
+            "tags": ["deployment", "lunar"],
+        })
+        self.assertEqual(created.status_code, 200)
+        item = created.json()
+        self.assertTrue(item["id"].startswith("mem-"))
+        self.assertEqual(item["tags"], ["deployment", "lunar"])
+        duplicate = self.client.post("/api/memory", json={"text": item["text"], "tags": ["duplicate"]})
+        self.assertEqual(duplicate.json()["id"], item["id"])
+        self.assertTrue(duplicate.json()["deduplicated"])
+        listing = self.client.get("/api/memory").json()
+        self.assertEqual(len(listing["items"]), 1)
+        self.assertEqual(json.loads(self.memory_file.read_text(encoding="utf-8"))[0]["id"], item["id"])
+        plan = self.client.post("/api/route/plan", json={
+            "prompt": "What is the lunar deployment rollback checklist?", "rag_enabled": True,
+        }).json()
+        self.assertLessEqual(plan["rag"]["characters"], 3200)
+        self.assertTrue(any(result["source"] == "obus" for result in plan["rag"]["hub_results"]))
+        deleted = self.client.delete(f"/api/memory/{item['id']}")
+        self.assertEqual(deleted.status_code, 200)
+        self.assertEqual(self.client.get("/api/memory").json()["items"], [])
+
+    def test_memory_ui_has_add_search_and_delete_controls(self):
+        html = self.client.get("/").text
+        for control_id in ("memory-input", "memory-tags", "add-memory", "memory-search", "search-memory", "memory-local-list", "memory-search-results"):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("addMemory", html)
+        self.assertIn("deleteMemory", html)
+
+    def test_routes_are_remembered_automatically_and_can_be_disabled(self):
+        prompt = "Remember that the starboard release uses the blue rollback lane."
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            response = self.client.post("/api/route/run", json={"prompt": prompt, "rag_enabled": False})
+        self.assertEqual(response.status_code, 200)
+        memories = self.client.get("/api/memory").json()["items"]
+        self.assertEqual(len(memories), 1)
+        self.assertEqual(memories[0]["source"], "auto-route")
+        self.assertIn(prompt, memories[0]["text"])
+        self.assertIn(response.json()["final"], memories[0]["text"])
+        self.assertIn("conversation", memories[0]["tags"])
+
+        self.client.delete("/api/memory")
+        settings = self.client.put("/api/settings", json={"auto_memory": False}).json()
+        self.assertFalse(settings["auto_memory"])
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            self.client.post("/api/route/run", json={"prompt": "Do not remember this route", "rag_enabled": False})
+        self.assertEqual(self.client.get("/api/memory").json()["items"], [])
+
+    def test_kawaii_faces_are_visible_in_agent_windows_cards_and_settings(self):
+        html = self.client.get("/").text
+        self.assertIn('id="auto-memory-toggle"', html)
+        self.assertIn("function kawaiiFace", html)
+        self.assertIn("kawaii-face", html)
+        self.assertIn("(•̀ᴗ•́)و", html)
+        self.assertIn("(｡•́‿•̀｡)", html)
+
     def test_moa_router_command_uses_local_endpoint_without_credentials(self):
         command = backend.build_moa_router_command("test task", "llama3.2:latest")
         if command is not None:

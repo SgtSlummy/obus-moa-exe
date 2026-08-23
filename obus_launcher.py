@@ -17,6 +17,14 @@ APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "OBus"
 DATA_DIR = Path(os.environ.get('OCCULTBUS_HOME', DEFAULT_DATA_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+LEGACY_DATA_DIR = Path.home() / '.occultbus'
+if DATA_DIR != LEGACY_DATA_DIR:
+    for filename in ('obus_state.json', 'memory.json', 'usage.json'):
+        source = LEGACY_DATA_DIR / filename
+        destination = DATA_DIR / filename
+        if source.is_file() and not destination.exists():
+            shutil.copy2(source, destination)
+os.environ.setdefault('OCCULTBUS_HOME', str(DATA_DIR))
 
 SETUP_FILE = DATA_DIR / 'setup_complete.json'
 APP_PORT = 38173
@@ -199,6 +207,10 @@ def open_window_when_ready():
 
 def main():
     """Main entry point with first-run logic"""
+    if "--mcp" in sys.argv[1:]:
+        from obus_mcp_server import serve
+        serve()
+        return
     print("=" * 50)
     print("OBus MOA Runtime")
     print("=" * 50)

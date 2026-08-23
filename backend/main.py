@@ -39,6 +39,7 @@ STATE_FILE = DATA_DIR / 'obus_state.json'
 MEMORY_FILE = DATA_DIR / 'memory.json'
 USAGE_FILE = DATA_DIR / 'usage.json'
 STATE_LOCK = threading.RLock()
+MEMORY_LOCK = threading.RLock()
 USAGE_LOCK = threading.RLock()
 ROOM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
@@ -421,6 +422,9 @@ class LoginRequest(BaseModel):
 
 class SettingsUpdate(BaseModel):
     rag_enabled: Optional[bool] = None
+    auto_memory: Optional[bool] = None
+    rag_character_budget: Optional[int] = None
+    max_parallel_agents: Optional[int] = None
     selected_model: Optional[str] = None
     selected_deck: Optional[str] = None
 
@@ -431,6 +435,12 @@ class RouteRequest(BaseModel):
     rag_enabled: Optional[bool] = True
     model: Optional[str] = None
     performance_profile: Literal["fast", "balanced", "deep"] = "balanced"
+
+
+class MemoryCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str
+    tags: List[str] = []
 
 
 class WarmupRequest(BaseModel):
@@ -461,6 +471,9 @@ def get_settings(state: Optional[dict] = None) -> dict:
     state = state or load_state()
     defaults = {
         "rag_enabled": True,
+        "auto_memory": True,
+        "rag_character_budget": 2400,
+        "max_parallel_agents": 5,
         "selected_model": "gpt-oss:20b",
         "selected_deck": "auto",
     }
@@ -595,6 +608,70 @@ def get_memory() -> list:
         return value if isinstance(value, list) else []
     except (OSError, json.JSONDecodeError):
         return []
+
+
+def save_memory(items: list) -> None:
+    """Persist local memory atomically so concurrent routes cannot corrupt it."""
+    with MEMORY_LOCK:
+        MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = MEMORY_FILE.with_name(f".{MEMORY_FILE.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(temp_path, MEMORY_FILE)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+
+def store_memory(text: str, tags: list[str], source: str) -> dict:
+    """Redact, bound, deduplicate, and atomically store one durable memory."""
+    clean_text = sanitize_auth_output(str(text)).strip()[:8000]
+    if not clean_text:
+        raise ValueError("memory text is required")
+    clean_tags = []
+    for raw in tags[:12]:
+        tag = re.sub(r"[^a-zA-Z0-9_.-]", "-", str(raw).strip().lower()).strip("-")[:40]
+        if tag and tag not in clean_tags:
+            clean_tags.append(tag)
+    digest = hashlib.sha256(clean_text.casefold().encode("utf-8")).hexdigest()[:20]
+    memory_id = f"mem-{digest}"
+    with MEMORY_LOCK:
+        items = get_memory()
+        existing = next((item for item in items if isinstance(item, dict) and item.get("id") == memory_id), None)
+        if existing:
+            return {**existing, "deduplicated": True}
+        item = {
+            "id": memory_id, "text": clean_text, "tags": clean_tags, "source": source,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        items.append(item)
+        save_memory(items)
+    return {**item, "deduplicated": False}
+
+
+def remember_route_exchange(prompt: str, answer: str, *, engine: str) -> Optional[dict]:
+    """Automatically retain a compact completed exchange when enabled."""
+    if not get_settings().get("auto_memory", True):
+        return None
+    text = f"User request:\n{str(prompt).strip()[:3000]}\n\nOBus answer:\n{str(answer).strip()[:4500]}"
+    return store_memory(text, ["conversation", "auto", engine], "auto-route")
+
+
+def bounded_memory_results(results: list[dict], character_budget: int = 3200, limit: int = 5) -> list[dict]:
+    """Return compact RAG evidence under a strict total text budget."""
+    bounded = []
+    remaining = max(0, int(character_budget))
+    for raw in results:
+        if len(bounded) >= max(1, int(limit)) or remaining <= 0 or not isinstance(raw, dict):
+            break
+        text = str(raw.get("text", "")).strip()
+        if not text:
+            continue
+        text = text[:remaining]
+        item = {key: value for key, value in raw.items() if key != "text"}
+        item["text"] = text
+        bounded.append(item)
+        remaining -= len(text)
+    return bounded
 
 
 def get_memory_hub():
@@ -1282,19 +1359,55 @@ async def memory_integrations():
     return get_memory_hub().status()
 
 
+@app.get("/api/memory")
+async def list_local_memory():
+    items = get_memory()
+    return {
+        "items": items,
+        "chunks": len(items),
+        "characters": sum(len(str(item.get("text", ""))) for item in items if isinstance(item, dict)),
+    }
+
+
+@app.post("/api/memory")
+async def create_local_memory(request: MemoryCreate):
+    if len(request.text) > 8000:
+        raise HTTPException(status_code=400, detail="memory text exceeds 8000 characters")
+    try:
+        return store_memory(request.text, request.tags, "manual")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/memory/{memory_id}")
+async def delete_local_memory(memory_id: str):
+    with MEMORY_LOCK:
+        items = get_memory()
+        updated = [item for item in items if not isinstance(item, dict) or item.get("id") != memory_id]
+        if len(updated) == len(items):
+            raise HTTPException(status_code=404, detail="memory item not found")
+        save_memory(updated)
+    return {"success": True, "id": memory_id, "chunks": len(updated)}
+
+
 @app.get("/api/memory/search")
 async def search_memory_hub(query: str, limit: int = 20):
-    """Search local OBus, Hermes, and available Mem0 memory text."""
+    """Search local OBus, Hermes, MemPalace, Tarot RAG, and available Mem0 text."""
     if not query.strip():
         raise HTTPException(status_code=400, detail="query is required")
-    return {"query": query, "results": get_memory_hub().search(query, limit=limit)}
+    return {"query": query, "results": get_memory_hub().search(query, limit=min(max(1, limit), 50))}
 
 
 @app.put("/api/settings")
 async def update_settings(update: SettingsUpdate):
     state = load_state()
     settings = get_settings(state)
-    for field, value in update.model_dump(exclude_none=True).items():
+    values = update.model_dump(exclude_none=True)
+    if "rag_character_budget" in values and not 800 <= int(values["rag_character_budget"]) <= 8000:
+        raise HTTPException(status_code=400, detail="rag_character_budget must be 800-8000")
+    if "max_parallel_agents" in values and not 1 <= int(values["max_parallel_agents"]) <= 20:
+        raise HTTPException(status_code=400, detail="max_parallel_agents must be 1-20")
+    for field, value in values.items():
         settings[field] = value
     state["settings"] = settings
     save_state(state)
@@ -1537,8 +1650,7 @@ async def credits():
 
 @app.delete("/api/memory")
 async def clear_memory():
-    MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    MEMORY_FILE.write_text("[]", encoding="utf-8")
+    save_memory([])
     return {"success": True, "chunks": 0, "characters": 0}
 
 
@@ -2635,7 +2747,8 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     aggregator = next((key for key in state["keys"] if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None:
         aggregator = OFFLINE_ROOM_KEY
-    hub_results = get_memory_hub().search(prompt, limit=4) if rag_enabled else []
+    raw_hub_results = get_memory_hub().search(prompt, limit=20) if rag_enabled else []
+    hub_results = bounded_memory_results(raw_hub_results, character_budget=3200, limit=5)
     hub_characters = sum(len(str(item.get("text", ""))) for item in hub_results)
     
     return {
@@ -2670,9 +2783,10 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
         },
         "rag": {
             "enabled": bool(rag_enabled),
-            "snippets": (4 + len(hub_results)) if rag_enabled else 0,
-            "characters": (3200 + hub_characters) if rag_enabled else 0,
-            "source": "local_sqlite+memory_hub",
+            "snippets": len(hub_results) if rag_enabled else 0,
+            "characters": hub_characters if rag_enabled else 0,
+            "character_budget": 3200,
+            "source": "local_memory+hermes+mempalace+mem0+tarot_rag",
             "hub_results": hub_results,
         }
     }
@@ -2851,11 +2965,13 @@ async def run_route(request: RouteRequest):
     )
     if model not in ollama_status.get("models", []):
         offline_answer = generate_offline_answer(request.prompt, plan)
+        remembered = remember_route_exchange(request.prompt, offline_answer, engine="offline-planner")
         return {
             "status": "complete", "engine": "offline-planner", "model": OFFLINE_ROOM_KEY["model"],
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "trace": [{"stage": "offline plan", "role": "OBus planner", "model": OFFLINE_ROOM_KEY["model"], "status": "complete", "output": offline_answer}],
             "final": offline_answer,
+            "remembered": remembered,
         }
     try:
         routed_prompt = request.prompt
@@ -2908,12 +3024,14 @@ async def run_route(request: RouteRequest):
     aggregate_status = next((item for item in provider_statuses(state) if aggregate_key and item["id"] == aggregate_key["id"]), None)
     if not aggregate_key or not aggregate_status or not aggregate_status.get("connected"):
         usage = finish_usage(local_engine)
+        remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
         return {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
             "trace": local_trace,
             "aggregate": {"status": "unavailable", "name": "GPT 5.6 Luna", "model": "gpt-5.6-luna"},
+            "remembered": remembered,
             "usage": usage,
         }
     aggregate_calls = 1
@@ -2923,17 +3041,20 @@ async def run_route(request: RouteRequest):
     except RuntimeError as exc:
         aggregate_seconds = time.perf_counter() - aggregate_started
         usage = finish_usage(local_engine)
+        remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
         return {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
             "trace": local_trace,
             "aggregate": {"status": "failed", "name": aggregate_key["name"], "model": aggregate_key["model"], "reason": type(exc).__name__},
+            "remembered": remembered,
             "usage": usage,
         }
     aggregate_seconds = time.perf_counter() - aggregate_started
     final_engine = f"{local_engine}+luna-aggregate"
     usage = finish_usage(final_engine)
+    remembered = remember_route_exchange(request.prompt, final_answer, engine=final_engine)
     return {
         "status": "complete",
         "engine": final_engine,
@@ -2948,6 +3069,7 @@ async def run_route(request: RouteRequest):
             "status": "complete", "output": final_answer,
         }],
         "final": final_answer,
+        "remembered": remembered,
         "usage": usage,
     }
 
