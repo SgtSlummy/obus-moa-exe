@@ -10,8 +10,13 @@ A fully portable Windows EXE that bundles the complete OccultBus Mixture-of-Agen
 - **Dynamic Tarot/Solomon's routing** - No static card→key pairings
 - **Up to 20 concurrent specialist agents** with aggregators
 - **Encrypted key storage** using Windows DPAPI
-- **Local RAG** with bounded retrieval (five snippets / 3,200 characters) across durable OBus memory, Hermes memory, MemPalace, Mem0, and Tarot Router FTS5
+- **Local RAG** with bounded retrieval (five snippets, configurable 800–8000 character budget; 2,400 default) across durable OBus memory, Hermes memory, MemPalace, Mem0, and Tarot Router FTS5
 - **Durable memory CRUD** in the Memory screen: add, tag, search, list, delete, and clear; atomic JSON persistence under `%LOCALAPPDATA%\OBus\memory.json`
+- **Automatic route memory** (enabled by default): every completed prompt + final answer is redacted, bounded, deduplicated, persisted, and available to future RAG; disable it in Settings
+- **Native MCP server**: run `OBus.exe --mcp` for eight stdio tools covering status, connection info, memory search/add, route plans/execution, and Tentacle Worm hardening status/runs
+- **Tentacle Worm startup red team**: Scout, Red-Team, Hardener, and Verifier agents run in the background on first install and startup; the connected local LLM performs advisory analysis while deterministic allowlisted repairs handle setup, troubleshooting, hardening, and verification
+- **Token and throughput controls**: adjustable 800–8000 character RAG budget, 1–20 parallel-agent ceiling, and a bounded 8-advisor Throughput profile
+- **Animated kawaii agent state faces** in live MoA windows and Tarot agent cards
 - **Zero external dependencies** at runtime
 
 ## Quick Start

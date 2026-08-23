@@ -13,6 +13,11 @@ OBUS_API_URL = os.getenv("OBUS_URL", "http://127.0.0.1:38173").rstrip("/")
 PROTOCOL_VERSION = "2025-06-18"
 
 
+def serialize_message(message: dict[str, Any]) -> str:
+    """Emit ASCII-safe JSON for Windows stdio code pages."""
+    return json.dumps(message, ensure_ascii=True)
+
+
 def request_json(path: str, method: str = "GET", body: dict[str, Any] | None = None) -> Any:
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(
@@ -37,6 +42,8 @@ def tool_catalog() -> list[dict[str, Any]]:
         {"name": "obus_memory_add", "description": "Add a redacted, deduplicated durable OBus memory.", "inputSchema": {"type": "object", "properties": {"text": {"type": "string", "maxLength": 8000}, "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 12}}, "required": ["text"]}},
         {"name": "obus_route_plan", "description": "Dry-run dynamic Tarot/Key routing with bounded RAG and no model execution.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "rag_enabled": {"type": "boolean"}, "performance_profile": {"type": "string", "enum": ["fast", "balanced", "deep", "throughput"]}}, "required": ["prompt"]}},
         {"name": "obus_route_run", "description": "Execute a full OBus route and return visible specialist trace plus final answer.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "rag_enabled": {"type": "boolean"}, "performance_profile": {"type": "string", "enum": ["fast", "balanced", "deep", "throughput"]}, "model": {"type": "string"}}, "required": ["prompt"]}},
+        {"name": "obus_tentacle_status", "description": "Read the latest first-install/startup Tentacle Worm hardening and verification report.", "inputSchema": {"type": "object", "properties": {}}},
+        {"name": "obus_tentacle_run", "description": "Run the bounded local-LLM Tentacle Worm red team with allowlisted safe repairs.", "inputSchema": {"type": "object", "properties": {"full": {"type": "boolean"}, "apply_safe_fixes": {"type": "boolean"}}}},
     ]
 
 
@@ -54,6 +61,10 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
         return request_json(f"/api/memory/search?query={urllib.parse.quote(query)}&limit={limit}")
     if name == "obus_memory_add":
         return request_json("/api/memory", "POST", {"text": str(arguments.get("text", "")), "tags": arguments.get("tags", [])})
+    if name == "obus_tentacle_status":
+        return request_json("/api/tentacle-worms/status")
+    if name == "obus_tentacle_run":
+        return request_json("/api/tentacle-worms/run", "POST", {"full": bool(arguments.get("full", True)), "apply_safe_fixes": bool(arguments.get("apply_safe_fixes", True))})
     if name in {"obus_route_plan", "obus_route_run"}:
         prompt = str(arguments.get("prompt", "")).strip()
         if not prompt:
@@ -96,10 +107,10 @@ def serve() -> None:
             message = json.loads(raw)
             response = handle_request(message)
             if response is not None:
-                sys.stdout.write(json.dumps(response, ensure_ascii=False) + "\n")
+                sys.stdout.write(serialize_message(response) + "\n")
                 sys.stdout.flush()
         except Exception as exc:
-            sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}}) + "\n")
+            sys.stdout.write(serialize_message({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}}) + "\n")
             sys.stdout.flush()
 
 
