@@ -97,16 +97,22 @@ class RuntimeContractTests(unittest.TestCase):
         persisted = json.loads(self.state_file.read_text(encoding="utf-8"))
         self.assertFalse(persisted["settings"]["rag_enabled"])
 
-    def test_quantum_inference_initializes_and_changes_only_the_poll_interval(self):
-        state = backend.normalize_state({})
+    def test_quantum_inference_initializes_and_updates_only_for_missing_information(self):
+        state = backend.normalize_state({"settings": {"selected_model": "gpt-oss:20b", "selected_deck": "auto"}})
         initial, changed = backend.update_quantum_inference(state, now=60)
         self.assertTrue(changed)
         self.assertTrue(initial["setup_complete"])
         self.assertEqual(initial["chosen_variable"], "ui_poll_interval_ms")
         self.assertIn(initial["ui_poll_interval_ms"], backend.QUANTUM_POLL_INTERVALS_MS)
         self.assertFalse(initial["quantum_hardware"])
-        follow_up, changed = backend.update_quantum_inference(state, now=120)
+        held, changed = backend.update_quantum_inference(state, now=120)
+        self.assertFalse(changed)
+        self.assertEqual(held["flow_state"], "holding-present-information")
+        self.assertEqual(initial["ui_poll_interval_ms"], held["ui_poll_interval_ms"])
+        state["settings"]["selected_model"] = ""
+        follow_up, changed = backend.update_quantum_inference(state, now=180)
         self.assertTrue(changed)
+        self.assertEqual(follow_up["missing_items"], ["selected_model"])
         self.assertNotEqual(initial["ui_poll_interval_ms"], follow_up["ui_poll_interval_ms"])
         self.assertEqual(state["runtime_settings"]["max_parallel"], 8)
 

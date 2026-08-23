@@ -428,8 +428,26 @@ def get_settings(state: Optional[dict] = None) -> dict:
 QUANTUM_POLL_INTERVALS_MS = (5, 10, 15, 20, 25)
 
 
+def missing_information_items(state: dict) -> list[str]:
+    """Return only genuinely absent prerequisites for the adaptive flow."""
+    missing: list[str] = []
+    settings = state.get("settings", {})
+    if not isinstance(settings, dict) or not str(settings.get("selected_model", "")).strip():
+        missing.append("selected_model")
+    if not isinstance(settings, dict) or not str(settings.get("selected_deck", "")).strip():
+        missing.append("selected_deck")
+    local_key = next((key for key in state.get("keys", []) if key.get("id") == "key-local-ollama"), None)
+    if not local_key:
+        missing.append("local_ollama_key")
+    elif not str(local_key.get("model", "")).strip() or not str(local_key.get("base_url", "")).strip():
+        missing.append("local_ollama_route")
+    if not state.get("cards"):
+        missing.append("tarot_cards")
+    return missing
+
+
 def update_quantum_inference(state: dict, now: Optional[float] = None) -> tuple[dict, bool]:
-    """Adapt one safe UI variable from local runtime uncertainty.
+    """Change adaptive state only for first setup or a new missing-info event.
 
     This is a deterministic, quantum-inspired scheduler—not a claim of quantum
     hardware or a quantum model. It never changes providers, keys, or execution
@@ -437,36 +455,37 @@ def update_quantum_inference(state: dict, now: Optional[float] = None) -> tuple[
     """
     now = time.time() if now is None else float(now)
     config = state["quantum_inference"]
-    window_seconds = 60
-    window = int(now // window_seconds)
+    missing = missing_information_items(state)
+    missing_signature = "|".join(missing)
     active_agents = sum(1 for agent in state.get("persistent_agents", []) if agent.get("status") in {"queued", "running", "stopping"})
-    settings = get_settings(state)
-    signal = f"{window}|{active_agents}|{settings.get('selected_deck')}|{settings.get('rag_enabled')}|{config.get('decision_count', 0)}"
-    entropy = int(hashlib.blake2s(signal.encode("utf-8"), digest_size=4).hexdigest(), 16)
     changed = False
-    if not config.get("setup_complete") or config.get("last_window") != window:
+    should_initialize = not config.get("setup_complete")
+    should_react_to_missing = bool(missing) and config.get("last_missing_signature") != missing_signature
+    if should_initialize or should_react_to_missing:
         previous = int(config.get("ui_poll_interval_ms", QUANTUM_POLL_INTERVALS_MS[0]))
-        base_index = min(len(QUANTUM_POLL_INTERVALS_MS) - 1, active_agents // 2)
-        candidate = QUANTUM_POLL_INTERVALS_MS[(base_index + entropy) % len(QUANTUM_POLL_INTERVALS_MS)]
-        # Advance one bounded candidate if the uncertainty draw repeats, so the
-        # selected variable genuinely evolves from window to window.
+        signal = f"{missing_signature}|{active_agents}|{config.get('decision_count', 0)}"
+        entropy = int(hashlib.blake2s(signal.encode("utf-8"), digest_size=4).hexdigest(), 16)
+        candidate = QUANTUM_POLL_INTERVALS_MS[entropy % len(QUANTUM_POLL_INTERVALS_MS)]
         if config.get("setup_complete") and candidate == previous:
             candidate = QUANTUM_POLL_INTERVALS_MS[(QUANTUM_POLL_INTERVALS_MS.index(candidate) + 1) % len(QUANTUM_POLL_INTERVALS_MS)]
+        reason = "initial local setup" if should_initialize else f"missing information: {', '.join(missing)}"
         config.update({
             "setup_complete": True,
             "chosen_variable": "ui_poll_interval_ms",
             "ui_poll_interval_ms": candidate,
             "allowed_values_ms": list(QUANTUM_POLL_INTERVALS_MS),
-            "window_seconds": window_seconds,
-            "last_window": window,
-            "last_reason": f"local uncertainty window; active agents={active_agents}",
+            "last_missing_signature": missing_signature,
+            "last_reason": reason,
             "decision_count": int(config.get("decision_count", 0)) + 1,
             "updated_at": datetime.fromtimestamp(now, timezone.utc).isoformat(),
             "inference_mode": "quantum-inspired-local-heuristic",
             "quantum_hardware": False,
         })
         changed = True
-    return copy.deepcopy(config), changed
+    result = copy.deepcopy(config)
+    result["missing_items"] = missing
+    result["flow_state"] = "missing-information-update" if missing else "holding-present-information"
+    return result, changed
 
 
 

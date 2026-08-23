@@ -238,7 +238,7 @@ async function api(path,options={}){const response=await fetch(path,{headers:{'C
 function optionMarkup(items,selected,label=x=>x.name,value=x=>x.id){return items.map(item=>`<option value="${escapeHtml(value(item))}" ${value(item)===selected?'selected':''}>${escapeHtml(label(item))}</option>`).join('');}
 function setPage(name){$$('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$$('.page').forEach(x=>x.classList.toggle('active',x.dataset.pagePanel===name));$('#page-title').textContent=titles[name]||'OBus MOA';}
 function quantumPollInterval(){return Number(state.quantum?.ui_poll_interval_ms)||5;}
-function renderQuantumInference(config){if(!config)return;state.quantum=config;const status=$('#quantum-inference-status');if(status)status.textContent=`${config.chosen_variable} = ${config.ui_poll_interval_ms} ms · updates every ${config.window_seconds}s · local quantum-inspired heuristic (no quantum hardware)`;}
+function renderQuantumInference(config){if(!config)return;state.quantum=config;const status=$('#quantum-inference-status');if(status){const detail=config.missing_items?.length?`missing: ${config.missing_items.join(', ')}`:'all monitored information present; holding current value';status.textContent=`${config.chosen_variable} = ${config.ui_poll_interval_ms} ms · ${detail} · local quantum-inspired heuristic (no quantum hardware)`;}}
 async function refreshQuantumInference(){const config=await api('/api/quantum-inference');renderQuantumInference(config);return config;}
 function renderDashboard(data){state.dashboard=data;renderQuantumInference(data.quantum_inference);const ollama=data.ollama;$('#ollama-status').classList.toggle('ready',ollama.connected);$('#ollama-status span:last-child').textContent=ollama.connected?`Ollama · ${ollama.models.length} model${ollama.models.length===1?'':'s'}`:'Offline planning mode';$('#setup-overlay').classList.remove('show');
   const settings=data.settings;state.selectedDeck=settings.selected_deck||'auto';$('#rag-toggle').checked=!!settings.rag_enabled;$('#rag-toggle-settings').checked=!!settings.rag_enabled;
@@ -325,7 +325,6 @@ $('#forge-search').oninput=e=>{state.forgeSearch=e.target.value;renderForge()};$
 $('#runtime-spawn-agent').onclick=spawnRuntimeAgent;$('#runtime-orchestrate').onclick=orchestrateRuntime;$('#runtime-refresh').onclick=()=>loadRuntime().catch(e=>toast(e.message,true));
 $('#open-room-dialog').onclick=openRoomDialog;$('#room-card-picker').onchange=syncRoomChymeriaOptions;$('#cancel-room').onclick=()=>$('#room-dialog').close();$('#room-form').onsubmit=async e=>{e.preventDefault();$('#save-room').disabled=true;try{await saveRoom()}catch(error){toast(error.message,true)}finally{$('#save-room').disabled=false}};$('#room-run-deliberation').onclick=runSelectedRoom;$('#room-refresh-deliberation').onclick=()=>state.selectedRoom&&selectRoom(state.selectedRoom,true).catch(e=>toast(e.message,true));$('#new-forum-thread').onclick=createForumThread;$('#forum-round').onclick=runForumRound;$('#send-forum-message').onclick=sendForumMessage;
 Promise.all([refresh(),refreshCodexStatus(),loadGitHubStatus(),loadRooms(),loadThreads()]).catch(e=>{toast(e.message,true);$('#result-output').textContent=`Dashboard failed to load: ${e.message}`});
-setInterval(()=>refreshQuantumInference().catch(()=>{}),60000);
 </script>
 </body>
 </html>
