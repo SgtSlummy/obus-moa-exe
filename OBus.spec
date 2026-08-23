@@ -12,6 +12,7 @@ hiddenimports = [
     "markupsafe", "itsdangerous", "click", "h11", "httpcore", "anyio",
     "sniffio", "json", "dataclasses", "datetime", "typing",
     "pystray", "pystray._win32", "PIL.Image", "PIL.ImageDraw",
+    "obus_mcp_server",
     "backend.main", "backend.credit_manager", "backend.room_models", "backend.room_council",
     "backend.room_runner", "backend.forum_runtime", "backend",
 ]
