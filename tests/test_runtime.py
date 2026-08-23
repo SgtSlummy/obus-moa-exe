@@ -171,6 +171,20 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("--skip-verify", fast)
         self.assertNotIn("--skip-verify", deep)
 
+    def test_throughput_and_token_budgets_are_adjustable_and_enforced(self):
+        self.assertEqual(backend.resolve_performance_profile("throughput")["advisor_count"], 8)
+        settings = self.client.put("/api/settings", json={"max_parallel_agents": 6, "rag_character_budget": 1000}).json()
+        self.assertEqual(settings["max_parallel_agents"], 6)
+        self.assertEqual(settings["rag_character_budget"], 1000)
+        self.memory_file.write_text(json.dumps([{"id": "long", "text": "throughput token budget " * 500}]), encoding="utf-8")
+        plan = self.client.post("/api/route/plan", json={
+            "prompt": "throughput token budget", "performance_profile": "throughput", "rag_enabled": True,
+        }).json()
+        self.assertEqual(plan["moa"]["advisor_count"], 6)
+        self.assertEqual(plan["moa"]["max_parallel"], 6)
+        self.assertLessEqual(plan["rag"]["characters"], 1000)
+        self.assertEqual(plan["rag"]["character_budget"], 1000)
+
     def test_moa_metrics_are_parsed_and_usage_is_persisted(self):
         stdout = (
             "[parallel:direct solver] gpt-oss:20b ready\n"

@@ -79,6 +79,7 @@ PERFORMANCE_PROFILES = {
     "fast": {"id": "fast", "advisor_count": 2, "parallel_workers": 2, "max_tokens": 384, "timeout_seconds": 180},
     "balanced": {"id": "balanced", "advisor_count": 3, "parallel_workers": 3, "max_tokens": 512, "timeout_seconds": 300},
     "deep": {"id": "deep", "advisor_count": 5, "parallel_workers": 5, "max_tokens": 768, "timeout_seconds": 420},
+    "throughput": {"id": "throughput", "advisor_count": 8, "parallel_workers": 8, "max_tokens": 384, "timeout_seconds": 480},
 }
 
 
@@ -434,7 +435,7 @@ class RouteRequest(BaseModel):
     deck_mode: Optional[str] = "auto"
     rag_enabled: Optional[bool] = True
     model: Optional[str] = None
-    performance_profile: Literal["fast", "balanced", "deep"] = "balanced"
+    performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced"
 
 
 class MemoryCreate(BaseModel):
@@ -2727,10 +2728,14 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
     return assignments
 
 @app.get("/api/plan")
-async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep"] = "balanced", rag_enabled: bool = True):
+async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced", rag_enabled: bool = True):
     """Get MOA routing plan with deck selection"""
     state = load_state()
     profile = resolve_performance_profile(performance_profile)
+    settings = get_settings(state)
+    parallel_limit = min(max(int(settings.get("max_parallel_agents", 5)), 1), 20)
+    profile["advisor_count"] = min(profile["advisor_count"], parallel_limit)
+    profile["parallel_workers"] = min(profile["parallel_workers"], parallel_limit)
     
     # Determine deck
     if deck_mode and deck_mode != "auto":
@@ -2747,8 +2752,9 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     aggregator = next((key for key in state["keys"] if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None:
         aggregator = OFFLINE_ROOM_KEY
+    rag_budget = min(max(int(settings.get("rag_character_budget", 2400)), 800), 8000)
     raw_hub_results = get_memory_hub().search(prompt, limit=20) if rag_enabled else []
-    hub_results = bounded_memory_results(raw_hub_results, character_budget=3200, limit=5)
+    hub_results = bounded_memory_results(raw_hub_results, character_budget=rag_budget, limit=5)
     hub_characters = sum(len(str(item.get("text", ""))) for item in hub_results)
     
     return {
@@ -2785,7 +2791,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
             "enabled": bool(rag_enabled),
             "snippets": len(hub_results) if rag_enabled else 0,
             "characters": hub_characters if rag_enabled else 0,
-            "character_budget": 3200,
+            "character_budget": rag_budget,
             "source": "local_memory+hermes+mempalace+mem0+tarot_rag",
             "hub_results": hub_results,
         }
@@ -2799,12 +2805,19 @@ async def plan_route_post(request: RouteRequest):
     return plan
 
 
-def build_moa_router_command(prompt: str, model: str, performance_profile: Optional[str] = "balanced") -> Optional[list[str]]:
+def build_moa_router_command(
+    prompt: str, model: str, performance_profile: Optional[str] = "balanced", *,
+    advisor_count: Optional[int] = None, parallel_workers: Optional[int] = None,
+) -> Optional[list[str]]:
     """Build a local-only MoA subprocess command when the source router is present."""
     python_executable = os.environ.get("MOA_ROUTER_PYTHON") or shutil.which("python")
     if not python_executable or not MOA_ROUTER_SCRIPT.is_file():
         return None
     profile = resolve_performance_profile(performance_profile)
+    if advisor_count is not None:
+        profile["advisor_count"] = min(max(int(advisor_count), 1), 20)
+    if parallel_workers is not None:
+        profile["parallel_workers"] = min(max(int(parallel_workers), 1), profile["advisor_count"])
     command = [
         python_executable,
         str(MOA_ROUTER_SCRIPT),
@@ -2860,7 +2873,11 @@ def parse_moa_router_output(stdout: str) -> tuple[str, dict]:
 
 def generate_with_moa_router(prompt: str, model: str, plan: dict) -> tuple[str, dict]:
     profile = resolve_performance_profile(plan.get("moa", {}).get("profile"))
-    command = build_moa_router_command(prompt, model, profile["id"])
+    command = build_moa_router_command(
+        prompt, model, profile["id"],
+        advisor_count=plan.get("moa", {}).get("advisor_count"),
+        parallel_workers=plan.get("moa", {}).get("max_parallel"),
+    )
     if command is None:
         raise RuntimeError("Local MoA router is not installed")
     try:
