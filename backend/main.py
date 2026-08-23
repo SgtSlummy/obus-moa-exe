@@ -56,6 +56,9 @@ TENTACLE_LOCK = threading.RLock()
 TENTACLE_THREAD: Optional[threading.Thread] = None
 TENTACLE_LAST_REPORT: dict = {}
 TENTACLE_RUN_AUDIT = run_tentacle_audit
+VOICE_LOCK = threading.RLock()
+VOICE_MODEL = None
+VOICE_MODEL_PATH: Optional[str] = None
 OLLAMA_URL = "http://127.0.0.1:11434"
 OBUS_PROVIDER_BASE_URL = os.environ.get("OBUS_PROVIDER_BASE_URL", "http://127.0.0.1:38174/v1").rstrip("/")
 OBUS_PROVIDER_KEY_ENV = "OCCULTBUS_API_KEY"
@@ -487,6 +490,11 @@ class MachineSetupUpdate(BaseModel):
     role: Literal["primary", "worker"]
     label: str = ""
     peer_label: str = ""
+
+
+class VoiceTranscriptionRequest(BaseModel):
+    audio_base64: str
+    mime_type: str = "audio/webm"
 
 
 class MemoryCreate(BaseModel):
@@ -1297,6 +1305,41 @@ def local_voice_status() -> dict:
         "ready": bool(dependencies_available and model_available),
         "reason": "Ready for local speech transcription" if dependencies_available and model_available else "Set OBUS_LOCAL_STT_MODEL_PATH to an already-downloaded faster-whisper model; OBus will not download voice models automatically.",
     }
+
+
+def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
+    """Transcribe one browser recording with a pre-existing local Faster-Whisper model."""
+    model_path = str(os.environ.get("OBUS_LOCAL_STT_MODEL_PATH") or "").strip()
+    if not model_path or not Path(model_path).exists():
+        raise RuntimeError("Configure OBUS_LOCAL_STT_MODEL_PATH with an already available local Faster-Whisper model before using voice.")
+    if not importlib.util.find_spec("faster_whisper"):
+        raise RuntimeError("Local Faster-Whisper support is unavailable in this OBus runtime.")
+    try:
+        audio = base64.b64decode(audio_base64, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Voice input was not valid base64 audio.") from exc
+    if not audio or len(audio) > 8 * 1024 * 1024:
+        raise ValueError("Voice recordings must be between 1 byte and 8 MiB.")
+    suffix = ".webm" if mime_type in {"audio/webm", "audio/webm;codecs=opus"} else ".wav"
+    temp_name = ""
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
+            temp_file.write(audio)
+            temp_name = temp_file.name
+        global VOICE_MODEL, VOICE_MODEL_PATH
+        with VOICE_LOCK:
+            if VOICE_MODEL is None or VOICE_MODEL_PATH != model_path:
+                from faster_whisper import WhisperModel
+                VOICE_MODEL = WhisperModel(model_path, device="auto", compute_type="int8")
+                VOICE_MODEL_PATH = model_path
+            segments, _info = VOICE_MODEL.transcribe(temp_name, vad_filter=True)
+            transcript = " ".join(segment.text.strip() for segment in segments).strip()
+        if not transcript:
+            raise RuntimeError("Local voice model returned no speech.")
+        return transcript[:8000]
+    finally:
+        if temp_name:
+            Path(temp_name).unlink(missing_ok=True)
 
 
 def provider_statuses(state: Optional[dict] = None) -> list:
@@ -3010,6 +3053,17 @@ async def update_machine_setup(update: MachineSetupUpdate):
     }
     save_state(state)
     return machine_setup_payload(state)
+
+
+@app.post("/api/voice/transcribe")
+async def transcribe_voice(request: VoiceTranscriptionRequest):
+    try:
+        transcript = await asyncio.to_thread(transcribe_local_audio, request.audio_base64, request.mime_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"transcript": transcript, "engine": "local-faster-whisper"}
 
 
 # ==================== LOCAL ROUTING EXECUTION ====================
