@@ -13,7 +13,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 import asyncio
 import base64
 import copy
@@ -45,8 +45,41 @@ PERSISTENT_AGENT_STOP_EVENTS: dict[str, threading.Event] = {}
 PERSISTENT_AGENT_KEY_LOADS: dict[str, int] = {}
 PERSISTENT_AGENT_SEMAPHORE = threading.Semaphore(8)
 OLLAMA_URL = "http://127.0.0.1:11434"
+
+
+def normalize_ollama_keep_alive(value):
+    """Use integer seconds for numeric Ollama values and preserve duration strings."""
+    text = str(value).strip()
+    return int(text) if re.fullmatch(r"-?\d+", text) else text
+
+
+OLLAMA_KEEP_ALIVE = normalize_ollama_keep_alive(os.environ.get("OBUS_OLLAMA_KEEP_ALIVE", "-1"))
 MOA_ROUTER_ROOT = Path(os.environ.get("MOA_ROUTER_ROOT", Path.home() / "MoA-source"))
 MOA_ROUTER_SCRIPT = MOA_ROUTER_ROOT / "moa_router.py"
+GPU_WARM_LOCK = threading.RLock()
+GPU_WARM_EXECUTION_LOCK = threading.Lock()
+GPU_WARM_ACTIVE_MODEL: Optional[str] = None
+GPU_WARM_THREAD: Optional[threading.Thread] = None
+GPU_WARM_STATE = {
+    "status": "cold",
+    "model": None,
+    "keep_alive": OLLAMA_KEEP_ALIVE,
+    "started_at": None,
+    "warmed_at": None,
+    "load_duration_ns": None,
+    "error": None,
+}
+
+PERFORMANCE_PROFILES = {
+    "fast": {"id": "fast", "advisor_count": 2, "parallel_workers": 2, "max_tokens": 384, "timeout_seconds": 180},
+    "balanced": {"id": "balanced", "advisor_count": 3, "parallel_workers": 3, "max_tokens": 512, "timeout_seconds": 300},
+    "deep": {"id": "deep", "advisor_count": 5, "parallel_workers": 5, "max_tokens": 768, "timeout_seconds": 420},
+}
+
+
+def resolve_performance_profile(profile: Optional[str]) -> dict:
+    """Return a bounded local-MoA profile; Balanced is the quality-safe default."""
+    return copy.deepcopy(PERFORMANCE_PROFILES.get(str(profile or "").lower(), PERFORMANCE_PROFILES["balanced"]))
 
 
 # ==================== DECK ROUTING ====================
@@ -392,6 +425,12 @@ class RouteRequest(BaseModel):
     prompt: str
     deck_mode: Optional[str] = "auto"
     rag_enabled: Optional[bool] = True
+    model: Optional[str] = None
+    performance_profile: Literal["fast", "balanced", "deep"] = "balanced"
+
+
+class WarmupRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     model: Optional[str] = None
 
 
@@ -880,6 +919,103 @@ def get_ollama_status() -> dict:
         return {"connected": False, "models": [], "model_contexts": {}, "url": OLLAMA_URL, "error": str(exc)}
 
 
+def get_gpu_warm_status() -> dict:
+    """Return the secret-free local GPU residency state tracked by OBus."""
+    with GPU_WARM_LOCK:
+        return copy.deepcopy(GPU_WARM_STATE)
+
+
+def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> dict:
+    """Single-flight load of an installed Ollama model for low-latency routes."""
+    global GPU_WARM_ACTIVE_MODEL
+    if not GPU_WARM_EXECUTION_LOCK.acquire(blocking=False):
+        with GPU_WARM_LOCK:
+            return {
+                "status": "busy", "model": GPU_WARM_ACTIVE_MODEL,
+                "keep_alive": OLLAMA_KEEP_ALIVE, "accepted": False,
+            }
+    try:
+        model = str(model or "").strip()
+        with GPU_WARM_LOCK:
+            GPU_WARM_ACTIVE_MODEL = model or None
+        if not model:
+            raise RuntimeError("No Ollama model was selected for warmup")
+        ollama = get_ollama_status()
+        if not ollama.get("connected"):
+            raise RuntimeError("Ollama is not connected")
+        if model not in ollama.get("models", []):
+            raise RuntimeError(f"Ollama model is not installed: {model}")
+
+        started_at = datetime.now(timezone.utc).isoformat()
+        with GPU_WARM_LOCK:
+            GPU_WARM_STATE.update(
+                status="warming", model=model, keep_alive=keep_alive,
+                started_at=started_at, warmed_at=None, load_duration_ns=None, error=None,
+            )
+        request = urllib.request.Request(
+            f"{OLLAMA_URL}/api/generate",
+            data=json.dumps({"model": model, "prompt": "", "stream": False, "keep_alive": keep_alive}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("invalid response")
+        except (OSError, urllib.error.URLError, ValueError, TypeError, UnicodeDecodeError) as exc:
+            reason = "invalid response" if isinstance(exc, (ValueError, TypeError, UnicodeDecodeError)) else type(exc).__name__
+            with GPU_WARM_LOCK:
+                GPU_WARM_STATE.update(status="error", error=reason)
+            raise RuntimeError(f"Ollama warmup failed: {reason}") from exc
+        with GPU_WARM_LOCK:
+            GPU_WARM_STATE.update(
+                status="warm", warmed_at=datetime.now(timezone.utc).isoformat(),
+                load_duration_ns=payload.get("load_duration"), error=None,
+            )
+            result = copy.deepcopy(GPU_WARM_STATE)
+            result["accepted"] = True
+            return result
+    finally:
+        with GPU_WARM_LOCK:
+            GPU_WARM_ACTIVE_MODEL = None
+        GPU_WARM_EXECUTION_LOCK.release()
+
+
+def _configured_local_model() -> str:
+    state = load_state()
+    settings_model = str(get_settings(state).get("selected_model") or "").strip()
+    local_key = next((key for key in state.get("keys", []) if key.get("id") == "key-local-ollama"), None)
+    key_model = str((local_key or {}).get("model") or "").strip()
+    installed = set(get_ollama_status().get("models", []))
+    if settings_model in installed:
+        return settings_model
+    if key_model in installed:
+        return key_model
+    return settings_model or key_model or "gpt-oss:20b"
+
+
+def start_gpu_warmup() -> dict:
+    """Start one non-blocking startup warmup; repeated starts are idempotent."""
+    global GPU_WARM_THREAD
+    with GPU_WARM_LOCK:
+        if GPU_WARM_THREAD and GPU_WARM_THREAD.is_alive():
+            return copy.deepcopy(GPU_WARM_STATE)
+
+        def worker() -> None:
+            try:
+                warm_ollama_model(_configured_local_model())
+            except RuntimeError:
+                pass
+
+        GPU_WARM_THREAD = threading.Thread(target=worker, name="obus-gpu-warmup", daemon=True)
+        GPU_WARM_THREAD.start()
+        return copy.deepcopy(GPU_WARM_STATE)
+
+
+app.router.add_event_handler("startup", start_gpu_warmup)
+
+
 def provider_statuses(state: Optional[dict] = None) -> list:
     state = state or load_state()
     ollama = get_ollama_status()
@@ -943,6 +1079,22 @@ async def health():
     return {"status": "ok", "service": "obus-moa"}
 
 
+@app.get("/api/warmup")
+async def warmup_status():
+    return get_gpu_warm_status()
+
+
+@app.post("/api/warmup")
+async def warmup_model(request: WarmupRequest):
+    try:
+        result = await asyncio.to_thread(warm_ollama_model, request.model or _configured_local_model())
+        if result.get("accepted") is False:
+            return JSONResponse(content=result, status_code=202)
+        return result
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @app.get("/status")
 async def status():
     """System status"""
@@ -967,6 +1119,7 @@ async def dashboard():
     memory = get_memory()
     return {
         "ollama": get_ollama_status(),
+        "warm_runtime": get_gpu_warm_status(),
         "providers": provider_statuses(state),
         "cards": state.get("cards", DEFAULT_CARDS),
         "decks": [d for d in ALL_DECKS if d.get("enabled", True)],
@@ -2335,9 +2488,10 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
     return assignments
 
 @app.get("/api/plan")
-async def plan_route(prompt: str, deck_mode: Optional[str] = None):
+async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep"] = "balanced"):
     """Get MOA routing plan with deck selection"""
     state = load_state()
+    profile = resolve_performance_profile(performance_profile)
     
     # Determine deck
     if deck_mode and deck_mode != "auto":
@@ -2349,7 +2503,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None):
     
     # Get cards from selected deck
     deck_cards = [c for c in state["cards"] if deck["id"] in c.get("decks", [])]
-    selected_cards = select_cards_for_prompt(deck_cards or state["cards"], prompt, limit=5)
+    selected_cards = select_cards_for_prompt(deck_cards or state["cards"], prompt, limit=profile["advisor_count"])
     dynamic_assignments = match_cards_to_keys(selected_cards, state, prompt)
     aggregator = next((key for key in state["keys"] if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None:
@@ -2369,7 +2523,11 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None):
         "moa": {
             "mode": "tarot-router",
             "dispatch": "parallel",
-            "max_parallel": 20
+            "profile": profile["id"],
+            "advisor_count": profile["advisor_count"],
+            "max_parallel": profile["parallel_workers"],
+            "max_tokens": profile["max_tokens"],
+            "timeout_seconds": profile["timeout_seconds"],
         },
         "agents_task_capabilities": ["analysis", "research", "coding"],
         "agents": {
@@ -2396,35 +2554,37 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None):
 @app.post("/api/route/plan")
 async def plan_route_post(request: RouteRequest):
     """POST contract used by the desktop UI."""
-    plan = await plan_route(request.prompt, request.deck_mode)
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile)
     plan["rag"]["enabled"] = bool(request.rag_enabled)
     return plan
 
 
-def build_moa_router_command(prompt: str, model: str) -> Optional[list[str]]:
+def build_moa_router_command(prompt: str, model: str, performance_profile: Optional[str] = "balanced") -> Optional[list[str]]:
     """Build a local-only MoA subprocess command when the source router is present."""
     python_executable = os.environ.get("MOA_ROUTER_PYTHON") or shutil.which("python")
     if not python_executable or not MOA_ROUTER_SCRIPT.is_file():
         return None
+    profile = resolve_performance_profile(performance_profile)
     return [
         python_executable,
         str(MOA_ROUTER_SCRIPT),
         prompt,
         "--base-url", f"{OLLAMA_URL}/v1",
-        "--models", ",".join([model, model, model]),
+        "--models", ",".join([model] * profile["advisor_count"]),
         "--aggregator", model,
-        "--max-tokens", "512",
+        "--max-tokens", str(profile["max_tokens"]),
         "--temperature", "0",
-        "--parallel-workers", "3",
+        "--parallel-workers", str(profile["parallel_workers"]),
     ]
 
 
 def generate_with_moa_router(prompt: str, model: str, plan: dict) -> str:
-    command = build_moa_router_command(prompt, model)
+    profile = resolve_performance_profile(plan.get("moa", {}).get("profile"))
+    command = build_moa_router_command(prompt, model, profile["id"])
     if command is None:
         raise RuntimeError("Local MoA router is not installed")
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace", **silent_process_kwargs())
+        result = subprocess.run(command, capture_output=True, text=True, timeout=profile["timeout_seconds"], encoding="utf-8", errors="replace", **silent_process_kwargs())
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError(f"Local MoA router failed to start: {exc}") from exc
     if result.returncode != 0:
@@ -2450,6 +2610,7 @@ def generate_with_ollama(prompt: str, model: str, plan: dict) -> str:
         "model": model,
         "prompt": f"{system_context}\n\nUser task:\n{prompt}",
         "stream": False,
+        "keep_alive": OLLAMA_KEEP_ALIVE,
     }).encode("utf-8")
     request = urllib.request.Request(
         f"{OLLAMA_URL}/api/generate",
@@ -2500,7 +2661,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 @app.post("/api/route/run")
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
-    plan = await plan_route(request.prompt, request.deck_mode)
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile)
     settings = get_settings()
     model = request.model or settings["selected_model"]
     ollama_status = get_ollama_status()
@@ -2518,7 +2679,7 @@ async def run_route(request: RouteRequest):
                 for item in plan["rag"]["hub_results"]
             )
             routed_prompt = f"{request.prompt}\n\nRelevant local memory context:\n{memory_lines}"
-        moa_command = build_moa_router_command(routed_prompt, model)
+        moa_command = build_moa_router_command(routed_prompt, model, request.performance_profile)
         if moa_command is not None:
             local_answer = await asyncio.to_thread(generate_with_moa_router, routed_prompt, model, plan)
             local_engine = "local-moa-router"

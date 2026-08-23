@@ -33,11 +33,14 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.text
+        schedule_poll = html.split("function scheduleRoomPoll()", 1)[1].split("async function runSelectedRoom", 1)[0]
+        self.assertIn("quantumPollInterval());}", schedule_poll)
         self.assertNotIn("data-build", html)
         self.assertNotIn("build obus", html.lower())
         self.assertIn("Local → GPT 5.6 Luna", html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
+            'performance-profile', 'warm-gpu', 'warm-status',
             'provider-list', 'agent-list', 'deck-list', 'result-output', 'memory-hub-list',
             'quantum-inference-status', 'quantum-refresh'
         ):
@@ -69,6 +72,150 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertIn("moa_router.py", serialized)
             self.assertIn("http://127.0.0.1:11434/v1", serialized)
             self.assertNotIn("api_key", serialized.lower())
+
+    def test_performance_profiles_bound_moa_cost_and_parallelism(self):
+        self.assertEqual(backend.resolve_performance_profile("fast")["advisor_count"], 2)
+        self.assertEqual(backend.resolve_performance_profile("balanced")["advisor_count"], 3)
+        self.assertEqual(backend.resolve_performance_profile("deep")["advisor_count"], 5)
+        self.assertEqual(backend.resolve_performance_profile("unknown")["id"], "balanced")
+
+        with patch("pathlib.Path.is_file", return_value=True), patch.object(
+            backend.shutil, "which", return_value="C:/Python/python.exe"
+        ):
+            fast = backend.build_moa_router_command("task", "gpt-oss:20b", "fast")
+            deep = backend.build_moa_router_command("task", "gpt-oss:20b", "deep")
+        self.assertEqual(fast[fast.index("--parallel-workers") + 1], "2")
+        self.assertEqual(len(fast[fast.index("--models") + 1].split(",")), 2)
+        self.assertEqual(deep[deep.index("--parallel-workers") + 1], "5")
+        self.assertEqual(len(deep[deep.index("--models") + 1].split(",")), 5)
+
+    def test_route_plan_exposes_selected_performance_profile(self):
+        response = self.client.post("/api/route/plan", json={
+            "prompt": "Design a secure service",
+            "deck_mode": "auto",
+            "rag_enabled": False,
+            "performance_profile": "fast",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["moa"]["profile"], "fast")
+        self.assertEqual(response.json()["moa"]["advisor_count"], 2)
+
+    def test_route_plan_rejects_unknown_performance_profile(self):
+        response = self.client.post("/api/route/plan", json={
+            "prompt": "Design a secure service",
+            "performance_profile": "turbo-typo",
+        })
+        self.assertEqual(response.status_code, 422)
+        get_response = self.client.get("/api/plan", params={
+            "prompt": "Design a secure service",
+            "performance_profile": "turbo-typo",
+        })
+        self.assertEqual(get_response.status_code, 422)
+
+    def test_warmup_keeps_local_model_resident_without_secrets(self):
+        captured = {}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps({"done": True, "load_duration": 123}).encode("utf-8")
+
+        def fake_urlopen(request, timeout=0):
+            captured["url"] = request.full_url
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            captured["timeout"] = timeout
+            return FakeResponse()
+
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b"]}), patch.object(
+            backend.urllib.request, "urlopen", side_effect=fake_urlopen
+        ):
+            result = backend.warm_ollama_model("gpt-oss:20b")
+
+        self.assertEqual(result["status"], "warm")
+        self.assertEqual(result["model"], "gpt-oss:20b")
+        self.assertEqual(captured["url"], "http://127.0.0.1:11434/api/generate")
+        self.assertEqual(captured["body"]["keep_alive"], -1)
+        self.assertEqual(captured["body"]["prompt"], "")
+        self.assertNotIn("api_key", json.dumps(captured).lower())
+
+    def test_warmup_rejects_uninstalled_models_before_generation(self):
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b"]}), patch.object(
+            backend.urllib.request, "urlopen"
+        ) as open_mock:
+            with self.assertRaisesRegex(RuntimeError, "not installed"):
+                backend.warm_ollama_model("untrusted-model")
+        open_mock.assert_not_called()
+
+    def test_warmup_is_single_flight_and_does_not_corrupt_model_state(self):
+        entered = threading.Event()
+        release = threading.Event()
+        calls = []
+        first_result = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{"done":true}'
+
+        def fake_urlopen(request, timeout=0):
+            calls.append(json.loads(request.data.decode("utf-8"))["model"])
+            if len(calls) == 1:
+                entered.set()
+                release.wait(2)
+            return FakeResponse()
+
+        def run_first():
+            first_result.append(backend.warm_ollama_model("gpt-oss:20b"))
+
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b", "llama3.2:latest"]}), patch.object(
+            backend.urllib.request, "urlopen", side_effect=fake_urlopen
+        ):
+            thread = threading.Thread(target=run_first)
+            thread.start()
+            self.assertTrue(entered.wait(1))
+            second = backend.warm_ollama_model("llama3.2:latest")
+            release.set()
+            thread.join(2)
+
+        self.assertEqual(calls, ["gpt-oss:20b"])
+        self.assertEqual(second["status"], "busy")
+        self.assertEqual(second["model"], "gpt-oss:20b")
+        self.assertEqual(first_result[0]["model"], "gpt-oss:20b")
+
+    def test_warmup_recovers_from_non_object_ollama_response(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'[]'
+
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b"]}), patch.object(
+            backend.urllib.request, "urlopen", return_value=FakeResponse()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "invalid response"):
+                backend.warm_ollama_model("gpt-oss:20b")
+        self.assertEqual(backend.get_gpu_warm_status()["status"], "error")
+
+    def test_startup_warmup_prefers_selected_installed_model(self):
+        state = backend.normalize_state({"settings": {"selected_model": "llama3.2:latest"}})
+        with patch.object(backend, "load_state", return_value=state), patch.object(
+            backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b", "llama3.2:latest"]}
+        ):
+            self.assertEqual(backend._configured_local_model(), "llama3.2:latest")
 
     def test_route_plan_includes_shared_memory_hub_context(self):
         response = self.client.post("/api/route/plan", json={

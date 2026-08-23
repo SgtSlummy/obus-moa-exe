@@ -42,6 +42,25 @@ powershell -ExecutionPolicy Bypass -File "install_obus_permanent.ps1"
 # System Properties > Environment Variables > Add OBus to PATH
 ```
 
+## Warm GPU and performance profiles
+
+OBus now preloads the configured local Ollama model at startup and requests
+`keep_alive: -1`, keeping it resident until Ollama or OBus is stopped. The
+dashboard shows `GPU cold`, `GPU warming`, or `GPU warm` and provides a real
+**Warm GPU** action backed by `POST /api/warmup`.
+
+The Route panel exposes three bounded local-MoA profiles:
+
+- **Fast** — 2 advisors / 2 workers / 384 output tokens
+- **Balanced** (default) — 3 advisors / 3 workers / 512 output tokens
+- **Deep** — 5 advisors / 5 workers / 768 output tokens
+
+Set `OBUS_OLLAMA_KEEP_ALIVE` before launch to override the default indefinite
+residency policy. Warmups accept installed Ollama model names only and run as a
+single-flight operation: overlapping requests receive HTTP 202 with
+`status: busy` and the in-flight model. No credential values are accepted or
+returned by the warmup API.
+
 ## API Endpoints
 
 | Endpoint | Method | Description |
