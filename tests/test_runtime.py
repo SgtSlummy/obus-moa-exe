@@ -52,6 +52,18 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertIn(f'id="{control_id}"', html)
         self.assertNotIn('simulated', html.lower())
 
+    def test_route_composer_uses_hermes_style_prompt_contract(self):
+        """The main route composer keeps the compact prompt and keyboard affordances."""
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+
+        self.assertIn('class="hermes-composer"', html)
+        self.assertIn('class="prompt-glyph"', html)
+        self.assertIn('id="route-submit-hint"', html)
+        self.assertIn("function bindRouteComposerKeyboard()", html)
+        self.assertIn("event.key==='Enter'&&!event.shiftKey&&!event.altKey", html)
+
     def test_dashboard_reports_memory_hub_integrations(self):
         response = self.client.get("/api/dashboard")
         self.assertEqual(response.status_code, 200)
