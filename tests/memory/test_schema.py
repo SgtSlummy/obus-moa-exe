@@ -68,6 +68,22 @@ class TestMemoryItem(unittest.TestCase):
         self.assertEqual(item.source, "automatic")
         self.assertIn("project", item.metadata)
 
+    def test_memory_item_from_dict_accepts_camel_case_timestamps(self):
+        """Deserialize persisted timestamps without evaluating an invalid fallback."""
+        from backend.memory_schema import memory_item_from_dict
+
+        item = memory_item_from_dict({
+            "id": "test_003",
+            "content": "Persisted preference",
+            "type": "semantic",
+            "scope": "user",
+            "createdAt": "2026-08-23T00:00:00+00:00",
+            "updatedAt": "2026-08-23T01:00:00+00:00",
+        })
+
+        self.assertEqual(item.created_at, "2026-08-23T00:00:00+00:00")
+        self.assertEqual(item.updated_at, "2026-08-23T01:00:00+00:00")
+
 
 if __name__ == "__main__":
     unittest.main()

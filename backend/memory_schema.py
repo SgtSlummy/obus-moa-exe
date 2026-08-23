@@ -97,7 +97,7 @@ def memory_item_from_dict(data: dict[str, Any]) -> MemoryItem:
         importance=data.get("importance", 0.5),
         confidence=data.get("confidence", 0.5),
         created_at=data.get("created_at", data.get("createdAt", datetime.now(timezone.utc).isoformat())),
-        updated_at=data.get("updated_at", data.get("updatedAt", datetime.now(timezone_utc).isoformat())),
+        updated_at=data.get("updated_at", data.get("updatedAt", datetime.now(timezone.utc).isoformat())),
         expires_at=data.get("expires_at", data.get("expiresAt")),
         project_id=data.get("project_id"),
         session_id=data.get("session_id"),
