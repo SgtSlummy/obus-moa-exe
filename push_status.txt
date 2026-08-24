@@ -1,13 +1,12 @@
-Push attempt 2026-08-24 12:34 UTC (cron cycle #7)
+Push Status Report - 2026-08-24 13:12 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: d5e4f80 docs: refresh build/push status reports after AUI loop10 packaging
-  ✅ Branch: master -> origin/master
-  🔶 Local diff: 17 files modified (main.py, index.html, aui/runtime.js, tests/, room_models.py, etc.)
-  🔶 Ready to push on next cycle if commits land
+  ✅ Pushed: 4a56161 chore: refresh build status, add AUI loop11/12 packages, update docs and tests
+  ✅ Branch: master -> origin/master (up to date)
+  ✅ Local diff: clean (0 modified tracked files)
 
 Submodules:
-  🔶 warp: Updated to latest upstream (nvidia/warp main). Push blocked - 403 (upstream, expected)
+  🔶 warp: Up to date with upstream nvidia/warp main. Push blocked - 403 (upstream, expected)
   ❌ Understand-Anything: 2 commits ahead (OBus integration scaffolding). Push blocked - 403 (no permission to Egonex-AI/Understand-Anything)
 
 Optional external-source forks (non-blocking, no permission):
@@ -18,20 +17,24 @@ Optional external-source forks (non-blocking, no permission):
   - models-dev-source: up to date on SgtSlummy/models.dev dev branch
 
 Build artifacts:
-  📁 dist/OBus.exe — 67.4MB (console=False, noicon? — see spec)
-  📁 dist-aui-loop10/OBus.exe — 139.8MB (Setup variant)
-  📁 dist-aui-loop5/OBus.exe — 139.8MB (Setup variant)
+  📁 dist/OBus.exe — 139.8MB (console=False)
+  📁 dist-aui-loop10/OBus.exe — 70.6MB (within 100MB LFS limit)
   📁 dist/OBus-Thor-Setup.exe — 139.9MB
   📁 dist/OBus-Loki-Partner-Setup.exe — 139.9MB
   📁 dist/OBus-Thor-Loki-Deployment.zip — 132.9M
-  📁 build-remediation/OBus/OBus.pkg — 140.3M (PyInstaller pkg, not EXE)
-  📁 build-warp-review/OBus/OBus.pkg — 140.2M (PyInstaller pkg, not EXE)
+  📁 build-aui-loop11/OBus/OBus.pkg — 67.1M (untracked, new)
+  📁 build-aui-loop12/OBus/OBus.pkg — 67.1M (untracked, new)
+  📁 build-remediation/OBus/OBus.pkg — 140.3M (untracked, >100MB LFS limit)
+  📁 build-warp-review/OBus/OBus.pkg — 140.2M (untracked, >100MB LFS limit)
   ❌ No OBus.exe on Desktop
 
 Tests:
   ✅ 179 passed in 89.58s (full suite)
 
-Notable: 
-  - backend/static/aui/runtime.js exists (7.2K) but not confirmed embedded in any EXE
-  - OBus.spec console=False, icon=assets/obus_emblem.ico if it exists
-  - AUI contract tests pass; runtime.js not verified in EXE via pyi archive
+Active processes:
+  - 6x OBus.exe running (various sizes: 1MB, 3MB, 7MB, 65MB, 8MB, 32MB)
+
+Notable:
+  - Latest commit 4a56161 covers AUI loop11/12 packages
+  - .pkg files in build-remediation and build-warp-review exceed 100MB LFS limit
+  - AUI contract tests pass
