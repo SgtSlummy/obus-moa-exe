@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,14 @@ DEFAULT_WARP_ROOT = PROJECT_ROOT / "third_party" / "warpdotdev-warp"
 
 
 def warp_root() -> Path:
-    return Path(os.environ.get("OBUS_WARP_COMPANION_ROOT", DEFAULT_WARP_ROOT)).expanduser()
+    configured = os.environ.get("OBUS_WARP_COMPANION_ROOT")
+    if configured:
+        return Path(configured).expanduser()
+    if getattr(sys, "frozen", False):
+        adjacent_source = Path(sys.executable).resolve().parent.parent / "third_party" / "warpdotdev-warp"
+        if adjacent_source.is_dir():
+            return adjacent_source
+    return DEFAULT_WARP_ROOT
 
 
 def warp_binary(root: Path) -> Path:

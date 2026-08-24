@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 import backend.local_studios as studios
 import backend.main as backend
+import backend.warp_companion as warp_companion
 
 
 class LocalStudioIntegrationTests(unittest.TestCase):
@@ -84,6 +85,15 @@ class LocalStudioIntegrationTests(unittest.TestCase):
         self.assertIn(payload["integration_mode"], {"optional-local-companion"})
         self.assertNotIn("path", json.dumps(payload).lower())
         self.assertNotIn("token", json.dumps(payload).lower())
+
+    def test_packaged_warp_companion_discovers_an_adjacent_source_checkout(self):
+        root = Path(self.tempdir.name)
+        source = root / "third_party" / "warpdotdev-warp"
+        source.mkdir(parents=True)
+        executable = root / "dist-review" / "OBus.exe"
+        executable.parent.mkdir()
+        with patch.object(warp_companion.sys, "frozen", True, create=True), patch.object(warp_companion.sys, "executable", str(executable)):
+            self.assertEqual(warp_companion.warp_root(), source)
 
 
 if __name__ == "__main__":
