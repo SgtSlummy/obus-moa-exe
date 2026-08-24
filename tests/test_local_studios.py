@@ -67,11 +67,23 @@ class LocalStudioIntegrationTests(unittest.TestCase):
             "understand-anything-status",
             "understand-anything-use",
             "understand-anything-open",
+            "warp-status",
+            "warp-launch",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("function loadStudios", html)
         self.assertIn("/api/integrations/comfyui/start", html)
         self.assertIn("/api/integrations/understand-anything/context", html)
+        self.assertIn("/api/integrations/warp/launch", html)
+
+    def test_warp_companion_status_is_local_and_does_not_expose_paths_or_credentials(self):
+        response = self.client.get("/api/integrations/warp")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["license"], "AGPL-3.0-only")
+        self.assertIn(payload["integration_mode"], {"optional-local-companion"})
+        self.assertNotIn("path", json.dumps(payload).lower())
+        self.assertNotIn("token", json.dumps(payload).lower())
 
 
 if __name__ == "__main__":

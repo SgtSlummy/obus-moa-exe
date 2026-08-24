@@ -41,7 +41,8 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("quantumPollInterval());}", schedule_poll)
         self.assertNotIn("data-build", html)
         self.assertNotIn("build obus", html.lower())
-        self.assertIn("Local → GPT 5.6 Luna", html)
+        self.assertIn("dynamic aggregate", html)
+        self.assertNotIn("Local → GPT 5.6 Luna", html)
         for control_id in (
             'rag-toggle', 'refresh-btn', 'route-btn', 'clear-memory',
             'performance-profile', 'warm-gpu', 'warm-status',

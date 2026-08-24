@@ -59,6 +59,7 @@ from backend.local_studios import (
     understand_anything_context,
     understand_anything_status,
 )
+from backend.warp_companion import launch as launch_warp_companion, status as warp_companion_status
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
@@ -1596,10 +1597,10 @@ async def dashboard():
         },
         "memory_hub": get_memory_hub().status(),
         "aggregation": {
-            "order": ["Local Ollama", "GPT 5.6 Luna"],
+            "order": ["Local planner", "Route-specific aggregate"],
             "primary_key_id": "key-local-ollama",
-            "aggregate_key_id": "key-codex-oauth",
-            "aggregate_model": "gpt-5.6-luna",
+            "aggregate_key_id": None,
+            "aggregate_model": "selected per route plan",
         },
         "harness": build_harness_preview(state, "general agent assistance"),
         "machine_setup": machine_setup_payload(state),
@@ -1657,6 +1658,18 @@ async def add_understand_anything_context():
         return understand_anything_context(_workspace_root())
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/api/integrations/warp")
+async def warp_integration_status():
+    """Report the optional local AGPL Warp source/TUI companion state."""
+    return warp_companion_status()
+
+
+@app.post("/api/integrations/warp/launch")
+async def launch_warp_integration():
+    """Launch only an explicitly built local Warp TUI companion."""
+    return launch_warp_companion()
 
 
 @app.get("/api/memory")
