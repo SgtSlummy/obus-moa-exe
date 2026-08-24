@@ -4,6 +4,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,8 @@ def _inside(root: Path, candidate: Path) -> bool:
 
 def _safe_path(root: Path, relative_path: str | None, *, must_exist: bool = True) -> Path:
     value = str(relative_path or "").replace("\\", "/")
+    if "\x00" in value:
+        raise WorkspaceContextError("path contains invalid characters")
     if not value or value == ".":
         candidate = root
     else:
@@ -136,6 +139,10 @@ def workspace_tree(
             skipped += len(directories) + len(files)
             directories[:] = []
             continue
+        if len(entries) >= max_files:
+            skipped += len(directories) + len(files)
+            directories[:] = []
+            break
         for name in directories + files:
             path = current / name
             relative = path.relative_to(resolved_root).as_posix()
@@ -178,6 +185,11 @@ def read_workspace_file(root: str | os.PathLike[str] | None, relative_path: str,
         raise WorkspaceContextError("workspace path is a directory")
     if _is_secret_name(path.name):
         raise WorkspaceContextError("secret-shaped workspace files are redacted")
+    try:
+        if not stat.S_ISREG(path.stat().st_mode):
+            raise WorkspaceContextError("workspace path is not a regular file")
+    except OSError as exc:
+        raise WorkspaceContextError("workspace file could not be inspected") from exc
     max_bytes = min(max(int(max_bytes), 1), MAX_FILE_BYTES)
     try:
         size = path.stat().st_size

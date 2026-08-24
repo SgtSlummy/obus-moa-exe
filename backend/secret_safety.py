@@ -8,18 +8,20 @@ from typing import Any
 SECRET_KEYS = {
     "api_key", "apikey", "x_api_key", "token", "access_token", "refresh_token",
     "password", "secret", "private_key", "credential", "authorization",
-    "auth", "basic_auth", "pem", "certificate",
+    "auth", "basic_auth", "auth_token", "pem", "certificate", "client_secret",
+    "session_token", "id_token", "secret_key", "privatekey", "credentials",
 }
 
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
     (re.compile(r"(?i)\b(?:bearer|basic|token)\s+[A-Za-z0-9._~+/=-]+"), "[AUTHORIZATION REDACTED]"),
     (re.compile(r"\b[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\b"), "[TOKEN REDACTED]"),
-    (re.compile(r"(?i)(api[_ -]?key|x-api-key|access[_ -]?token|authorization|private[_ -]?key|password|secret)\s*[:=]\s*\S+"), r"\1: [REDACTED]"),
+    (re.compile(r"(?i)([\"']?)(?:api[_-]?key|x-api-key|access[_-]?token|session[_-]?token|client[_-]?secret|private[_-]?key|id[_-]?token|auth[_-]?token|password|secret)([\"']?)\s*[:=]\s*[\"']?[^\"',\s}\\]]+"), "[REDACTED FIELD]"),
     (re.compile(r"(?i)https?://[^\s/@]+:[^\s/@]+@[^\s]+"), "[CREDENTIAL URL REDACTED]"),
     (re.compile(r"\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_)[A-Za-z0-9_-]{8,}\b"), "[TOKEN REDACTED]"),
 )
 _SAFE_ROUTE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
+_ROUTE_SENSITIVE_LABEL = re.compile(r"(?i)(?:api[_-]?key|password|secret|access[_-]?token|session[_-]?token|client[_-]?secret|private[_-]?key)[:=]")
 
 
 def normalized_key(key: object) -> str:
@@ -54,6 +56,6 @@ def redact_value(value: Any, key: str | None = None) -> Any:
 
 def safe_route_id(value: object) -> str:
     raw = str(value or "")
-    if _SAFE_ROUTE_ID.fullmatch(raw) and not _SECRET_PATTERNS[2][0].search(raw) and not _SECRET_PATTERNS[5][0].search(raw):
+    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _SECRET_PATTERNS[2][0].search(raw) and not _SECRET_PATTERNS[5][0].search(raw):
         return raw
     return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]

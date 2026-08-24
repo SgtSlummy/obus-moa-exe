@@ -11,7 +11,7 @@
     :root{--bg:#070914;--panel:#0e1222;--panel2:#151a2d;--line:#252b43;--text:#f5f7ff;--muted:#929ab4;--gold:#f5c451;--cyan:#55d8ff;--violet:#a98cff;--green:#4ee3a0;--red:#ff6b7a;--shadow:0 18px 50px #0008;--sidebar-width:230px;--content-max:1720px;--density-scale:1;--focus-ring:0 0 0 3px #55d8ff55}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 65% -15%,#252152 0,transparent 38%),var(--bg);color:var(--text);font:14px/1.45 Inter,Segoe UI,system-ui,sans-serif;min-height:100vh}
     button,input,textarea,select{font:inherit}button{color:inherit}.shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:22px 14px;border-right:1px solid var(--line);background:#090c17d9;backdrop-filter:blur(18px)}
-    .brand{display:flex;align-items:center;gap:12px;padding:4px 10px 25px}.emblem{width:42px;height:42px;border-radius:14px;background:conic-gradient(from 20deg,var(--gold),var(--violet),var(--cyan),var(--gold));padding:2px;box-shadow:0 0 30px #a98cff44}.emblem span{display:grid;place-items:center;width:100%;height:100%;border-radius:12px;background:#0b0e19;font-size:21px}.brand h1{font-size:16px;margin:0}.brand small{color:var(--muted)}
+    .brand{display:flex;align-items:center;gap:12px;padding:4px 10px 25px}.emblem{width:42px;height:42px;border-radius:14px;background:conic-gradient(from 20deg,var(--gold),var(--violet),var(--cyan),var(--gold));padding:2px;box-shadow:0 0 30px #a98cff44}.emblem img{display:block;width:100%;height:100%;border-radius:12px;background:#0b0e19;object-fit:cover}.emblem span{display:grid;place-items:center;width:100%;height:100%;border-radius:12px;background:#0b0e19;font-size:21px}.brand h1{font-size:16px;margin:0}.brand small{color:var(--muted)}
     .nav{display:grid;gap:6px}.nav button{border:0;background:transparent;text-align:left;padding:11px 13px;border-radius:10px;color:var(--muted);cursor:pointer}.nav button:hover,.nav button.active{background:var(--panel2);color:var(--text)}.nav button.active{box-shadow:inset 3px 0 var(--gold)}
     main{min-width:0;padding:22px 26px 44px}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px}.title h2{font-size:24px;margin:0 0 3px}.title p{margin:0;color:var(--muted)}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .button{border:1px solid var(--line);background:var(--panel2);padding:10px 14px;border-radius:10px;cursor:pointer;transition:.18s}.button:hover{transform:translateY(-1px);border-color:#48506c}.button.primary{background:linear-gradient(135deg,var(--gold),#f39a53);border:0;color:#241702;font-weight:750}.button:disabled{opacity:.55;cursor:wait;transform:none}
@@ -35,7 +35,7 @@
 <body data-density="comfortable" data-sidebar-collapsed="false">
 <div class="shell" id="aui-layout">
   <aside class="side">
-    <div class="brand"><div class="emblem"><span>∴</span></div><div><h1>OBus MOA</h1><small>Router + Keys</small></div></div>
+    <div class="brand"><div class="emblem"><img src="/static/art/emblems/obus-emblem-icon.svg" alt="OBus Magician's Key emblem"></div><div><h1>OBus MOA</h1><small>Router + Keys</small></div></div>
     <nav class="nav" id="workspace-nav" aria-label="OBus workspace navigation">
       <button class="active" data-page="dashboard" data-surface-min="terminal">⌁ Run</button>
       <button data-page="plan" data-surface-min="terminal">⌘ Plan</button>
