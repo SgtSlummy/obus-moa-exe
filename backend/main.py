@@ -53,6 +53,12 @@ from backend.run_receipts import (
     load_receipts,
     persist_receipt,
 )
+from backend.local_studios import (
+    comfyui_status,
+    launch_comfyui,
+    understand_anything_context,
+    understand_anything_status,
+)
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
@@ -1624,6 +1630,33 @@ async def quantum_inference_status():
 async def memory_integrations():
     """Return secret-safe status for every discovered local memory system."""
     return get_memory_hub().status()
+
+
+@app.get("/api/integrations/comfyui")
+async def comfyui_integration_status():
+    """Report the loopback ComfyUI studio without exposing shell details or credentials."""
+    return comfyui_status()
+
+
+@app.post("/api/integrations/comfyui/start")
+async def start_comfyui_integration():
+    """Launch the configured current-user local ComfyUI source installation."""
+    return launch_comfyui()
+
+
+@app.get("/api/integrations/understand-anything")
+async def understand_anything_integration_status():
+    """Report only bounded structural-graph metadata for the configured workspace."""
+    return understand_anything_status(_workspace_root())
+
+
+@app.post("/api/integrations/understand-anything/context")
+async def add_understand_anything_context():
+    """Return a compact structural-graph orientation block for one subsequent route."""
+    try:
+        return understand_anything_context(_workspace_root())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/api/memory")
