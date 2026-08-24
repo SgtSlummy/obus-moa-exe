@@ -116,3 +116,40 @@ System status
 
 ### GET /health
 Health check endpoint
+
+## Warp-inspired workspace
+
+The desktop UI supports three surfaces: **Terminal**, **Operator**, and **ADE**. Terminal focuses on routing; Operator adds core OBus operations; ADE exposes the full workspace.
+
+### GET /api/settings/export
+Return a versioned, non-secret portable settings document. Credentials, tokens, machine access state, private-key material, rooms, and memory are excluded.
+
+### POST /api/settings/import
+Validate and merge an allowlisted portable settings document.
+
+### GET /api/workspace/status
+Return whether an explicitly configured local workspace root is valid. The context service is read-only.
+
+### GET /api/workspace/tree?path={relative_path}
+Return a bounded tree of safe relative paths. Traversal, root escapes, symlink escapes, and secret-shaped files are rejected or omitted.
+
+### GET /api/workspace/file?path={relative_path}
+Return bounded UTF-8 text or metadata-only binary context for one file under the configured root.
+
+### GET /api/workspace/diff?path={relative_path}
+Return bounded file context and explain that no Git/shell adapter is enabled by default.
+
+## Routing policies
+
+Route requests may use `local-first`, **Auto (open)** (`auto-open`), or `manual`. `auto-open` only considers Ready, connected Keys explicitly marked local/open-model, honors cooldowns, excludes the Luna aggregate, and returns an honest offline plan if no eligible Key exists. Automatic Tarot card-to-Key matches are temporary.
+
+## Run receipts
+
+### GET /api/runs
+List redacted route receipt summaries.
+
+### GET /api/runs/{receipt_id}
+Return a redacted receipt containing prompt hash, plan metadata, temporary assignments, trace, usage, status, and bounded task output. Private room transcripts and credentials are excluded.
+
+### GET /api/runs/{receipt_id}/export
+Export a redacted Markdown handoff receipt.

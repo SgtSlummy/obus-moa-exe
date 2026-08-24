@@ -27,11 +27,11 @@ if DATA_DIR != LEGACY_DATA_DIR:
 os.environ.setdefault('OCCULTBUS_HOME', str(DATA_DIR))
 
 SETUP_FILE = DATA_DIR / 'setup_complete.json'
-APP_PORT = 38173
+APP_PORT = int(os.environ.get("OBUS_PORT", "38173"))
 APP_URL = f"http://127.0.0.1:{APP_PORT}/"
 HEALTH_URL = f"http://127.0.0.1:{APP_PORT}/health"
 INSTANCE_MUTEX_HANDLE = None
-INSTANCE_MUTEX_NAME = "Local\\OBusMoaRuntime"
+INSTANCE_MUTEX_NAME = f"Local\\OBusMoaRuntime-{APP_PORT}"
 EDGE_CANDIDATES = (
     Path(os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)")) / "Microsoft/Edge/Application/msedge.exe",
     Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Microsoft/Edge/Application/msedge.exe",
@@ -205,34 +205,46 @@ def open_window_when_ready():
         open_app_window(APP_URL)
 
 
-def main():
-    """Main entry point with first-run logic"""
-    if "--mcp" in sys.argv[1:]:
+def headless_requested(args: list[str] | None = None) -> bool:
+    """Return whether this runtime should serve its API without desktop UI."""
+    return "--headless" in (sys.argv[1:] if args is None else args)
+
+
+def main(args: list[str] | None = None):
+    """Start OBus in desktop, MCP, or API-only headless mode."""
+    args = list(sys.argv[1:] if args is None else args)
+    if "--mcp" in args:
         from obus_mcp_server import serve
         serve()
         return
+    headless = headless_requested(args)
     print("=" * 50)
-    print("OBus MOA Runtime")
+    print("OBus MOA Headless Runtime" if headless else "OBus MOA Runtime")
     print("=" * 50)
 
     if not acquire_single_instance():
         if wait_for_server(HEALTH_URL, attempts=120, delay=0.05):
-            ensure_app_window(APP_URL)
+            if not headless:
+                ensure_app_window(APP_URL)
         return
     
     if wait_for_server(HEALTH_URL, attempts=1, delay=0):
-        ensure_app_window(APP_URL)
+        if not headless:
+            ensure_app_window(APP_URL)
         return
 
-    print("\nStarting local dashboard server...")
+    print("\nStarting local API server..." if headless else "\nStarting local dashboard server...")
     # Start the server in the foreground so the EXE owns its lifecycle.
     try:
         sys.path.insert(0, str(APP_DIR))
         from backend.main import app
         import uvicorn
         server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=APP_PORT, log_level="warning", access_log=False))
-        tray = start_system_tray(lambda: open_app_window(APP_URL), lambda: setattr(server, "should_exit", True))
-        threading.Thread(target=open_window_when_ready, daemon=True).start()
+        tray = None if headless else start_system_tray(
+            lambda: open_app_window(APP_URL), lambda: setattr(server, "should_exit", True)
+        )
+        if not headless:
+            threading.Thread(target=open_window_when_ready, daemon=True).start()
         server.run()
         if tray:
             tray.stop()

@@ -14,7 +14,8 @@ hiddenimports = [
     "pystray", "pystray._win32", "PIL.Image", "PIL.ImageDraw",
     "faster_whisper", "ctranslate2", "sounddevice", "av",
     "obus_mcp_server",
-    "backend.main", "backend.tentacle_worms", "backend.credit_manager", "backend.room_models", "backend.room_council",
+    "backend.main", "backend.user_settings", "backend.workspace_context", "backend.run_receipts",
+    "backend.tentacle_worms", "backend.credit_manager", "backend.room_models", "backend.room_council",
     "backend.room_runner", "backend.forum_runtime", "backend",
 ]
 

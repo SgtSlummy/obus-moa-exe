@@ -1150,22 +1150,25 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/rooms").json()), 2)
         self.assertEqual(len(self.client.get("/api/forum/threads").json()), 1)
 
-    def test_gpt_56_luna_is_reserved_aggregate_after_local_stage(self):
+    def test_local_ollama_is_the_default_final_output(self):
         state = backend.normalize_state({})
-        luna = next(key for key in state["keys"] if key["id"] == "key-codex-oauth")
-        self.assertEqual(state["aggregator_key_id"], "key-codex-oauth")
-        self.assertEqual(luna["name"], "GPT 5.6 Luna")
-        self.assertEqual(luna["model"], "gpt-5.6-luna")
-        self.assertTrue(luna["can_aggregate"])
+        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
+        self.assertEqual(state["aggregator_key_id"], "key-local-ollama")
+        self.assertEqual(local["model"], "gpt-oss:20b")
+        self.assertTrue(local["can_aggregate"])
         statuses = [
             {"id": "key-local-ollama", "connected": True},
             {"id": "key-codex-oauth", "connected": True},
         ]
         with patch.object(backend, "provider_statuses", return_value=statuses):
             assignments = backend.match_cards_to_keys(state["cards"][:4], state, "analyze and code")
-        self.assertTrue(all(item["llm_key"] != "key-codex-oauth" for item in assignments))
+        self.assertTrue(all(item["llm_key"] == "key-local-ollama" for item in assignments))
 
     def test_route_executes_local_first_then_luna_aggregate(self):
+        state = backend.load_state()
+        state["aggregator_key_id"] = "key-codex-oauth"
+        state["aggregation_explicit"] = True
+        backend.save_state(state)
         calls = []
         def local(prompt, model, plan):
             calls.append(("local", prompt, model))

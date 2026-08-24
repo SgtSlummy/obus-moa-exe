@@ -6,6 +6,7 @@ import json
 import hmac
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -16,11 +17,14 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-OBUS_EXE = Path(os.getenv("OBUS_EXE", r"C:\Users\Hermes\OneDrive\OBus-MOA-Digital\OBus.exe"))
+PROJECT_ROOT = Path(__file__).resolve().parent
+OBUS_EXE = Path(os.getenv("OBUS_EXE", str(PROJECT_ROOT / "dist" / "OBus.exe")))
+OBUS_LAUNCHER = Path(os.getenv("OBUS_LAUNCHER", str(PROJECT_ROOT / "obus_launcher.py")))
 OBUS_URL = os.getenv("OBUS_URL", "http://127.0.0.1:38173").rstrip("/")
 BRIDGE_HOST = os.getenv("OBUS_BRIDGE_HOST", "127.0.0.1")
 BRIDGE_PORT = int(os.getenv("OBUS_BRIDGE_PORT", "38174"))
 BRIDGE_API_KEY = os.getenv("OCCULTBUS_API_KEY", "").strip()
+OBUS_MODEL = os.getenv("OBUS_MODEL", "gpt-oss:20b").strip() or "gpt-oss:20b"
 LOG_PATH = Path(os.getenv("LOCALAPPDATA", Path.home())) / "OBus" / "logs" / "hermes-bridge.log"
 
 
@@ -39,19 +43,28 @@ class ObusRuntime:
         except (OSError, URLError, json.JSONDecodeError) as exc:
             return {"reachable": False, "error": type(exc).__name__}
 
+    def launch_command(self) -> list[str]:
+        """Start either the packaged runtime or source launcher without opening UI."""
+        if OBUS_EXE.is_file():
+            return [str(OBUS_EXE), "--headless"]
+        if OBUS_LAUNCHER.is_file():
+            return [sys.executable, str(OBUS_LAUNCHER), "--headless"]
+        raise RuntimeError(
+            f"Neither OBus executable ({OBUS_EXE}) nor launcher ({OBUS_LAUNCHER}) is available"
+        )
+
     def ensure_running(self) -> dict[str, Any]:
         with self._lock:
             state = self.health()
             if state.get("reachable"):
                 return state
-            if not OBUS_EXE.is_file():
-                raise RuntimeError(f"OBus executable not found: {OBUS_EXE}")
             if self._process is None or self._process.poll() is not None:
                 log = LOG_PATH.open("a", encoding="utf-8", buffering=1)
                 flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                command = self.launch_command()
                 self._process = subprocess.Popen(
-                    [str(OBUS_EXE)],
-                    cwd=OBUS_EXE.parent,
+                    command,
+                    cwd=PROJECT_ROOT,
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -96,7 +109,11 @@ def extract_prompt(messages: Any) -> str:
 
 def run_obus(prompt: str, model: str) -> str:
     runtime.ensure_running()
-    body = json.dumps({"prompt": "Answer the user's request directly in plain text.\n\n" + prompt, "model": None, "deck_mode": "auto", "rag_enabled": True}).encode("utf-8")
+    requested_model = model.strip()
+    # "OBus" was the old bridge alias. Preserve it for existing clients while
+    # ensuring every new request names the actual local default explicitly.
+    selected_model = OBUS_MODEL if requested_model.lower() == "obus" or not requested_model else requested_model
+    body = json.dumps({"prompt": "Answer the user's request directly in plain text.\n\n" + prompt, "model": selected_model, "deck_mode": "auto", "rag_enabled": True}).encode("utf-8")
     request = Request(
         f"{OBUS_URL}/api/route/run",
         data=body,
@@ -159,7 +176,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/connection":
             self._json({
-                "provider": "obus", "display_name": "OBus", "model": "OBus",
+                "provider": "obus", "display_name": "OBus", "model": OBUS_MODEL,
                 "base_url": f"http://{BRIDGE_HOST}:{BRIDGE_PORT}/v1",
                 "api_key_env": "OCCULTBUS_API_KEY", "api_key_required": bool(BRIDGE_API_KEY),
                 "bind_host": BRIDGE_HOST, "port": BRIDGE_PORT,
@@ -169,7 +186,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._json({"error": {"message": "invalid API key", "type": "authentication_error"}}, HTTPStatus.UNAUTHORIZED)
                 return
-            self._json({"object": "list", "data": [{"id": "OBus", "object": "model", "owned_by": "OBus"}]})
+            self._json({"object": "list", "data": [{"id": OBUS_MODEL, "object": "model", "owned_by": "OBus"}]})
             return
         self._json({"error": {"message": "not found", "type": "invalid_request_error"}}, HTTPStatus.NOT_FOUND)
 

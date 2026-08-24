@@ -33,7 +33,6 @@ class OBusHermesBridgeService(win32serviceutil.ServiceFramework):
 
     def SvcDoRun(self):
         os.chdir(PROJECT_ROOT)
-        os.environ.setdefault("OBUS_EXE", r"C:\Users\Hermes\OneDrive\OBus-MOA-Digital\OBus.exe")
         os.environ.setdefault("OBUS_URL", "http://127.0.0.1:38173")
         os.environ.setdefault("OBUS_BRIDGE_PORT", "38174")
         from obus_hermes_bridge import serve

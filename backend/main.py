@@ -3,7 +3,7 @@ FastAPI Backend for OBus MOA Runtime
 Supports Tarot cards, Solomon's Keys, Decks, and routing
 """
 from fastapi import FastAPI, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 import json
@@ -33,6 +33,26 @@ import uuid
 
 from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
 from backend import access_gate
+from backend.user_settings import (
+    ROUTING_POLICIES,
+    WORKSPACE_SURFACES,
+    export_user_settings,
+    normalize_user_settings,
+    validate_import_payload,
+)
+from backend.workspace_context import (
+    WorkspaceContextError,
+    read_workspace_file,
+    workspace_diff_context,
+    workspace_status,
+    workspace_tree,
+)
+from backend.run_receipts import (
+    build_run_receipt,
+    format_receipt_markdown,
+    load_receipts,
+    persist_receipt,
+)
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
@@ -57,10 +77,12 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 STATE_FILE = DATA_DIR / 'obus_state.json'
 MEMORY_FILE = DATA_DIR / 'memory.json'
 USAGE_FILE = DATA_DIR / 'usage.json'
+RECEIPT_FILE = DATA_DIR / 'run_receipts.json'
 TENTACLE_REPORT_FILE = DATA_DIR / 'tentacle_worm_report.json'
 STATE_LOCK = threading.RLock()
 MEMORY_LOCK = threading.RLock()
 USAGE_LOCK = threading.RLock()
+RECEIPT_LOCK = threading.RLock()
 ROOM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 PERSISTENT_AGENT_THREADS: dict[str, threading.Thread] = {}
@@ -282,6 +304,10 @@ for _key in DEFAULT_KEYS:
         solomon_seal_source="https://commons.wikimedia.org/wiki/" + urllib.parse.quote(_seal["file"].replace(" ", "_"), safe=":_"),
     )
 
+OPEN_MODEL_PROVIDERS = {"ollama", "together", "fireworks", "huggingface", "deepseek"}
+for _key in DEFAULT_KEYS:
+    _key["open_model"] = bool(_key.get("local") or _key.get("provider") in OPEN_MODEL_PROVIDERS)
+
 
 KEY_SETUP_GUIDES = {
     "ollama": ("https://ollama.com/download", "Install Ollama", "Start the local service", "Pull the selected model with `ollama pull <model>`", "Return here and select Test & enable"),
@@ -330,6 +356,7 @@ def normalize_state(state: dict) -> dict:
         custom.setdefault("max_context_tokens", 131072)
         custom.setdefault("capabilities", ["general"])
         custom.setdefault("state", "staged")
+        custom.setdefault("open_model", False)
         custom.setdefault("sigil", f"/static/art/keys/{custom['id']}.svg")
         merged_keys.append(custom)
     state["keys"] = merged_keys
@@ -347,9 +374,14 @@ def normalize_state(state: dict) -> dict:
         merged_cards.append(value)
     merged_cards.extend(existing_cards.values())
     state["cards"] = merged_cards
-    state["aggregator_key_id"] = "key-codex-oauth"
-    state.setdefault("aggregation_order", ["key-local-ollama", "key-codex-oauth"])
-    state["aggregation_order"] = ["key-local-ollama", "key-codex-oauth"]
+    # Local Ollama is the autonomous default. A remote aggregate is used only
+    # after an explicit, persisted selection through /api/aggregator/select.
+    if not state.get("aggregation_explicit"):
+        state["aggregator_key_id"] = "key-local-ollama"
+        state["aggregation_order"] = ["key-local-ollama"]
+    else:
+        state.setdefault("aggregator_key_id", "key-local-ollama")
+        state.setdefault("aggregation_order", ["key-local-ollama"])
     state.setdefault("rooms", [])
     state.setdefault("room_messages", [])
     state.setdefault("forum_threads", [])
@@ -453,6 +485,7 @@ class KeyUpdate(BaseModel):
     capabilities: Optional[List[str]] = None
     max_context_tokens: Optional[int] = None
     local: Optional[bool] = None
+    open_model: Optional[bool] = None
     can_aggregate: Optional[bool] = None
 
 
@@ -468,6 +501,7 @@ class KeyCreate(BaseModel):
     capabilities: List[str] = ["general"]
     max_context_tokens: int = 131072
     local: bool = False
+    open_model: bool = False
     can_aggregate: bool = False
 
 
@@ -478,6 +512,26 @@ class LoginRequest(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    rag_enabled: Optional[bool] = None
+    auto_memory: Optional[bool] = None
+    rag_character_budget: Optional[int] = None
+    max_parallel_agents: Optional[int] = None
+    selected_model: Optional[str] = None
+    selected_deck: Optional[str] = None
+    harness_enabled: Optional[bool] = None
+    output_autoscroll: Optional[bool] = None
+    workspace_surface: Optional[Literal["terminal", "operator", "ade"]] = None
+    routing_policy: Optional[Literal["local-first", "auto-open", "manual"]] = None
+    workspace_root: Optional[str] = None
+
+
+class SettingsImport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    settings_schema_version: int = 1
+    workspace_surface: Optional[str] = None
+    routing_policy: Optional[str] = None
+    workspace_root: Optional[str] = None
     rag_enabled: Optional[bool] = None
     auto_memory: Optional[bool] = None
     rag_character_budget: Optional[int] = None
@@ -495,6 +549,7 @@ class RouteRequest(BaseModel):
     model: Optional[str] = None
     performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced"
     harness_enabled: Optional[bool] = None
+    routing_policy: Optional[Literal["local-first", "auto-open", "manual"]] = None
 
 
 class HarnessPreviewRequest(BaseModel):
@@ -550,18 +605,7 @@ class ForgeSelection(BaseModel):
 
 def get_settings(state: Optional[dict] = None) -> dict:
     state = state or load_state()
-    defaults = {
-        "rag_enabled": True,
-        "auto_memory": True,
-        "rag_character_budget": 2400,
-        "max_parallel_agents": 5,
-        "selected_model": "gpt-oss:20b",
-        "selected_deck": "auto",
-        "harness_enabled": True,
-        "output_autoscroll": True,
-    }
-    defaults.update(state.get("settings", {}))
-    return defaults
+    return normalize_user_settings(state.get("settings", {}))
 
 
 QUANTUM_POLL_INTERVALS_MS = (5, 10, 15, 20, 25)
@@ -1401,6 +1445,7 @@ def provider_statuses(state: Optional[dict] = None) -> list:
             "connected": connected,
             "status": "ready" if connected else ("configured" if configured else "not configured"),
             "local": bool(key.get("local")),
+            "open_model": bool(key.get("open_model")),
             "can_aggregate": bool(key.get("can_aggregate")),
             "setup": key_setup_guide(key),
         })
@@ -1634,6 +1679,98 @@ async def update_settings(update: SettingsUpdate):
     state["settings"] = settings
     save_state(state)
     return settings
+
+
+@app.get("/api/settings/export")
+async def export_settings():
+    """Return portable, non-secret OBus preferences only."""
+    return export_user_settings(get_settings(load_state()))
+
+
+@app.post("/api/settings/import")
+async def import_settings(payload: SettingsImport):
+    """Merge a validated portable settings document without replacing runtime state."""
+    try:
+        imported = validate_import_payload(payload.model_dump(exclude_none=True))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    state = load_state()
+    current = get_settings(state)
+    current.update(imported)
+    state["settings"] = normalize_user_settings(current)
+    save_state(state)
+    return state["settings"]
+
+
+def _workspace_root() -> Optional[str]:
+    return get_settings(load_state()).get("workspace_root")
+
+
+@app.get("/api/workspace/status")
+async def get_workspace_status():
+    return workspace_status(_workspace_root())
+
+
+@app.get("/api/workspace/tree")
+async def get_workspace_tree(path: Optional[str] = None, max_files: int = 200, max_depth: int = 6):
+    try:
+        return workspace_tree(_workspace_root(), path, max_files=max_files, max_depth=max_depth)
+    except (OSError, RuntimeError, WorkspaceContextError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/workspace/file")
+async def get_workspace_file(path: str):
+    try:
+        return read_workspace_file(_workspace_root(), path)
+    except (OSError, RuntimeError, WorkspaceContextError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/workspace/diff")
+async def get_workspace_diff(path: str):
+    try:
+        return workspace_diff_context(_workspace_root(), path)
+    except (OSError, RuntimeError, WorkspaceContextError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def record_run_receipt(prompt: str, plan: dict, result: dict) -> dict:
+    receipt = build_run_receipt(prompt, plan, result)
+    with RECEIPT_LOCK:
+        stored = persist_receipt(RECEIPT_FILE, receipt)
+    return {
+        "id": stored["id"],
+        "created_at": stored["created_at"],
+        "status": stored.get("status"),
+        "prompt_sha256": stored["prompt_sha256"],
+        "contains_task_content": stored.get("contains_task_content", True),
+    }
+
+
+@app.get("/api/runs")
+async def list_run_receipts():
+    with RECEIPT_LOCK:
+        receipts = load_receipts(RECEIPT_FILE)
+    return [{key: item.get(key) for key in ("id", "created_at", "status", "routing_policy", "prompt_sha256")} for item in reversed(receipts)]
+
+
+@app.get("/api/runs/{receipt_id}")
+async def get_run_receipt(receipt_id: str):
+    with RECEIPT_LOCK:
+        receipt = next((item for item in load_receipts(RECEIPT_FILE) if item.get("id") == receipt_id), None)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="run receipt not found")
+    return receipt
+
+
+@app.get("/api/runs/{receipt_id}/export")
+async def export_run_receipt(receipt_id: str):
+    with RECEIPT_LOCK:
+        receipt = next((item for item in load_receipts(RECEIPT_FILE) if item.get("id") == receipt_id), None)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="run receipt not found")
+    return PlainTextResponse(format_receipt_markdown(receipt), media_type="text/markdown")
 
 
 def safe_github_config(config: dict) -> dict:
@@ -2777,6 +2914,7 @@ async def delete_key(key_id: str):
             card["assignment_mode"] = "auto"
     if state.get("aggregator_key_id") == key_id:
         state["aggregator_key_id"] = "key-local-ollama"
+        state["aggregation_explicit"] = False
     save_state(state)
     return {"success": True, "deleted": key_id}
 
@@ -2861,6 +2999,7 @@ async def select_aggregator(key_id: str = Body(..., embed=True)):
         raise HTTPException(status_code=400, detail="Key cannot be used as aggregator")
     
     state["aggregator_key_id"] = key_id
+    state["aggregation_explicit"] = True
     save_state(state)
     return {"message": f"Aggregator set to {key['name']}"}
 
@@ -2895,8 +3034,9 @@ def select_cards_for_prompt(cards: list, prompt: str, limit: int = 5) -> list:
         return cards[:limit]
     return [value[2] for value in scored[:limit]]
 
-def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
+def match_cards_to_keys(cards: list, state: dict, prompt: str, routing_policy: Optional[str] = "local-first") -> list:
     """Create temporary card-to-Key assignments from readiness and capability overlap."""
+    policy = routing_policy if routing_policy in ROUTING_POLICIES else "local-first"
     statuses = {item["id"]: item for item in provider_statuses(state)}
     reserved_aggregator_id = state.get("aggregator_key_id")
     eligible = [
@@ -2905,6 +3045,17 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
         and key.get("id") != reserved_aggregator_id
     ]
     if not eligible:
+        reserved = next((key for key in state["keys"] if key.get("id") == reserved_aggregator_id), None)
+        if reserved and reserved.get("local") and reserved.get("state") == "ready" and statuses.get(reserved["id"], {}).get("connected"):
+            eligible = [reserved]
+    if policy == "auto-open":
+        now = time.time()
+        eligible = [
+            key for key in eligible
+            if bool(key.get("open_model") or key.get("local"))
+            and float(key.get("cooldown_until") or 0) <= now
+        ]
+    if not eligible:
         return [{
             "agent_id": card["id"], "agent_title": card["name"], "persona": card["persona"],
             "provider": OFFLINE_ROOM_KEY["name"], "model": OFFLINE_ROOM_KEY["model"],
@@ -2912,6 +3063,11 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
             "confidence": 0.0, "active_in_deck": True, "capabilities": card.get("capabilities", []),
             "tool_ids": [], "configured_tool_ids": card.get("tool_ids", []),
             "max_context_tokens": OFFLINE_ROOM_KEY["max_context_tokens"], "sigil": None,
+            "routing_explanation": {
+                "policy": policy,
+                "reason": "No Ready, connected, eligible provider matched this routing policy; offline planning is active.",
+                "eligible": False,
+            },
         } for card in cards]
     prompt_words = set(re.findall(r"[a-z_]+", prompt.lower()))
     assignments = []
@@ -2945,6 +3101,14 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str) -> list:
             "configured_tool_ids": configured_tools,
             "max_context_tokens": chosen.get("max_context_tokens", 131072),
             "sigil": chosen.get("sigil"),
+            "routing_explanation": {
+                "policy": policy,
+                "reason": "Manual card assignment" if pairing == "manual" else "Highest capability overlap among eligible providers",
+                "capability_overlap": len(set(card.get("capabilities", [])) & set(chosen.get("capabilities", []))),
+                "open_model": bool(chosen.get("open_model") or chosen.get("local")),
+                "ready": chosen.get("state", "staged") == "ready",
+                "cooldown_active": float(chosen.get("cooldown_until") or 0) > time.time(),
+            },
         })
     return assignments
 
@@ -2980,11 +3144,14 @@ def build_agent_harness(prompt: str, plan: dict) -> str:
 
 
 @app.get("/api/plan")
-async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced", rag_enabled: bool = True):
+async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced", rag_enabled: bool = True, routing_policy: Optional[str] = None):
     """Get MOA routing plan with deck selection"""
     state = load_state()
     profile = resolve_performance_profile(performance_profile)
     settings = get_settings(state)
+    policy = routing_policy or settings.get("routing_policy", "local-first")
+    if policy not in ROUTING_POLICIES:
+        raise HTTPException(status_code=422, detail="routing_policy must be local-first, auto-open, or manual")
     parallel_limit = min(max(int(settings.get("max_parallel_agents", 5)), 1), 20)
     profile["advisor_count"] = min(profile["advisor_count"], parallel_limit)
     profile["parallel_workers"] = min(profile["parallel_workers"], parallel_limit)
@@ -3000,7 +3167,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     # Get cards from selected deck
     deck_cards = [c for c in state["cards"] if deck["id"] in c.get("decks", [])]
     selected_cards = select_cards_for_prompt(deck_cards or state["cards"], prompt, limit=profile["advisor_count"])
-    dynamic_assignments = match_cards_to_keys(selected_cards, state, prompt)
+    dynamic_assignments = match_cards_to_keys(selected_cards, state, prompt, routing_policy=policy)
     aggregator = next((key for key in state["keys"] if key["id"] == state.get("aggregator_key_id")), None)
     if aggregator is None:
         aggregator = OFFLINE_ROOM_KEY
@@ -3011,6 +3178,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     
     return {
         "prompt": prompt,
+        "routing_policy": policy,
         "selected_deck": {
             "id": deck["id"],
             "name": deck["name"],
@@ -3053,7 +3221,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
 @app.post("/api/route/plan")
 async def plan_route_post(request: RouteRequest):
     """POST contract used by the desktop UI."""
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled))
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
     return plan
 
 
@@ -3352,7 +3520,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
         "Offline planning mode is active because no provider/model is configured.\n"
         f"Selected deck: {plan['selected_deck']['name']}\n"
         f"Room seats: {seats}\n"
-        f"Task recorded: {prompt[:500]}\n\n"
+        f"Task recorded locally as prompt hash: {hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]}\n\n"
         "Configure and verify a Solomon's Key to receive model-generated analysis."
     )
 
@@ -3361,7 +3529,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     route_started = time.perf_counter()
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled))
+    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
     settings = get_settings()
     model = request.model or settings["selected_model"]
     ollama_status = get_ollama_status()
@@ -3373,13 +3541,15 @@ async def run_route(request: RouteRequest):
     if model not in ollama_status.get("models", []):
         offline_answer = generate_offline_answer(request.prompt, plan)
         remembered = remember_route_exchange(request.prompt, offline_answer, engine="offline-planner")
-        return {
+        result = {
             "status": "complete", "engine": "offline-planner", "model": OFFLINE_ROOM_KEY["model"],
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "trace": [{"stage": "offline plan", "role": "OBus planner", "model": OFFLINE_ROOM_KEY["model"], "status": "complete", "output": offline_answer}],
             "final": offline_answer,
             "remembered": remembered,
         }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return result
     try:
         routed_prompt = request.prompt
         if request.rag_enabled and plan.get("rag", {}).get("hub_results"):
@@ -3432,10 +3602,23 @@ async def run_route(request: RouteRequest):
     aggregate_manifest = plan["agents"]["aggregator"]
     aggregate_key = next((key for key in state["keys"] if key["id"] == aggregate_manifest["llm_key"]), None)
     aggregate_status = next((item for item in provider_statuses(state) if aggregate_key and item["id"] == aggregate_key["id"]), None)
+    if aggregate_key and aggregate_key.get("local"):
+        usage = finish_usage(local_engine)
+        remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
+        result = {
+            "status": "complete", "engine": local_engine, "model": model,
+            "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "stages": ["local"], "local_result": local_answer, "final": local_answer,
+            "trace": local_trace,
+            "aggregate": {"status": "local-default", "name": aggregate_key["name"], "model": aggregate_key["model"], "key_id": aggregate_key["id"]},
+            "remembered": remembered, "usage": usage,
+        }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return result
     if not aggregate_key or not aggregate_status or not aggregate_status.get("connected"):
         usage = finish_usage(local_engine)
         remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
-        return {
+        result = {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
@@ -3444,6 +3627,8 @@ async def run_route(request: RouteRequest):
             "remembered": remembered,
             "usage": usage,
         }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return result
     aggregate_calls = 1
     aggregate_started = time.perf_counter()
     try:
@@ -3452,7 +3637,7 @@ async def run_route(request: RouteRequest):
         aggregate_seconds = time.perf_counter() - aggregate_started
         usage = finish_usage(local_engine)
         remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
-        return {
+        result = {
             "status": "partial", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
@@ -3461,11 +3646,13 @@ async def run_route(request: RouteRequest):
             "remembered": remembered,
             "usage": usage,
         }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return result
     aggregate_seconds = time.perf_counter() - aggregate_started
     final_engine = f"{local_engine}+luna-aggregate"
     usage = finish_usage(final_engine)
     remembered = remember_route_exchange(request.prompt, final_answer, engine=final_engine)
-    return {
+    result = {
         "status": "complete",
         "engine": final_engine,
         "model": model,
@@ -3482,6 +3669,8 @@ async def run_route(request: RouteRequest):
         "remembered": remembered,
         "usage": usage,
     }
+    result["receipt"] = record_run_receipt(request.prompt, plan, result)
+    return result
 
 
 @app.post("/api/execute")

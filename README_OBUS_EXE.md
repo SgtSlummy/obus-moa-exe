@@ -103,6 +103,13 @@ OBus exposes a local OpenAI-compatible bridge. The dashboard shows these values 
 - Models endpoint: `http://127.0.0.1:38174/v1/models`
 - Chat endpoint: `http://127.0.0.1:38174/v1/chat/completions`
 
+For autonomous use, launch `OBus.exe --headless`. This starts the local API on
+`127.0.0.1:38173` without opening Edge, a system-tray icon, or the desktop UI.
+The `obus_hermes_bridge.py` supervisor always launches OBus with this flag and
+uses the current `dist\OBus.exe` when available (falling back to the source
+launcher for development). Set `OBUS_PORT` only when an isolated local runtime
+is needed.
+
 The default bridge is loopback-only. Set `OBUS_BRIDGE_HOST` explicitly only when
 you intend to expose it on another interface and have configured
 `OCCULTBUS_API_KEY`. In Hermes, the named provider entry belongs under
@@ -139,13 +146,39 @@ pyinstaller OBus.spec
 # Or: pyinstaller --onefile --name OBus obus_launcher.py
 ```
 
+## Warp-inspired agent workspace
+
+OBus now offers three configurable workspace surfaces in Setup:
+
+- **Terminal** — route composer, live execution output, status, command palette, and portable settings.
+- **Operator** — Terminal plus Cards & Keys, Tarot personas, persistent agents, rooms, receipts, routing, and Memory.
+- **ADE** — the complete OBus surface, including Forums, Arcana Forge, Tentacle Worm safety, and integrations.
+
+Press **Ctrl+K** (or **Cmd+K**) to open the searchable command palette. It can focus a route, switch pages, refresh live state, warm the local GPU, open Settings/Memory/Rooms, and export the latest receipt.
+
+The local workspace context panel is explicitly **read-only local context**. Its status and bounded inspection APIs are exposed at `/api/workspace/status`, `/api/workspace/tree`, `/api/workspace/file`, and `/api/workspace/diff`. Configure a root manually; OBus bounds depth, file count, bytes, and text lines, rejects traversal/symlink escapes, omits secret-shaped files, and never runs a shell command. A selected bounded text file can be inserted into the next route.
+
+## Portable settings
+
+`GET /api/settings/export` returns a versioned `obus-settings.json` containing only non-secret UI, routing, model, deck, RAG, memory, workspace-surface, and workspace-root preferences. `POST /api/settings/import` validates and merges the same allowlist. It never imports provider credentials, OAuth tokens, machine access-gate state, machine role, private-key contents, or room/memory data.
+
+## Routing policy and open models
+
+Setup exposes **Local-first**, **Auto (open)**, and **Manual** routing policies. Auto (open) only considers Ready, connected Keys explicitly marked local/open-model, excludes the reserved GPT 5.6 Luna aggregate, honors cooldowns, and returns honest offline planning when no eligible open model is available. Tarot card-to-Key choices remain temporary and are never persisted by automatic planning.
+
+## Run receipts
+
+Every offline, partial, and complete `/api/route/run` response includes a redacted receipt summary. Receipts are available through `/api/runs`, `/api/runs/{receipt_id}`, and `/api/runs/{receipt_id}/export`. They contain a prompt hash, route plan, temporary assignment metadata, trace, usage, status, and bounded final output. Raw prompt text, credentials, private room transcripts, and private-key material are excluded. Receipt exports may still contain task output; the UI labels them as task-content handoffs.
+
 ## Troubleshooting
 
-**Port 8080 in use** - Edit `config/default.json` to change the port
+**OBus port 38173 in use** - Stop the other local OBus runtime or launch an isolated instance with `OBUS_PORT`.
 
-**Browser doesn't open** - Navigate to `http://127.0.0.1:8080/` manually
+**Provider bridge port 38174 in use** - Stop the conflicting local bridge or set an intentional bridge configuration.
 
-**Provider shows unverified** - Set the environment variable referenced in the provider record and re-verify
+**Browser doesn't open** - Navigate to `http://127.0.0.1:38173/` manually after confirming `/health` responds.
+
+**Provider shows unverified** - Set the environment variable referenced in the provider record and re-verify.
 
 **Logs** - Check `%LOCALAPPDATA%\OccultBus\logs\`
 
