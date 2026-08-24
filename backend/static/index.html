@@ -271,11 +271,12 @@
 </dialog>
 
 <div class="setup" id="setup-overlay"><div class="setup-card"><div class="emblem"><span>∴</span></div><h2>Local engine unavailable</h2><p>OBus needs Ollama running on this computer. Install or start Ollama, then test again.</p><div class="actions"><button class="button primary" id="btn-install-ollama">Open Ollama download</button><button class="button" id="btn-connect-ollama">Test connection</button></div></div></div>
+<div class="setup" id="access-overlay"><div class="setup-card"><div class="emblem"><span>⌁</span></div><h2>Unlock OBus</h2><p id="access-message">Enter this machine’s local access password.</p><div class="field"><label for="access-password">Password</label><input id="access-password" type="password" autocomplete="current-password"></div><div class="actions" style="margin-top:14px"><button class="button primary" id="access-unlock" type="button">Unlock</button></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const state={dashboard:null,quantum:null,selectedDeck:'auto',selectedAgent:null,busy:false,editingKey:null,agentFilter:'all',agentSearch:'',codexJob:null,forge:null,forgeSearch:'',forgeJobs:{},rooms:[],threads:[],selectedThread:null,selectedRoom:null,roomPolling:null,runtimeAgents:[],runtimeEvents:[],runtimePolling:null};
+const state={dashboard:null,quantum:null,selectedDeck:'auto',selectedAgent:null,busy:false,editingKey:null,agentFilter:'all',agentSearch:'',codexJob:null,forge:null,forgeSearch:'',forgeJobs:{},rooms:[],threads:[],selectedThread:null,selectedRoom:null,roomPolling:null,runtimeAgents:[],runtimeEvents:[],runtimePolling:null,accessToken:sessionStorage.getItem('obus-access-token')||null};
 const providerPresets={
  ollama:{name:'Local Ollama',model:'gpt-oss:20b',base_url:'http://127.0.0.1:11434',env_var:'',context:131072,local:true},
  codex:{name:'Codex / OpenAI',model:'gpt-5.6-sol',base_url:'https://api.openai.com/v1',env_var:'OPENAI_API_KEY',context:131072},
@@ -291,7 +292,7 @@ const titles={dashboard:'Command center',providers:'Key readiness',agents:'Agent
 function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function kawaiiFace(event={},index=0){if(event.status==='failed')return '(｡•́︿•̀｡)';if(event.status==='running')return '(•̀ᴗ•́)و';if(event.stage==='aggregate')return '(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧';if(event.status==='complete')return '(^‿^)';const faces=['(｡•́‿•̀｡)','(づ｡◕‿‿◕｡)づ','(◕‿◕✿)','(≧◡≦)'];return faces[index%faces.length];}
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className='toast show'+(error?' error':'');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className='toast',3200);}
-async function api(path,options={}){const response=await fetch(path,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(data.detail||data.message||`Request failed (${response.status})`);return data;}
+async function api(path,options={}){const response=await fetch(path,{headers:{'Content-Type':'application/json',...(state.accessToken?{'X-OBus-Access':state.accessToken}:{}),...(options.headers||{})},...options});let data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(data.detail||data.message||`Request failed (${response.status})`);return data;}
 function optionMarkup(items,selected,label=x=>x.name,value=x=>x.id){return items.map(item=>`<option value="${escapeHtml(value(item))}" ${value(item)===selected?'selected':''}>${escapeHtml(label(item))}</option>`).join('');}
 function setPage(name){$$('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$$('.page').forEach(x=>x.classList.toggle('active',x.dataset.pagePanel===name));$('#page-title').textContent=titles[name]||'OBus MOA';}
 function quantumPollInterval(){return Number(state.quantum?.ui_poll_interval_ms)||5;}
@@ -406,7 +407,11 @@ $('#forge-search').oninput=e=>{state.forgeSearch=e.target.value;renderForge()};$
 $('#runtime-spawn-agent').onclick=spawnRuntimeAgent;$('#runtime-orchestrate').onclick=orchestrateRuntime;$('#runtime-refresh').onclick=()=>loadRuntime().catch(e=>toast(e.message,true));
 $('#tentacle-run').onclick=()=>runTentacleWorms(true);$('#tentacle-verify').onclick=()=>runTentacleWorms(false);
 $('#open-room-dialog').onclick=openRoomDialog;$('#room-card-picker').onchange=syncRoomChymeriaOptions;$('#cancel-room').onclick=()=>$('#room-dialog').close();$('#room-form').onsubmit=async e=>{e.preventDefault();$('#save-room').disabled=true;try{await saveRoom()}catch(error){toast(error.message,true)}finally{$('#save-room').disabled=false}};$('#room-run-deliberation').onclick=runSelectedRoom;$('#room-refresh-deliberation').onclick=()=>state.selectedRoom&&selectRoom(state.selectedRoom,true).catch(e=>toast(e.message,true));$('#new-forum-thread').onclick=createForumThread;$('#forum-round').onclick=runForumRound;$('#send-forum-message').onclick=sendForumMessage;
-Promise.all([refresh(),loadTentacleWorms(),loadLocalMemory(),loadProviderConnection(),refreshCodexStatus(),loadGitHubStatus(),loadRooms(),loadThreads()]).catch(e=>{toast(e.message,true);$('#result-output').textContent=`Dashboard failed to load: ${e.message}`});
+function initializeApp(){Promise.all([refresh(),loadTentacleWorms(),loadLocalMemory(),loadProviderConnection(),refreshCodexStatus(),loadGitHubStatus(),loadRooms(),loadThreads()]).catch(e=>{toast(e.message,true);$('#result-output').textContent=`Dashboard failed to load: ${e.message}`});}
+async function unlockLocalAccess(){const password=$('#access-password').value;const response=await fetch('/api/access/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});const value=await response.json();if(!response.ok)throw new Error(value.detail||'Unlock failed');state.accessToken=value.token;sessionStorage.setItem('obus-access-token',value.token);$('#access-password').value='';$('#access-overlay').classList.remove('show');initializeApp();}
+async function initializeAccess(){const response=await fetch('/api/access/status');const access=await response.json();if(!access.enabled){initializeApp();return;}if(!access.machine_bound){$('#access-message').textContent='This deployment is bound to another machine.';$('#access-unlock').disabled=true;$('#access-overlay').classList.add('show');return;}if(state.accessToken){try{await api('/api/dashboard');initializeApp();return;}catch{sessionStorage.removeItem('obus-access-token');state.accessToken=null;}}$('#access-overlay').classList.add('show');}
+$('#access-unlock').onclick=()=>unlockLocalAccess().catch(error=>toast(error.message,true));$('#access-password').onkeydown=event=>{if(event.key==='Enter')unlockLocalAccess().catch(error=>toast(error.message,true))};
+initializeAccess();
 </script>
 </body>
 </html>

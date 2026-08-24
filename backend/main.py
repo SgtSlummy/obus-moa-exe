@@ -2,7 +2,7 @@
 FastAPI Backend for OBus MOA Runtime
 Supports Tarot cards, Solomon's Keys, Decks, and routing
 """
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
@@ -32,8 +32,23 @@ import urllib.request
 import uuid
 
 from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
+from backend import access_gate
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
+
+
+@app.middleware("http")
+async def enforce_local_access(request: Request, call_next):
+    """Gate packaged deployments after a local password verifier has been installed."""
+    path = request.url.path
+    public = path == "/" or path == "/health" or path.startswith("/static/") or path.startswith("/api/access/")
+    access = access_gate.status()
+    if access["enabled"] and not access["machine_bound"] and not public:
+        return JSONResponse(status_code=403, content={"detail": "This OBus deployment is bound to another machine."})
+    if access["enabled"] and not public and not access_gate.session_valid(request.headers.get("X-OBus-Access")):
+        return JSONResponse(status_code=401, content={"detail": "Unlock OBus locally to continue."})
+    return await call_next(request)
+
 
 # Data storage paths
 DATA_DIR = Path(os.environ.get('OCCULTBUS_HOME', Path.home() / '.occultbus'))
@@ -1407,6 +1422,19 @@ async def index():
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "obus-moa"}
+
+
+@app.get("/api/access/status")
+async def access_status():
+    return access_gate.status()
+
+
+@app.post("/api/access/unlock")
+async def unlock_access(payload: dict = Body(...)):
+    password = str(payload.get("password") or "")
+    if not password or not access_gate.verify_password(password):
+        raise HTTPException(status_code=401, detail="Incorrect local password.")
+    return {"token": access_gate.create_session(), "expires_seconds": 12 * 60 * 60}
 
 
 @app.get("/api/provider/connection")
