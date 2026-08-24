@@ -287,6 +287,7 @@
 <script src="/static/aui/workspace.js"></script>
 <script src="/static/aui/runtime.js"></script>
 <script src="/static/aui/providers.js"></script>
+<script src="/static/aui/rooms.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const state={dashboard:null,quantum:null,aui:null,commandActions:null,selectedDeck:'auto',selectedAgent:null,busy:false,latestPrompt:'',activeRouteId:null,editingKey:null,agentFilter:'all',agentSearch:'',codexJob:null,forge:null,forgeSearch:'',forgeJobs:{},rooms:[],threads:[],selectedThread:null,selectedRoom:null,roomPolling:null,runtimeAgents:[],runtimeEvents:[],runtimePolling:null,runReceipts:[],latestReceipt:null,workspaceSurface:'operator',paletteIndex:0,paletteActions:[],palettePreviousFocus:null,pendingSettingsImport:null,accessToken:sessionStorage.getItem('obus-access-token')||null};
@@ -500,6 +501,24 @@ async function createForumThread(){const activeRooms=state.rooms.filter(room=>ro
 async function runForumRound(){if(!state.selectedThread)return;$('#forum-round').disabled=true;try{await api(`/api/forum/threads/${encodeURIComponent(state.selectedThread)}/round`,{method:'POST'});await Promise.all([loadThreads(),loadRooms()]);await selectThread(state.selectedThread);toast('Forum round complete')}catch(e){toast(e.message,true)}finally{$('#forum-round').disabled=false}}
 async function sendForumMessage(){if(!state.selectedThread||!$('#forum-composer').value.trim())return;const thread=await api(`/api/forum/threads/${encodeURIComponent(state.selectedThread)}`);const roomId=thread.room_ids[0];try{await api(`/api/forum/threads/${encodeURIComponent(state.selectedThread)}/messages`,{method:'POST',body:JSON.stringify({room_id:roomId,kind:'question',body:$('#forum-composer').value.trim()})});$('#forum-composer').value='';await loadThreads();await selectThread(state.selectedThread);toast('Public question posted')}catch(e){toast(e.message,true)}}
 
+const legacyRooms={loadRooms,renderRooms,renderRoomDetail,selectRoom,scheduleRoomPoll,syncRoomChymeriaOptions,openRoomDialog,saveRoom,runSelectedRoom,loadThreads,renderThreads,selectThread,createForumThread,runForumRound,sendForumMessage};
+function initRoomsModule(){if(!window.OBusRooms)return;try{state.roomsController=window.OBusRooms.create({api,state,$,$$,escapeHtml,toast,quantumPollInterval,roomCardName});}catch(error){state.roomsController=null;toast(`Rooms module unavailable; using inline fallback: ${error.message}`,true);}}
+async function loadRooms(){return state.roomsController?.loadRooms?.()||legacyRooms.loadRooms();}
+function renderRooms(){return state.roomsController?.renderRooms?.()||legacyRooms.renderRooms();}
+function renderRoomDetail(room,messages,preserveTask=true){return state.roomsController?.renderRoomDetail?.(room,messages,preserveTask)||legacyRooms.renderRoomDetail(room,messages,preserveTask);}
+async function selectRoom(roomId,preserveTask=true){return state.roomsController?.selectRoom?.(roomId,preserveTask)||legacyRooms.selectRoom(roomId,preserveTask);}
+function scheduleRoomPoll(){return state.roomsController?.scheduleRoomPoll?.()||legacyRooms.scheduleRoomPoll();}
+function syncRoomChymeriaOptions(){return state.roomsController?.syncRoomChymeriaOptions?.()||legacyRooms.syncRoomChymeriaOptions();}
+function openRoomDialog(){return state.roomsController?.openRoomDialog?.()||legacyRooms.openRoomDialog();}
+async function saveRoom(){return state.roomsController?.saveRoom?.()||legacyRooms.saveRoom();}
+async function runSelectedRoom(){return state.roomsController?.runSelectedRoom?.()||legacyRooms.runSelectedRoom();}
+async function loadThreads(){return state.roomsController?.loadThreads?.()||legacyRooms.loadThreads();}
+function renderThreads(){return state.roomsController?.renderThreads?.()||legacyRooms.renderThreads();}
+async function selectThread(threadId){return state.roomsController?.selectThread?.(threadId)||legacyRooms.selectThread(threadId);}
+async function createForumThread(){return state.roomsController?.createForumThread?.()||legacyRooms.createForumThread();}
+async function runForumRound(){return state.roomsController?.runForumRound?.()||legacyRooms.runForumRound();}
+async function sendForumMessage(){return state.roomsController?.sendForumMessage?.()||legacyRooms.sendForumMessage();}
+
 $$('.nav button').forEach(btn=>btn.onclick=()=>{setPage(btn.dataset.page);if(btn.dataset.page==='forge'&&!state.forge)loadForge().catch(e=>toast(e.message,true));if(btn.dataset.page==='studios')loadStudios().catch(e=>toast(e.message,true));if(btn.dataset.page==='runtime')loadRuntime().catch(e=>toast(e.message,true));if(btn.dataset.page==='memory')loadLocalMemory().catch(e=>toast(e.message,true));if(btn.dataset.page==='hardening')loadTentacleWorms().catch(e=>toast(e.message,true));if(btn.dataset.page==='runs')loadRunReceipts().catch(e=>toast(e.message,true));if(btn.dataset.page==='rooms'&&state.selectedRoom)selectRoom(state.selectedRoom,true).catch(e=>toast(e.message,true))});
 $('#refresh-btn').onclick=()=>Promise.all([refresh(),loadRooms(),loadThreads()]).then(()=>toast('Live state refreshed')).catch(e=>toast(e.message,true));
 $('#warm-gpu').onclick=warmGpu;
@@ -509,6 +528,7 @@ initAuiLayout();
 initWorkspaceModule();
 initRuntimeModule();
 initProviderModule();
+initRoomsModule();
 bindRouteComposerKeyboard();
 $('#command-palette-close').onclick=closeCommandPalette;$('#command-palette-input').oninput=e=>{state.paletteIndex=0;renderCommandPalette(e.target.value)};$('#command-palette-input').onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();state.paletteIndex=Math.min(state.paletteIndex+1,state.paletteActions.length-1);renderCommandPalette(e.target.value);}else if(e.key==='ArrowUp'){e.preventDefault();state.paletteIndex=Math.max(0,state.paletteIndex-1);renderCommandPalette(e.target.value);}else if(e.key==='Enter'){e.preventDefault();runCommandPaletteAction(state.paletteActions[state.paletteIndex]?.id);}else if(e.key==='Escape'){e.preventDefault();closeCommandPalette();}};document.addEventListener('keydown',event=>{const modifier=event.ctrlKey||event.metaKey;const key=event.key.toLowerCase();if(modifier&&(key==='k'||(event.shiftKey&&key==='p'))){event.preventDefault();openCommandPalette();}else if(modifier&&key==='l'){event.preventDefault();auiActionHandlers()['route.focus']();}else if(modifier&&key==='r'){event.preventDefault();auiActionHandlers()['status.refresh']().then(()=>announceAui('Live state refreshed')).catch(error=>announceAui(error.message,true));}else if(event.key==='Escape'&&$('#command-palette').open){closeCommandPalette();}else if(event.key==='Escape'&&!document.querySelector('dialog[open]')&&document.activeElement!==$('#route-input')){event.preventDefault();auiActionHandlers()['route.focus']();}});
 $('#harness-preview').onclick=()=>previewHarness().catch(e=>toast(e.message,true));$('#harness-toggle').onchange=e=>persist({harness_enabled:e.target.checked}).catch(x=>toast(x.message,true));$('#voice-toggle').onclick=useVoice;$('#output-autoscroll').onchange=e=>persist({output_autoscroll:e.target.checked}).catch(x=>toast(x.message,true));$('#close-key-setup').onclick=()=>$('#key-setup-dialog').close();$('#save-machine-setup').onclick=()=>saveMachineSetup().catch(e=>toast(e.message,true));
