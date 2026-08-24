@@ -1,6 +1,7 @@
 """Bounded, secret-free local event stream for OBus AUI consumers."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -12,6 +13,14 @@ from typing import Any, Iterator
 
 _SECRET_KEYS = {"api_key", "apikey", "token", "access_token", "refresh_token", "password", "secret", "private_key", "credential"}
 _SECRET_VALUE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+|\bsk-[A-Za-z0-9_-]{12,}|\bgh[opusr]_[A-Za-z0-9_]{12,}")
+_SAFE_ROUTE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
+
+
+def safe_route_id(value: object) -> str:
+    raw = str(value or "")
+    if _SAFE_ROUTE_ID.fullmatch(raw) and not _SECRET_VALUE.search(raw):
+        return raw
+    return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
 
 
 def _safe_value(value: Any, key: str | None = None) -> Any:
@@ -39,7 +48,7 @@ class RouteEventHub:
         event = {
             "id": f"evt-{uuid.uuid4().hex[:16]}",
             "created_at": time.time(),
-            "route_id": str(route_id),
+            "route_id": safe_route_id(route_id),
             "type": str(event_type),
             "payload": _safe_value(payload or {}),
         }

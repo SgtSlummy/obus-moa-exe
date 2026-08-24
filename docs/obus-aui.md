@@ -58,7 +58,9 @@ A route is presented as an inspectable block containing:
 
 Re-input and retry use the latest prompt held in the current browser session. Raw prompt text is not written into public receipts by this UI feature.
 
-Route lifecycle events are available through the bounded JSON endpoint `/api/route/events` and the loopback SSE endpoint `/api/route/events/stream`. Events contain only route IDs and safe lifecycle metadata such as planning, local start/completion, completion, and failure state. The frontend uses EventSource when available and retains polling as the fallback.
+Route lifecycle events are available through the bounded JSON endpoint `/api/route/events` and the loopback SSE endpoint `/api/route/events/stream`. Events contain only route IDs and safe lifecycle metadata such as planning, local start/completion, completion, and failure state. The frontend uses EventSource when available and falls back to bounded JSON polling when EventSource is unavailable or fails.
+
+The explicit planning endpoint `/api/plan/deliberate` is side-effect-free: it returns ephemeral planned room/thread identifiers and does not create durable Rooms, Forums, receipts, or provider calls. `/api/deliberate` remains the separate execution endpoint for configured automatic deliberation.
 
 Cancellation is cooperative and confirmed: the frontend supplies a route ID, `POST /api/route/{route_id}/cancel` records the request, and the backend acknowledges it at planning/local stage boundaries. `GET /api/route/{route_id}/status` exposes the cancellation state and bounded event history. Provider threads are not force-killed.
 

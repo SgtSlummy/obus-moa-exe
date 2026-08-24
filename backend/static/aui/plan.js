@@ -11,8 +11,9 @@
         const resultOutput = $("#plan-result");
         const status = $("#plan-status");
         if (status) {
-          status.textContent = packets.length ? `Complete · ${packets.length} room decisions` : "Ready";
-          status.className = `badge ${packets.length ? "ready" : "warn"}`;
+          const planned = deliberation.thread?.status === "planned";
+          status.textContent = planned ? `Plan ready · ${roomIds.length} room hands` : packets.length ? `Complete · ${packets.length} room decisions` : "Ready";
+          status.className = `badge ${planned || packets.length ? "ready" : "warn"}`;
         }
         if (flow) {
           flow.innerHTML = [
@@ -25,7 +26,8 @@
           ].join("");
         }
         if (resultOutput) {
-          resultOutput.className = `result ${packets.length ? "" : "empty"}`;
+          const planned = deliberation.thread?.status === "planned";
+          resultOutput.className = `result ${packets.length || planned ? "" : "empty"}`;
           resultOutput.textContent = packets.length
             ? packets.map((packet, index) => [
               `Room ${index + 1} · ${packet.confidence || "unknown"} confidence · ${packet.status || "provisional"}`,
@@ -33,7 +35,7 @@
               packet.rationale ? `Rationale: ${packet.rationale}` : "",
               packet.unresolved_questions?.length ? `Open questions: ${packet.unresolved_questions.join("; ")}` : "",
             ].filter(Boolean).join("\n")).join("\n\n────\n\n")
-            : "No plan has been deliberated yet.";
+            : planned ? "Plan preview is ready. Enable automatic route deliberation to execute these room hands when Hermes sends an eligible route." : "No plan has been previewed yet.";
         }
       };
 
@@ -68,11 +70,11 @@
           return;
         }
         button.disabled = true;
-        button.textContent = "Deliberating…";
-        status.textContent = "Parallel rooms deliberating";
+        button.textContent = "Previewing…";
+        status.textContent = "Selecting parallel room hands";
         status.className = "badge warn";
         $("#plan-result").className = "result";
-        $("#plan-result").textContent = "Creating independent room proposals, then synthesizing sanitized decision packets…";
+        $("#plan-result").textContent = "Selecting independent room hands and building a zero-write planning preview…";
         try {
           const result = await api("/api/plan/deliberate", {
             method: "POST",
@@ -80,8 +82,8 @@
           });
           render(result);
           await Promise.all([loadRooms?.(), loadThreads?.()]);
-          announce?.("Parallel plan deliberation complete; review the room decisions before execution.");
-          toast("Plan deliberation complete");
+          announce?.("Parallel plan preview is ready; enable automatic route deliberation to execute it on eligible Hermes routes.");
+          toast("Plan preview ready");
           return result;
         } catch (error) {
           status.textContent = "Plan failed";
@@ -93,7 +95,7 @@
           throw error;
         } finally {
           button.disabled = false;
-          button.textContent = "Deliberate plan";
+          button.textContent = "Preview plan";
         }
       };
 

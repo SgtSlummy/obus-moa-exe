@@ -28,6 +28,7 @@ class WorkspaceContextTests(unittest.TestCase):
         (self.root / ".aws" / "credentials").write_text("aws_secret", encoding="utf-8")
         (self.root / ".ssh").mkdir()
         (self.root / ".ssh" / "id_rsa").write_text("private", encoding="utf-8")
+        (self.root / ".ssh" / "config").write_text("Host secret", encoding="utf-8")
         (self.root / ".npmrc").write_text("//registry.npmjs.org/:_authToken=secret", encoding="utf-8")
 
     def tearDown(self):
@@ -53,7 +54,7 @@ class WorkspaceContextTests(unittest.TestCase):
         self.assertLessEqual(len(tree["entries"]), 10)
 
     def test_credential_files_are_rejected_from_direct_reads(self):
-        for path in (".aws/credentials", ".ssh/id_rsa", ".npmrc"):
+        for path in (".aws/credentials", ".ssh/id_rsa", ".ssh/config", ".npmrc"):
             with self.assertRaises(WorkspaceContextError):
                 read_workspace_file(str(self.root), path)
 
@@ -61,6 +62,12 @@ class WorkspaceContextTests(unittest.TestCase):
             read_workspace_file(str(self.root), "../outside.txt")
         with self.assertRaises(WorkspaceContextError):
             read_workspace_file(str(self.root), str(Path(self.tempdir.name).parent / "outside.txt"))
+
+    def test_secret_shaped_workspace_root_is_rejected(self):
+        status = workspace_status(str(self.root / ".ssh"))
+        self.assertFalse(status["valid"])
+        with self.assertRaises(WorkspaceContextError):
+            read_workspace_file(str(self.root / ".ssh"), "config")
 
     def test_binary_file_returns_metadata_without_content(self):
         (self.root / "image.bin").write_bytes(b"\x00\x01\x02")

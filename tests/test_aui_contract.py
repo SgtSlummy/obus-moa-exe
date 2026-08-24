@@ -36,6 +36,9 @@ class AUIContractTests(unittest.TestCase):
         setup = backend.key_setup_guide({"provider": "custom", "base_url": "javascript:alert(1)"})
         self.assertNotIn("javascript:", setup["docs_url"].lower())
         self.assertTrue(setup["docs_url"].startswith("https://"))
+        credential_setup = backend.key_setup_guide({"provider": "custom", "base_url": "https://user:pass@example.test/?token=secret"})
+        self.assertNotIn("user:pass", credential_setup["docs_url"])
+        self.assertNotIn("token=secret", credential_setup["docs_url"])
 
     def test_ui_exposes_aui_action_rail_and_manifest_loader(self):
         html = TestClient(backend.app).get("/").text

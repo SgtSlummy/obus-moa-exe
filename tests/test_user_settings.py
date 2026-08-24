@@ -29,6 +29,16 @@ class UserSettingsTests(unittest.TestCase):
         self.assertEqual(value["workspace_surface"], DEFAULT_USER_SETTINGS["workspace_surface"])
         self.assertEqual(value["routing_policy"], DEFAULT_USER_SETTINGS["routing_policy"])
 
+    def test_warp_settings_default_to_safe_optional_cpu_mode(self):
+        value = normalize_user_settings({})
+        self.assertEqual(value["gpu_backend"], "auto")
+        self.assertFalse(value["warp_preprocess_enabled"])
+
+    def test_invalid_warp_settings_use_safe_defaults(self):
+        value = normalize_user_settings({"gpu_backend": "remote", "warp_preprocess_enabled": "yes"})
+        self.assertEqual(value["gpu_backend"], "auto")
+        self.assertFalse(value["warp_preprocess_enabled"])
+
     def test_export_is_allowlisted_and_secret_safe(self):
         exported = export_user_settings({
             "workspace_surface": "terminal",

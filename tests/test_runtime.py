@@ -37,8 +37,8 @@ class RuntimeContractTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.text
-        schedule_poll = html.split("function scheduleRoomPoll()", 1)[1].split("async function runSelectedRoom", 1)[0]
-        self.assertIn("quantumPollInterval());}", schedule_poll)
+        self.assertIn('/static/aui/rooms.js', html)
+        self.assertIn('state.roomsController', html)
         self.assertNotIn("data-build", html)
         self.assertNotIn("build obus", html.lower())
         self.assertIn("dynamic aggregate", html)
@@ -75,6 +75,13 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("tarot_rag", hub)
         self.assertIn("mythos_router", hub)
         self.assertIn("moa_router", hub)
+
+    def test_live_probe_rejects_query_and_fragment_urls(self):
+        with patch.object(backend.urllib.request, "urlopen") as open_mock:
+            result = backend.probe_key_live({"provider": "custom", "local": True, "model": "custom-model", "base_url": "http://127.0.0.1:11434/v1?token=secret#fragment"})
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "invalid_url")
+        open_mock.assert_not_called()
 
     def test_obus_provider_connection_info_is_manual_and_secret_safe(self):
         response = self.client.get("/api/provider/connection")

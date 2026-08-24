@@ -51,6 +51,8 @@ def _resolved_root(root: str | os.PathLike[str] | None) -> Path:
     if not root or not str(root).strip():
         raise WorkspaceContextError("workspace root is not configured")
     candidate = Path(root).expanduser().resolve(strict=True)
+    if any(_is_secret_name(part) for part in candidate.parts):
+        raise WorkspaceContextError("workspace root contains a secret-shaped path component")
     if not candidate.is_dir():
         raise WorkspaceContextError("workspace root must be a directory")
     return candidate
@@ -72,6 +74,8 @@ def _safe_path(root: Path, relative_path: str | None, *, must_exist: bool = True
         requested = Path(value)
         if requested.is_absolute() or ".." in requested.parts:
             raise WorkspaceContextError("path must stay inside the configured workspace root")
+        if any(_is_secret_name(part) for part in requested.parts):
+            raise WorkspaceContextError("secret-shaped workspace paths are redacted")
         candidate = (root / requested).resolve(strict=False)
     if not _inside(root, candidate):
         raise WorkspaceContextError("path resolves outside the configured workspace root")

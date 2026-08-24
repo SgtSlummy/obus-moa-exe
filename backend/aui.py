@@ -37,8 +37,8 @@ _ACTIONS: tuple[dict[str, Any], ...] = (
     },
     {
         "id": "plan.deliberate",
-        "label": "Deliberate a plan",
-        "hint": "Run bounded parallel Tarot proposals and review a synthesized plan",
+        "label": "Preview a plan",
+        "hint": "Preview bounded parallel Tarot roles before enabling route deliberation",
         "section": "Execution",
         "shortcut": "Ctrl+Shift+L",
         "surface_min": "terminal",

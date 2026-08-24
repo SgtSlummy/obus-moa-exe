@@ -25,6 +25,8 @@ def test_auto_deliberation_enabled(client):
     assert all(item["assignments"] for item in data["round_results"])
     assert data["thread"]["status"] == "complete"
     assert any(message["kind"] == "prompt" for message in data["thread"]["messages"])
+    assert data["thread"]["route_manifest"]["schema_version"] == 1
+    assert data["thread"]["route_manifest"]["warp_preprocess"]["items"] > 0
 
     assert client.get(f"/api/rooms/{data['room_ids'][0]}").status_code == 200
     persisted = client.get("/api/forum/threads").json()
@@ -43,7 +45,9 @@ def test_explicit_plan_is_side_effect_free_and_does_not_enable_auto_mode(client)
     before = backend.load_state()
     before_rooms = {room["id"] for room in before.get("rooms", [])}
     before_threads = {thread["id"] for thread in before.get("forum_threads", [])}
-    response = client.post("/api/plan/deliberate", json={"prompt": "Plan a safe rollout for a multi-agent service"})
+    with patch.object(backend, "ROOM_COMPLETE", backend.offline_room_complete), \
+         patch.object(backend, "room_provider_ready", return_value=True):
+        response = client.post("/api/plan/deliberate", json={"prompt": "Plan a safe rollout for a multi-agent service"})
 
     assert response.status_code == 200
     payload = response.json()

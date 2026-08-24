@@ -23,6 +23,8 @@ DEFAULT_USER_SETTINGS: dict[str, Any] = {
     "max_parallel_agents": 5,
     "selected_model": "gpt-oss:20b",
     "selected_deck": "auto",
+    "gpu_backend": "auto",
+    "warp_preprocess_enabled": False,
     "harness_enabled": True,
     "output_autoscroll": True,
 }
@@ -59,13 +61,15 @@ def normalize_user_settings(settings: dict[str, Any] | None) -> dict[str, Any]:
         normalized["workspace_surface"] = DEFAULT_USER_SETTINGS["workspace_surface"]
     if normalized["routing_policy"] not in ROUTING_POLICIES:
         normalized["routing_policy"] = DEFAULT_USER_SETTINGS["routing_policy"]
+    if normalized["gpu_backend"] not in {"auto", "cpu", "cuda:0"}:
+        normalized["gpu_backend"] = DEFAULT_USER_SETTINGS["gpu_backend"]
     if normalized["workspace_root"] is not None and not isinstance(normalized["workspace_root"], str):
         normalized["workspace_root"] = None
     if not 800 <= int(normalized["rag_character_budget"] or 0) <= 8000:
         normalized["rag_character_budget"] = DEFAULT_USER_SETTINGS["rag_character_budget"]
     if not 1 <= int(normalized["max_parallel_agents"] or 0) <= 20:
         normalized["max_parallel_agents"] = DEFAULT_USER_SETTINGS["max_parallel_agents"]
-    for field in ("rag_enabled", "auto_memory", "harness_enabled", "output_autoscroll"):
+    for field in ("rag_enabled", "auto_memory", "warp_preprocess_enabled", "harness_enabled", "output_autoscroll"):
         if not isinstance(normalized[field], bool):
             normalized[field] = DEFAULT_USER_SETTINGS[field]
     for field in ("selected_model", "selected_deck"):

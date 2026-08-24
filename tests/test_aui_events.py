@@ -14,6 +14,8 @@ class AUIEventTests(unittest.TestCase):
         self.assertNotIn("secret-value", str(event))
         self.assertNotIn("Bearer", str(event))
         self.assertNotIn("credential-value", str(event))
+        route_event = hub.publish("route-sk-abcdefghijklmnop", "route.started", {})
+        self.assertNotIn("sk-abcdefghijklmnop", route_event["route_id"])
 
     def test_route_events_endpoint_returns_bounded_events(self):
         backend.ROUTE_EVENTS.publish("route-test", "route.started", {"status": "planning"})
@@ -25,6 +27,10 @@ class AUIEventTests(unittest.TestCase):
         html = TestClient(backend.app).get("/").text
         self.assertIn('/static/aui/route-events.js', html)
         self.assertIn('startRouteEventStream', html)
+        source = TestClient(backend.app).get('/static/aui/route-events.js').text
+        self.assertIn('pollingFallback', source)
+        self.assertIn('lastEventId', source)
+        self.assertIn('X-OBus-Access', source)
 
 
 if __name__ == "__main__":

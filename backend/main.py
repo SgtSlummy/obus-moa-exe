@@ -34,7 +34,7 @@ import uuid
 from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
 from backend import access_gate
 from backend.aui import build_manifest
-from backend.aui_events import ROUTE_EVENTS
+from backend.aui_events import ROUTE_EVENTS, safe_route_id
 from backend.user_settings import (
     ROUTING_POLICIES,
     WORKSPACE_SURFACES,
@@ -61,6 +61,7 @@ from backend.local_studios import (
     understand_anything_context,
     understand_anything_status,
 )
+from backend import nvidia_warp_runtime, warp_preprocessing
 from backend.warp_companion import launch as launch_warp_companion, status as warp_companion_status
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
@@ -543,6 +544,8 @@ class SettingsUpdate(BaseModel):
     max_parallel_agents: Optional[int] = None
     selected_model: Optional[str] = None
     selected_deck: Optional[str] = None
+    gpu_backend: Optional[Literal["auto", "cpu", "cuda:0"]] = None
+    warp_preprocess_enabled: Optional[bool] = None
     harness_enabled: Optional[bool] = None
     output_autoscroll: Optional[bool] = None
     workspace_surface: Optional[Literal["terminal", "operator", "ade"]] = None
@@ -567,6 +570,8 @@ class SettingsImport(BaseModel):
     max_parallel_agents: Optional[int] = None
     selected_model: Optional[str] = None
     selected_deck: Optional[str] = None
+    gpu_backend: Optional[str] = None
+    warp_preprocess_enabled: Optional[bool] = None
     harness_enabled: Optional[bool] = None
     output_autoscroll: Optional[bool] = None
 
@@ -1001,7 +1006,7 @@ def probe_key_live(key: dict) -> dict:
 
     base_url = str(key.get("base_url") or "").strip()
     parsed = urllib.parse.urlsplit(base_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
         return {"success": False, "status_code": None, "reason": "invalid_url", "message": "Key base URL must be a secret-free HTTP or HTTPS URL"}
 
     headers = {"Accept": "application/json", "User-Agent": "OBus-Key-Probe/1.0"}
@@ -1338,7 +1343,7 @@ app.router.add_event_handler("startup", start_gpu_warmup)
 def _safe_http_url(value: object, fallback: str = "https://example.com") -> str:
     candidate = str(value or "").strip()
     parsed = urllib.parse.urlsplit(candidate)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
         return fallback
     return candidate
 
@@ -1524,14 +1529,14 @@ async def aui_manifest(surface: Optional[str] = None):
 @app.get("/api/route/events")
 async def route_events(route_id: Optional[str] = None, limit: int = 50, since: Optional[str] = None):
     """Return bounded, secret-free route lifecycle events for polling clients."""
-    return ROUTE_EVENTS.snapshot(route_id=route_id, limit=limit, since=since)
+    return ROUTE_EVENTS.snapshot(route_id=safe_route_id(route_id) if route_id else None, limit=limit, since=since)
 
 
 @app.get("/api/route/events/stream")
 async def route_event_stream(route_id: Optional[str] = None, since: Optional[str] = None):
     """Stream bounded route lifecycle events over a local-only SSE connection."""
     return StreamingResponse(
-        ROUTE_EVENTS.stream(route_id=route_id, since=since),
+        ROUTE_EVENTS.stream(route_id=safe_route_id(route_id) if route_id else None, since=since),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -1645,6 +1650,7 @@ async def dashboard():
     )
     return {
         "ollama": ollama,
+        "nvidia_warp": nvidia_warp_runtime.status(settings.get("gpu_backend", os.environ.get("OBUS_WARP_DEVICE"))),
         "warm_runtime": get_gpu_warm_status(),
         "providers": provider_statuses(state),
         "cards": state.get("cards", DEFAULT_CARDS),
@@ -1731,6 +1737,22 @@ async def warp_integration_status():
 async def launch_warp_integration():
     """Launch only an explicitly built local Warp TUI companion."""
     return launch_warp_companion()
+
+
+@app.get("/api/integrations/nvidia-warp")
+async def nvidia_warp_integration_status():
+    """Report the optional NVIDIA Warp CUDA/CPU runtime separately from Warp TUI."""
+    return nvidia_warp_runtime.status(os.environ.get("OBUS_WARP_DEVICE"))
+
+
+@app.post("/api/integrations/nvidia-warp/warmup")
+async def warmup_nvidia_warp(payload: dict = Body(default_factory=dict)):
+    """Run one bounded NVIDIA Warp correctness kernel on the selected device."""
+    device = payload.get("device") if isinstance(payload, dict) else None
+    result = await asyncio.to_thread(nvidia_warp_runtime.warmup, device or os.environ.get("OBUS_WARP_DEVICE"))
+    if not result.get("ok") and not result.get("available"):
+        return JSONResponse(content=result, status_code=503)
+    return result
 
 
 @app.get("/api/memory")
@@ -2513,20 +2535,25 @@ async def run_forum_round(thread_id: str):
 # ==================== AUTOMATIC DELIBERATION ====================
 
 
-async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require_auto_enabled: bool) -> dict:
-    """Create two isolated rooms and run their scoped deliberations in parallel."""
-    state = load_state()
-    if require_auto_enabled and not state["runtime_settings"].get("auto_deliberation", False):
-        raise HTTPException(status_code=400, detail="Auto deliberation is disabled")
-
-    selected_cards = select_cards_for_prompt(state["cards"], request.prompt, limit=6)
+def auto_deliberation_card_sets(state: dict, prompt: str) -> list[list[dict]]:
+    """Select two bounded, disjoint room hands without mutating OBus state."""
+    selected_cards = select_cards_for_prompt(state["cards"], prompt, limit=6)
     if len(selected_cards) < 2:
         selected_cards = state["cards"][:2]
     if len(selected_cards) < 2:
         raise HTTPException(status_code=503, detail="At least two Tarot cards are required for automatic deliberation")
     split_at = max(1, (len(selected_cards) + 1) // 2)
     card_sets = [selected_cards[:split_at], selected_cards[split_at:]]
-    card_sets = [cards for cards in card_sets if cards]
+    return [cards for cards in card_sets if cards]
+
+
+async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require_auto_enabled: bool) -> dict:
+    """Create two isolated rooms and run their scoped deliberations in parallel."""
+    state = load_state()
+    if require_auto_enabled and not state["runtime_settings"].get("auto_deliberation", False):
+        raise HTTPException(status_code=400, detail="Auto deliberation is disabled")
+
+    card_sets = auto_deliberation_card_sets(state, request.prompt)
 
     room_ids = []
     prompt_slug = _room_slug(request.prompt[:48])
@@ -2546,6 +2573,34 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
     state = load_state()
     thread_record = next(item for item in state["forum_threads"] if item["id"] == thread["id"])
     first_room = next(item for item in state["rooms"] if item["id"] == room_ids[0])
+    warp_values = [float(len(card.get("capabilities", []))) for cards in card_sets for card in cards]
+    settings = get_settings(state)
+    warp_enabled = bool(settings.get("warp_preprocess_enabled", False))
+    warp_manifest = (
+        warp_preprocessing.preprocess(
+            warp_values,
+            requested_device=settings.get("gpu_backend", "auto"),
+            min_batch_size=int(os.environ.get("OBUS_WARP_MIN_BATCH_SIZE", "256")),
+        )
+        if warp_enabled
+        else {
+            "backend": "disabled",
+            "selected_device": "cpu",
+            "fallback": False,
+            "fallback_reason": "warp_preprocessing_disabled",
+            "items": len(warp_values),
+            "checksum": None,
+            "ok": True,
+        }
+    )
+    thread_record["route_manifest"] = {
+        "schema_version": 1,
+        "routing_policy": settings.get("routing_policy", "local-first"),
+        "card_ids": [card["id"] for cards in card_sets for card in cards],
+        "room_card_sets": [[card["id"] for card in cards] for cards in card_sets],
+        "warp_preprocess_enabled": warp_enabled,
+        "warp_preprocess": warp_manifest,
+    }
     append_prompt_message(thread_record, request.prompt, first_room)
     save_state(state)
 
@@ -2598,24 +2653,45 @@ async def auto_deliberate(request: AutoDeliberationRequest):
     return await execute_auto_deliberation(request, require_auto_enabled=True)
 
 
+def build_review_only_plan(request: AutoDeliberationRequest) -> dict:
+    """Build an ephemeral plan without creating rooms, forums, or provider calls."""
+    state = load_state()
+    selected_cards = select_cards_for_prompt(state["cards"], request.prompt, limit=6)
+    if len(selected_cards) < 2:
+        selected_cards = state["cards"][:2]
+    if len(selected_cards) < 2:
+        raise HTTPException(status_code=503, detail="At least two Tarot cards are required for planning")
+    split_at = max(1, (len(selected_cards) + 1) // 2)
+    card_sets = [cards for cards in (selected_cards[:split_at], selected_cards[split_at:]) if cards]
+    prompt_slug = _room_slug(request.prompt[:48])
+    room_ids = [f"plan-room-{prompt_slug}-{index}" for index in range(1, len(card_sets) + 1)]
+    round_results = []
+    for room_id, cards in zip(room_ids, card_sets):
+        room = {"id": room_id, "card_ids": [card["id"] for card in cards], "mode": request.mode, "chymeria": {"card_id": cards[0]["id"]}}
+        packet = {"room_id": room_id, "revision": 0, "position": "Pending review", "confidence": "unassigned", "rationale": "Planning-only preview; no room council was executed.", "evidence_refs": [], "unresolved_questions": [], "requested_responses": [], "status": "planned"}
+        round_results.append({"room_id": room_id, "plan": build_room_council_plan(room, request.prompt), "assignments": [], "decision_packet": packet})
+    thread = {"id": f"plan-thread-{prompt_slug}", "title": f"Plan preview: {request.prompt[:120]}", "prompt": sanitize_public_text(request.prompt), "room_ids": room_ids, "revision": 0, "status": "planned", "messages": [{"kind": "prompt", "body": sanitize_public_text(request.prompt), "author_type": "planner"}]}
+    return {"room_ids": room_ids, "card_sets": [[card["id"] for card in cards] for cards in card_sets], "thread": thread, "round_results": round_results}
+
+
 @app.post("/api/plan/deliberate")
 async def deliberate_plan(request: AutoDeliberationRequest):
-    """Produce a review-only plan from parallel room proposals without tool execution."""
-    result = await execute_auto_deliberation(request, require_auto_enabled=False)
-    packets = [item.get("decision_packet", {}) for item in result.get("round_results", [])]
+    """Preview a parallel deliberation plan without persisting rooms or calling models."""
+    result = build_review_only_plan(request)
+    packets = [item.get("decision_packet", {}) for item in result["round_results"]]
     return {
         "kind": "multi-agent-plan",
         "execution": "planning-only",
         "prompt": sanitize_public_text(request.prompt),
         "deliberation": {
             "parallel": True,
-            "strategy": "bounded independent proposals followed by Chymeria synthesis",
+            "strategy": "bounded independent proposals followed by Chymeria synthesis when auto-deliberation is enabled",
             "room_ids": result["room_ids"],
             "card_sets": result["card_sets"],
             "thread": result["thread"],
             "packets": [public_packet(packet) for packet in packets],
         },
-        "next_step": "Review the synthesized room decisions before selecting any execution action.",
+        "next_step": "Review the room plan, then enable automatic route deliberation or run a route to generate persisted decisions.",
     }
 
 
@@ -3796,6 +3872,7 @@ def route_cancel_requested(route_id: str) -> bool:
 
 @app.post("/api/route/{route_id}/cancel")
 async def cancel_route(route_id: str):
+    route_id = safe_route_id(route_id)
     event = register_route_cancel(route_id)
     event.set()
     ROUTE_EVENTS.publish(route_id, "route.cancel_requested", {"status": "cancel_requested"})
@@ -3804,6 +3881,7 @@ async def cancel_route(route_id: str):
 
 @app.get("/api/route/{route_id}/status")
 async def route_status(route_id: str):
+    route_id = safe_route_id(route_id)
     events = ROUTE_EVENTS.snapshot(route_id=route_id, limit=100)
     return {"route_id": route_id, "cancel_requested": route_cancel_requested(route_id), "events": events, "latest": events[-1] if events else None}
 
@@ -3825,7 +3903,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     route_started = time.perf_counter()
-    route_id = request.route_id or ("route-" + uuid.uuid4().hex[:16])
+    route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     register_route_cancel(route_id)
     ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
     plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
