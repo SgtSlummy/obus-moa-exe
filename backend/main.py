@@ -2663,14 +2663,15 @@ def build_review_only_plan(request: AutoDeliberationRequest) -> dict:
         raise HTTPException(status_code=503, detail="At least two Tarot cards are required for planning")
     split_at = max(1, (len(selected_cards) + 1) // 2)
     card_sets = [cards for cards in (selected_cards[:split_at], selected_cards[split_at:]) if cards]
-    prompt_slug = _room_slug(request.prompt[:48])
+    safe_prompt = sanitize_public_text(request.prompt)
+    prompt_slug = _room_slug(safe_prompt[:48])
     room_ids = [f"plan-room-{prompt_slug}-{index}" for index in range(1, len(card_sets) + 1)]
     round_results = []
     for room_id, cards in zip(room_ids, card_sets):
         room = {"id": room_id, "card_ids": [card["id"] for card in cards], "mode": request.mode, "chymeria": {"card_id": cards[0]["id"]}}
         packet = {"room_id": room_id, "revision": 0, "position": "Pending review", "confidence": "unassigned", "rationale": "Planning-only preview; no room council was executed.", "evidence_refs": [], "unresolved_questions": [], "requested_responses": [], "status": "planned"}
-        round_results.append({"room_id": room_id, "plan": build_room_council_plan(room, request.prompt), "assignments": [], "decision_packet": packet})
-    thread = {"id": f"plan-thread-{prompt_slug}", "title": f"Plan preview: {request.prompt[:120]}", "prompt": sanitize_public_text(request.prompt), "room_ids": room_ids, "revision": 0, "status": "planned", "messages": [{"kind": "prompt", "body": sanitize_public_text(request.prompt), "author_type": "planner"}]}
+        round_results.append({"room_id": room_id, "plan": build_room_council_plan(room, safe_prompt), "assignments": [], "decision_packet": packet})
+    thread = {"id": f"plan-thread-{prompt_slug}", "title": f"Plan preview: {safe_prompt[:120]}", "prompt": safe_prompt, "room_ids": room_ids, "revision": 0, "status": "planned", "messages": [{"kind": "prompt", "body": safe_prompt, "author_type": "planner"}]}
     return {"room_ids": room_ids, "card_sets": [[card["id"] for card in cards] for cards in card_sets], "thread": thread, "round_results": round_results}
 
 

@@ -6,6 +6,8 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from backend.secret_safety import redact_text
+
 
 ROOM_MODES = {"collaborative", "adversarial"}
 ROOM_STATUSES = {"idle", "running", "complete", "blocked", "failed", "archived"}
@@ -14,18 +16,8 @@ MAX_FORUM_ROOMS = 20
 MAX_PACKET_TEXT = 4000
 
 
-_SECRET_PATTERNS = (
-    (re.compile(r"(?i)(api[_ -]?key|access[_ -]?token|authorization|bearer|password|secret)\s*[:=]\s*\S+"), r"\1: [REDACTED]"),
-    (re.compile(r"\b(?:sk|gh[pousr]|xox[baprs])_[A-Za-z0-9_-]{12,}\b"), "[REDACTED]"),
-)
-
-
 def sanitize_public_text(value: Any, limit: int = MAX_PACKET_TEXT) -> str:
-    text = str(value or "")
-    for pattern, replacement in _SECRET_PATTERNS:
-        text = pattern.sub(replacement, text)
-    text = re.sub(r"(?is)(?:hidden|private)\s+(?:prompt|transcript|messages?)\s*:\s*.*", "[PRIVATE CONTEXT REDACTED]", text)
-    return text.strip()[:limit]
+    return redact_text(value, limit)
 
 
 def sanitize_public_list(value: Any, limit: int = 30) -> list[str]:

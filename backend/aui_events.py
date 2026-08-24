@@ -1,9 +1,7 @@
 """Bounded, secret-free local event stream for OBus AUI consumers."""
 from __future__ import annotations
 
-import hashlib
 import json
-import re
 import threading
 import time
 import uuid
@@ -11,30 +9,7 @@ from collections import deque
 from copy import deepcopy
 from typing import Any, Iterator
 
-_SECRET_KEYS = {"api_key", "apikey", "token", "access_token", "refresh_token", "password", "secret", "private_key", "credential"}
-_SECRET_VALUE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+|\bsk-[A-Za-z0-9_-]{12,}|\bgh[opusr]_[A-Za-z0-9_]{12,}")
-_SAFE_ROUTE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
-
-
-def safe_route_id(value: object) -> str:
-    raw = str(value or "")
-    if _SAFE_ROUTE_ID.fullmatch(raw) and not _SECRET_VALUE.search(raw):
-        return raw
-    return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
-
-
-def _safe_value(value: Any, key: str | None = None) -> Any:
-    if key and key.casefold() in _SECRET_KEYS:
-        return "[REDACTED]"
-    if isinstance(value, dict):
-        return {str(child_key): _safe_value(child, str(child_key)) for child_key, child in value.items() if str(child_key).casefold() not in _SECRET_KEYS}
-    if isinstance(value, list):
-        return [_safe_value(child) for child in value[:20]]
-    if isinstance(value, str):
-        return _SECRET_VALUE.sub("[REDACTED]", value[:2000])
-    if isinstance(value, (int, float, bool)) or value is None:
-        return value
-    return str(value)[:500]
+from backend.secret_safety import redact_value, safe_route_id
 
 
 class RouteEventHub:
@@ -50,7 +25,7 @@ class RouteEventHub:
             "created_at": time.time(),
             "route_id": safe_route_id(route_id),
             "type": str(event_type),
-            "payload": _safe_value(payload or {}),
+            "payload": redact_value(payload or {}),
         }
         with self._condition:
             self._events.append(event)

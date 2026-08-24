@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import re
 from pathlib import Path
 from typing import Any
+
+from backend.secret_safety import redact_text
 
 MAX_FILES = 200
 MAX_DEPTH = 6
@@ -31,6 +34,9 @@ SECRET_PATTERNS = (
     "credentials",
     "credentials.*",
     "*credentials*",
+    ".git",
+    ".hg",
+    ".svn",
     "id_rsa",
     "id_dsa",
     "id_ecdsa",
@@ -79,6 +85,9 @@ def _safe_path(root: Path, relative_path: str | None, *, must_exist: bool = True
         candidate = (root / requested).resolve(strict=False)
     if not _inside(root, candidate):
         raise WorkspaceContextError("path resolves outside the configured workspace root")
+    resolved_relative = candidate.relative_to(root)
+    if any(_is_secret_name(part) for part in resolved_relative.parts):
+        raise WorkspaceContextError("secret-shaped workspace paths are redacted")
     if must_exist and not candidate.exists():
         raise WorkspaceContextError("workspace path does not exist")
     return candidate
@@ -170,12 +179,17 @@ def read_workspace_file(root: str | os.PathLike[str] | None, relative_path: str,
     if _is_secret_name(path.name):
         raise WorkspaceContextError("secret-shaped workspace files are redacted")
     max_bytes = min(max(int(max_bytes), 1), MAX_FILE_BYTES)
-    raw = path.read_bytes()
-    truncated = len(raw) > max_bytes
-    sample = raw[:max_bytes]
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as handle:
+            sample = handle.read(max_bytes + 1)
+    except (OSError, ValueError) as exc:
+        raise WorkspaceContextError("workspace file could not be read") from exc
+    truncated = len(sample) > max_bytes or size > max_bytes
+    sample = sample[:max_bytes]
     result: dict[str, Any] = {
         "path": path.relative_to(resolved_root).as_posix(),
-        "size": len(raw),
+        "size": size,
         "truncated": truncated,
         "binary": False,
         "content": None,
@@ -184,7 +198,7 @@ def read_workspace_file(root: str | os.PathLike[str] | None, relative_path: str,
         result["binary"] = True
         return result
     try:
-        text = sample.decode("utf-8")
+        text = redact_text(sample.decode("utf-8"))
     except UnicodeDecodeError:
         result["binary"] = True
         return result
