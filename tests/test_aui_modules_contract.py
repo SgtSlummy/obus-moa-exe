@@ -13,6 +13,7 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertIn('/static/aui/route-events.js', html)
         self.assertIn('/static/aui/layout.js', html)
         self.assertIn('/static/aui/workspace.js', html)
+        self.assertIn('/static/aui/runtime.js', html)
 
     def test_external_aui_modules_are_served(self):
         client = TestClient(backend.app)
@@ -20,14 +21,17 @@ class AUIModuleContractTests(unittest.TestCase):
         js = client.get('/static/aui/route-events.js')
         layout = client.get('/static/aui/layout.js')
         workspace = client.get('/static/aui/workspace.js')
+        runtime = client.get('/static/aui/runtime.js')
         self.assertEqual(css.status_code, 200)
         self.assertEqual(js.status_code, 200)
         self.assertEqual(layout.status_code, 200)
         self.assertEqual(workspace.status_code, 200)
+        self.assertEqual(runtime.status_code, 200)
         self.assertIn('--aui-density-scale', css.text)
         self.assertIn('OBusRouteEvents', js.text)
         self.assertIn('OBusAuiLayout', layout.text)
         self.assertIn('OBusWorkspace', workspace.text)
+        self.assertIn('OBusRuntime', runtime.text)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,9 @@
-Push attempt 2026-08-24 15:42:00
+Push attempt 2026-08-24 18:00 UTC
 Status: PUSHED SUCCESSFULLY
-Commit: a757a22 chore: add warp_companion to PyInstaller hidden imports
+Commit: 5218bab feat: AUI adaptive UI layer - layout, route events, tokens, workspace, tests, and 6 packaged builds
 Branch: master -> origin/master
-Network: github.com reachable, push completed.
+Network: github.com reachable, LFS objects uploaded (6/6), push completed.
+Build artifacts: 6 AUI-loop OBus.exe (LFS-tracked, ~67MB each), 6 build-aui-loop .pkg files (LFS-tracked, ~67MB each)
+Excluded: dist-remediation/OBus.exe (140MB), dist-warp-review/OBus.exe (140MB) - exceed 100MB LFS limit
+Excluded: build-remediation/, build-warp-review/ - contain 140MB .pkg files exceeding limit
+Submodules: warp updated to latest upstream, Understand-Anything ahead 2 (push blocked - 403: no permission to Egonex-AI/Understand-Anything)
