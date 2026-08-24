@@ -1,5 +1,5 @@
-Push attempt 2026-08-24 08:31:00
+Push attempt 2026-08-24 15:42:00
 Status: PUSHED SUCCESSFULLY
-Commit: f8fe1ac feat: add optional local Warp TUI companion integration (AGPL boundary)
+Commit: a757a22 chore: add warp_companion to PyInstaller hidden imports
 Branch: master -> origin/master
 Network: github.com reachable, push completed.

@@ -1,6 +1,7 @@
 Task: Continue OBus push. Status:
-- OBus executable running.
-- Git push: SUCCESS (f8fe1ac -> origin/master).
+- OBus executable running (8 processes detected).
+- Git push: SUCCESS (a757a22 -> origin/master).
+- Commit: chore: add warp_companion to PyInstaller hidden imports.
 - Network: github.com reachable.
-- Commit: feat: add optional local Warp TUI companion integration (AGPL boundary).
-- No other jobs.
+- New additions: third_party/warpdotdev-warp (Warp TUI source), warp/ (Understand-Anything submodule), docs/warp-agpl-companion.md (AGPL boundary docs).
+- No other active build/deploy jobs detected.
