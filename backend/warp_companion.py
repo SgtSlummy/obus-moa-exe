@@ -29,9 +29,6 @@ def warp_root() -> Path:
 
 
 def warp_binary(root: Path) -> Path:
-    configured = os.environ.get("OBUS_WARP_TUI_BIN")
-    if configured:
-        return Path(configured).expanduser()
     suffix = ".exe" if os.name == "nt" else ""
     return root / "target" / "release" / f"warp-tui-oss{suffix}"
 

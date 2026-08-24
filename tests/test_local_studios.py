@@ -95,6 +95,19 @@ class LocalStudioIntegrationTests(unittest.TestCase):
         with patch.object(warp_companion.sys, "frozen", True, create=True), patch.object(warp_companion.sys, "executable", str(executable)):
             self.assertEqual(warp_companion.warp_root(), source)
 
+    def test_warp_companion_refuses_an_arbitrary_binary_override(self):
+        root = Path(self.tempdir.name) / "warp"
+        (root / "crates" / "warp_tui").mkdir(parents=True)
+        for relative in ("Cargo.toml", "LICENSE-AGPL", "crates/warp_tui/Cargo.toml"):
+            (root / relative).write_text("fixture", encoding="utf-8")
+        unrelated = Path(self.tempdir.name) / "unrelated.exe"
+        unrelated.write_bytes(b"fixture")
+        with patch.dict("os.environ", {"OBUS_WARP_COMPANION_ROOT": str(root), "OBUS_WARP_TUI_BIN": str(unrelated)}, clear=False):
+            payload = warp_companion.status()
+        self.assertTrue(payload["source_available"])
+        self.assertFalse(payload["tui_available"])
+        self.assertFalse(payload["launch_ready"])
+
 
 if __name__ == "__main__":
     unittest.main()

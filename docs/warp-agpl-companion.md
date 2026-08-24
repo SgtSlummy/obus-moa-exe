@@ -23,6 +23,6 @@ The source requires a Rust toolchain and Warp's upstream platform prerequisites.
 cargo run -p warp_tui --bin warp-tui-oss
 ```
 
-After producing a release binary, set `OBUS_WARP_TUI_BIN` to its absolute path. OBus will then expose an enabled **Launch Warp TUI** control in Visual Studio.
+After producing the release binary at `target/release/warp-tui-oss` (or `.exe` on Windows) inside that checkout, OBus will expose an enabled **Launch Warp TUI** control in Visual Studio. Use `OBUS_WARP_COMPANION_ROOT` only to select a different Warp source checkout; OBus deliberately refuses arbitrary executable-path overrides.
 
 No credentials, API keys, or OAuth material belong in this setup.

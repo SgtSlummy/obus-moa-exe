@@ -22,6 +22,14 @@ class RunReceiptTests(unittest.TestCase):
         self.assertNotIn("BEGIN PRIVATE KEY", redacted)
         self.assertIn("redacted", redacted.lower())
 
+    def test_redaction_removes_bare_provider_keys_and_basic_authorization(self):
+        raw = "sk-proj-examplesecret123 Authorization: Basic Zm9vOmJhcg== x-api-key: local-secret-value"
+        redacted = redact_text(raw)
+        self.assertNotIn("examplesecret123", redacted)
+        self.assertNotIn("Zm9vOmJhcg==", redacted)
+        self.assertNotIn("local-secret-value", redacted)
+        self.assertIn("[redacted]", redacted)
+
     def test_receipt_contains_hash_plan_trace_and_no_raw_prompt(self):
         prompt = "Review this service using api_key=secret"
         plan = {

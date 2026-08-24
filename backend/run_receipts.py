@@ -14,13 +14,17 @@ RETENTION_LIMIT = 500
 _SECRET_ASSIGNMENT_KEYS = {"api_key", "token", "password", "secret", "private_key", "access_token", "refresh_token"}
 _CREDENTIAL_VALUE = re.compile(r"(?i)\b(api[_-]?key|token|password|secret|private[_ -]?key)\s*[:=]\s*[^\s,;]+")
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_BASIC_AUTH = re.compile(r"(?i)\bauthorization\s*:\s*(?:basic|token)\s+[^\s,;]+")
+_OPENAI_STYLE_KEY = re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{8,}\b")
 _PEM = re.compile(r"-----BEGIN [^-]+-----.*?(?:-----END [^-]+-----|$)", re.DOTALL | re.IGNORECASE)
 
 
 def redact_text(value: Any, limit: int = 12000) -> str:
     text = str(value or "")
     text = _PEM.sub("[redacted private key]", text)
+    text = _BASIC_AUTH.sub("Authorization: [redacted]", text)
     text = _BEARER.sub("Bearer [redacted]", text)
+    text = _OPENAI_STYLE_KEY.sub("[redacted provider key]", text)
     text = _CREDENTIAL_VALUE.sub(lambda match: f"{match.group(1)}=[redacted]", text)
     return text[:limit]
 
