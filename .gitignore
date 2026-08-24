@@ -1,35 +1,13 @@
-# Python bytecode
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build artifacts
+venv/
 build/
 dist/
-*.spec
-*.pkg
-*.toc
-*.pyz
-base_library.zip
-xref-*.html
-warn-*.txt
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Environment
-.env
-.env.*
-!.env.example
-
-# Logs
-*.log
-logs/
+dist-aui-loop*/
+dist-remediation/
+dist-warp-review/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hermes/plans/
+third_party/warp/
+third_party/warpdotdev-warp/
+Understand-Anything/
