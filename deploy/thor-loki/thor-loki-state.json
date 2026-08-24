@@ -1,0 +1,33 @@
+{
+  "settings": {
+    "selected_model": "gpt-oss:20b",
+    "selected_deck": "auto",
+    "rag_enabled": true,
+    "auto_memory": true,
+    "harness_enabled": true,
+    "output_autoscroll": true
+  },
+  "machine_setup": {
+    "role": "primary",
+    "label": "Thor",
+    "peer_label": "Loki",
+    "transport": "tailscale-ssh",
+    "mode": "guide-only"
+  },
+  "remote_terminal": {
+    "enabled": false,
+    "transport": "tailscale-ssh",
+    "target": {
+      "label": "Loki",
+      "tailscale_ip": "100.73.36.108",
+      "ssh_user": "",
+      "identity_file_reference": ""
+    },
+    "activation_requirement": "Confirm the Loki SSH account and a local identity-file reference on Thor before enabling remote terminal actions."
+  },
+  "voice": {
+    "mode": "local-only",
+    "environment_variable": "OBUS_LOCAL_STT_MODEL_PATH",
+    "model_path_reference": ""
+  }
+}
