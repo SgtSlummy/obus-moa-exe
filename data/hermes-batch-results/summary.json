@@ -1,0 +1,26 @@
+﻿[
+    {
+        "id":  "deliberation-manifest",
+        "exit_code":  null,
+        "stdout":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\deliberation-manifest.out.txt",
+        "stderr":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\deliberation-manifest.err.txt"
+    },
+    {
+        "id":  "performance-benchmark",
+        "exit_code":  null,
+        "stdout":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\performance-benchmark.out.txt",
+        "stderr":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\performance-benchmark.err.txt"
+    },
+    {
+        "id":  "container-gpu",
+        "exit_code":  null,
+        "stdout":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\container-gpu.out.txt",
+        "stderr":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\container-gpu.err.txt"
+    },
+    {
+        "id":  "integration-tests",
+        "exit_code":  null,
+        "stdout":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\integration-tests.out.txt",
+        "stderr":  "C:\\Users\\Hermes\\Documents\\obus-moa-exe\\data\\hermes-batch-results\\integration-tests.err.txt"
+    }
+]

@@ -21,6 +21,20 @@ SECRET_PATTERNS = (
     "auth.json",
     "token.json",
     "*.secret",
+    ".aws",
+    ".ssh",
+    ".gnupg",
+    ".config",
+    ".npmrc",
+    ".netrc",
+    ".pypirc",
+    "credentials",
+    "credentials.*",
+    "*credentials*",
+    "id_rsa",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
 )
 
 
@@ -102,6 +116,9 @@ def workspace_tree(
         depth = len(current.relative_to(resolved_root).parts)
         directories[:] = sorted(directories)
         files = sorted(files)
+        secret_directories = [name for name in directories if _is_secret_name(name)]
+        skipped += len(secret_directories)
+        directories[:] = [name for name in directories if name not in secret_directories]
         if depth >= max_depth:
             skipped += len(directories) + len(files)
             directories[:] = []

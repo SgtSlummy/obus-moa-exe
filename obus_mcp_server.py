@@ -41,6 +41,7 @@ def tool_catalog() -> list[dict[str, Any]]:
         {"name": "obus_memory_search", "description": "Search bounded local OBus, Hermes, MemPalace, Mem0 and Tarot RAG memory.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 50}}, "required": ["query"]}},
         {"name": "obus_memory_add", "description": "Add a redacted, deduplicated durable OBus memory.", "inputSchema": {"type": "object", "properties": {"text": {"type": "string", "maxLength": 8000}, "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 12}}, "required": ["text"]}},
         {"name": "obus_route_plan", "description": "Dry-run dynamic Tarot/Key routing with bounded RAG and no model execution.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "rag_enabled": {"type": "boolean"}, "performance_profile": {"type": "string", "enum": ["fast", "balanced", "deep", "throughput"]}}, "required": ["prompt"]}},
+        {"name": "obus_deliberate_plan", "description": "Create a review-only plan from bounded parallel Tarot proposals and sanitized Chymeria decisions. It never executes tools or system actions.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "mode": {"type": "string", "enum": ["collaborative", "adversarial"]}}, "required": ["prompt"]}},
         {"name": "obus_route_run", "description": "Execute a full OBus route and return visible specialist trace plus final answer.", "inputSchema": {"type": "object", "properties": {"prompt": {"type": "string"}, "rag_enabled": {"type": "boolean"}, "performance_profile": {"type": "string", "enum": ["fast", "balanced", "deep", "throughput"]}, "model": {"type": "string"}}, "required": ["prompt"]}},
         {"name": "obus_tentacle_status", "description": "Read the latest first-install/startup Tentacle Worm hardening and verification report.", "inputSchema": {"type": "object", "properties": {}}},
         {"name": "obus_tentacle_run", "description": "Run the bounded local-LLM Tentacle Worm red team with allowlisted safe repairs.", "inputSchema": {"type": "object", "properties": {"full": {"type": "boolean"}, "apply_safe_fixes": {"type": "boolean"}}}},
@@ -65,6 +66,14 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
         return request_json("/api/tentacle-worms/status")
     if name == "obus_tentacle_run":
         return request_json("/api/tentacle-worms/run", "POST", {"full": bool(arguments.get("full", True)), "apply_safe_fixes": bool(arguments.get("apply_safe_fixes", True))})
+    if name == "obus_deliberate_plan":
+        prompt = str(arguments.get("prompt", "")).strip()
+        if not prompt:
+            raise ValueError("prompt is required")
+        mode = str(arguments.get("mode", "collaborative"))
+        if mode not in {"collaborative", "adversarial"}:
+            raise ValueError("mode must be collaborative or adversarial")
+        return request_json("/api/plan/deliberate", "POST", {"prompt": prompt, "mode": mode})
     if name in {"obus_route_plan", "obus_route_run"}:
         prompt = str(arguments.get("prompt", "")).strip()
         if not prompt:

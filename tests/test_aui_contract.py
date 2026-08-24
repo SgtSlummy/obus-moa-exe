@@ -16,6 +16,7 @@ class AUIContractTests(unittest.TestCase):
         self.assertLess(len(terminal["actions"]), len(operator["actions"]))
         self.assertLess(len(operator["actions"]), len(ade["actions"]))
         self.assertIn("route.focus", action_ids("terminal"))
+        self.assertIn("plan.deliberate", action_ids("terminal"))
         self.assertIn("view.providers", action_ids("operator"))
         self.assertIn("view.rooms", action_ids("ade"))
         self.assertNotIn("api_key", repr(ade).lower())
@@ -29,6 +30,12 @@ class AUIContractTests(unittest.TestCase):
         self.assertEqual(payload["keyboard"]["open_palette"], "Ctrl+K")
         self.assertTrue(any(view["id"] == "route-workbench" for view in payload["views"]))
         self.assertTrue(any(action["id"] == "route.run" for action in payload["actions"]))
+        self.assertTrue(any(action["id"] == "plan.deliberate" for action in payload["actions"]))
+
+    def test_custom_key_setup_url_rejects_javascript_scheme(self):
+        setup = backend.key_setup_guide({"provider": "custom", "base_url": "javascript:alert(1)"})
+        self.assertNotIn("javascript:", setup["docs_url"].lower())
+        self.assertTrue(setup["docs_url"].startswith("https://"))
 
     def test_ui_exposes_aui_action_rail_and_manifest_loader(self):
         html = TestClient(backend.app).get("/").text
@@ -37,6 +44,9 @@ class AUIContractTests(unittest.TestCase):
         for symbol in ("/api/aui/manifest", "loadAuiManifest", "renderAuiManifest", "auiActionHandlers", "Ctrl+R", "Ctrl+L"):
             self.assertIn(symbol, html)
         self.assertIn("Escape returns focus to the route composer", html)
+        self.assertIn('id="plan-workbench"', html)
+        self.assertIn('/static/aui/plan.js', html)
+        self.assertIn('id="plan-auto-toggle"', html)
 
 
 if __name__ == "__main__":

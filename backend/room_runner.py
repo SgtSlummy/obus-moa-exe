@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -127,6 +128,37 @@ def run_room_council(
         })
         return json.dumps(parsed, ensure_ascii=False)
 
+    def call_parallel(phase: str, phase_cards: list[dict[str, Any]], prompt_for_card: Callable[[dict[str, Any]], str]) -> list[str]:
+        """Run independent room-seat proposals concurrently and publish in seat order.
+
+        The execution is parallel, while transcript ordering stays deterministic for
+        humans, tests, and downstream Chymeria synthesis. Each seat receives only
+        its scoped room prompt; no hidden reasoning or credentials are collected.
+        """
+        def complete_card(card: dict[str, Any]) -> dict[str, Any]:
+            raw = complete(
+                room=room, card=card, assignment=assignments[card["id"]], phase=phase,
+                prompt=prompt_for_card(card), forum_packets=forum_packets or [],
+            )
+            return _parse_output(raw, phase)
+
+        if len(phase_cards) == 1:
+            parsed_outputs = [complete_card(phase_cards[0])]
+        else:
+            workers = min(int(plan["max_parallel"]), len(phase_cards))
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="obus-room-seat") as executor:
+                parsed_outputs = list(executor.map(complete_card, phase_cards))
+
+        serialized = []
+        for card, parsed_output in zip(phase_cards, parsed_outputs):
+            emit({
+                "id": "rm-" + hashlib.sha256(f"{room['id']}:{len(private_messages)}:{phase}".encode()).hexdigest()[:16],
+                "room_id": room["id"], "visibility": "room", "author_type": "card" if card["id"] != chymeria_card_id else "chymeria",
+                "author_id": card["id"], "phase": phase, "body": parsed_output.get("position", ""), "created_at": _now(),
+            })
+            serialized.append(json.dumps(parsed_output, ensure_ascii=False))
+        return serialized
+
     if plan["short_circuit"]:
         chymeria = cards_by_id.get(chymeria_card_id, cards[0])
         raw = complete(
@@ -136,15 +168,15 @@ def run_room_council(
         parsed = _parse_output(raw, "direct")
         emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:direct".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "direct", "body": parsed.get("position", ""), "created_at": _now()})
     elif plan["mode"] == "collaborative":
-        drafts = [call("draft", card, build_card_prompt(room, card, "draft", prompt)) for card in cards]
-        improved = [call("improve", card, build_card_prompt(room, card, "improve", prompt, drafts)) for card in cards]
+        drafts = call_parallel("draft", cards, lambda card: build_card_prompt(room, card, "draft", prompt))
+        improved = call_parallel("improve", cards, lambda card: build_card_prompt(room, card, "improve", prompt, drafts))
         outputs = improved
         chymeria = cards_by_id.get(chymeria_card_id, cards[0])
         raw = complete(room=room, card=chymeria, assignment=assignments[chymeria["id"]], phase="synthesize", prompt=build_chymeria_prompt(room, "synthesize", prompt, improved, forum_packets), forum_packets=forum_packets or [])
         parsed = _parse_output(raw, "synthesize")
         emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:synthesize:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "synthesize", "body": parsed.get("position", ""), "created_at": _now()})
     else:
-        drafts = [call("draft", card, build_card_prompt(room, card, "draft", prompt)) for card in cards]
+        drafts = call_parallel("draft", cards, lambda card: build_card_prompt(room, card, "draft", prompt))
         chymeria = cards_by_id.get(chymeria_card_id, cards[0])
         triage_raw = complete(
             room=room, card=chymeria, assignment=assignments[chymeria["id"]], phase="triage",
@@ -156,7 +188,7 @@ def run_room_council(
         leader_index = next(index for index, card in enumerate(cards) if card["id"] == leader_id)
         leader = drafts[leader_index]
         attackers = [card for card in cards if card["id"] != leader_id]
-        attacks = [call("attack", card, build_card_prompt(room, card, "attack", prompt, [leader])) for card in attackers]
+        attacks = call_parallel("attack", attackers, lambda card: build_card_prompt(room, card, "attack", prompt, [leader])) if attackers else []
         outputs = attacks or drafts
         raw = complete(room=room, card=chymeria, assignment=assignments[chymeria["id"]], phase="verdict", prompt=build_chymeria_prompt(room, "verdict", prompt, [leader] + attacks, forum_packets), forum_packets=forum_packets or [])
         parsed = _parse_output(raw, "verdict")

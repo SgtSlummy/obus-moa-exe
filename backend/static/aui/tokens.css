@@ -16,4 +16,14 @@
 [data-density="spacious"]{--aui-density-scale:1.18}
 
 .aui-module-surface{background:var(--aui-surface-command);border-color:var(--aui-border-strong)}
+.plan-workbench{display:grid;gap:var(--aui-space-4)}
+.plan-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--aui-space-3);align-items:stretch}
+.plan-node{position:relative;display:grid;gap:var(--aui-space-2);min-height:138px;padding:var(--aui-space-4);border:1px solid var(--aui-border-strong);border-radius:20px;background:var(--aui-surface-inspector);box-shadow:0 10px 26px rgb(0 0 0 / 18%)}
+.plan-node span{color:var(--ui-text-secondary,var(--aui-border-strong));font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.plan-node strong{font-size:15px;overflow-wrap:anywhere}
+.plan-node small{color:var(--ui-text-secondary,#aab4ce);line-height:1.45}
+.plan-node-goal{border-color:var(--ui-accent,#55d8ff)}
+.plan-node-room{border-color:var(--ui-stroke-secondary,#7e70b8)}
+.plan-node-synthesis{border-color:var(--ui-accent,#4ee3a0)}
+@media (min-width:900px){.plan-node:not(:last-child)::after{content:"";position:absolute;top:50%;right:calc(var(--aui-space-3) * -1);width:var(--aui-space-3);height:2px;background:var(--aui-border-strong)}}
 @media (prefers-reduced-motion: reduce){.aui-module-surface{transition:none!important}}

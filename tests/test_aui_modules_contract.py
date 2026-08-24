@@ -16,6 +16,8 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertIn('/static/aui/runtime.js', html)
         self.assertIn('/static/aui/providers.js', html)
         self.assertIn('/static/aui/rooms.js', html)
+        self.assertIn('/static/aui/plan.js', html)
+        self.assertIn('/static/aui/memory.js', html)
         self.assertIn('legacyRuntime', html)
 
     def test_external_aui_modules_are_served(self):
@@ -27,6 +29,8 @@ class AUIModuleContractTests(unittest.TestCase):
         runtime = client.get('/static/aui/runtime.js')
         providers = client.get('/static/aui/providers.js')
         rooms = client.get('/static/aui/rooms.js')
+        plan = client.get('/static/aui/plan.js')
+        memory = client.get('/static/aui/memory.js')
         self.assertEqual(css.status_code, 200)
         self.assertEqual(js.status_code, 200)
         self.assertEqual(layout.status_code, 200)
@@ -34,6 +38,8 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertEqual(runtime.status_code, 200)
         self.assertEqual(providers.status_code, 200)
         self.assertEqual(rooms.status_code, 200)
+        self.assertEqual(plan.status_code, 200)
+        self.assertEqual(memory.status_code, 200)
         self.assertIn('--aui-density-scale', css.text)
         self.assertIn('OBusRouteEvents', js.text)
         self.assertIn('OBusAuiLayout', layout.text)
@@ -41,6 +47,8 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertIn('OBusRuntime', runtime.text)
         self.assertIn('OBusProviders', providers.text)
         self.assertIn('OBusRooms', rooms.text)
+        self.assertIn('OBusPlan', plan.text)
+        self.assertIn('OBusMemory', memory.text)
 
 
 if __name__ == '__main__':

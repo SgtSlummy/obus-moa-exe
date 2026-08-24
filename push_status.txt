@@ -1,9 +1,9 @@
-Push Status Report - 2026-08-24 13:12 UTC (cron cycle)
+Push Status Report - 2026-08-24 21:20 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: 4a56161 chore: refresh build status, add AUI loop11/12 packages, update docs and tests
+  ✅ Pushed: fc2a063 fix: wire rooms.js into AUI index and add contract assertion
   ✅ Branch: master -> origin/master (up to date)
-  ✅ Local diff: clean (0 modified tracked files)
+  ✅ Local diff: clean tracked files (untracked build artifacts remain)
 
 Submodules:
   🔶 warp: Up to date with upstream nvidia/warp main. Push blocked - 403 (upstream, expected)
@@ -11,30 +11,28 @@ Submodules:
 
 Optional external-source forks (non-blocking, no permission):
   - free-ai-coding-source (inmve/free-ai-coding): 403 denied
-  - free-coding-models-source (vava-nessa/free-coding-models): 403 denied  
+  - free-coding-models-source (vava-nessa/free-coding-models): 403 denied
   - mythos-router-source: up to date on SgtSlummy/mythos-router
   - MoA-source: up to date on SgtSlummy/MoA; upstream togethercomputer/MoA 403 denied
   - models-dev-source: up to date on SgtSlummy/models.dev dev branch
 
-Build artifacts:
-  📁 dist/OBus.exe — 139.8MB (console=False)
-  📁 dist-aui-loop10/OBus.exe — 70.6MB (within 100MB LFS limit)
+Build artifacts (untracked, not pushed):
+  📁 dist/OBus.exe — 139.8MB
+  📁 dist-aui-loop10/OBus.exe — 70.6MB
   📁 dist/OBus-Thor-Setup.exe — 139.9MB
   📁 dist/OBus-Loki-Partner-Setup.exe — 139.9MB
   📁 dist/OBus-Thor-Loki-Deployment.zip — 132.9M
-  📁 build-aui-loop11/OBus/OBus.pkg — 67.1M (untracked, new)
-  📁 build-aui-loop12/OBus/OBus.pkg — 67.1M (untracked, new)
-  📁 build-remediation/OBus/OBus.pkg — 140.3M (untracked, >100MB LFS limit)
-  📁 build-warp-review/OBus/OBus.pkg — 140.2M (untracked, >100MB LFS limit)
-  ❌ No OBus.exe on Desktop
+  📁 build-aui-loop11/OBus.pkg — 67.1M
+  📁 build-aui-loop12/OBus.pkg — 67.1M
+  📁 build-aui-loop13/OBus.pkg — ?
+  📁 build-remediation/OBus.pkg — 140.3M (>100MB LFS limit)
+  📁 build-warp-review/OBus.pkg — 140.2M (>100MB LFS limit)
 
 Tests:
-  ✅ 179 passed in 89.58s (full suite)
+  ✅ Full suite: 179 passed in 89.58s
 
 Active processes:
-  - 6x OBus.exe running (various sizes: 1MB, 3MB, 7MB, 65MB, 8MB, 32MB)
+  - 6x OBus.exe running
 
-Notable:
-  - Latest commit 4a56161 covers AUI loop11/12 packages
-  - .pkg files in build-remediation and build-warp-review exceed 100MB LFS limit
-  - AUI contract tests pass
+Network:
+  ✅ github.com reachable (HTTP 200)

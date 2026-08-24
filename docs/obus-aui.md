@@ -14,6 +14,23 @@ The public action contract is served by:
 
 The response is secret-free and contains stable action IDs, labels, hints, shortcuts, target controls, surface minimums, accessibility view metadata, and keyboard principles.
 
+## External AUI modules
+
+The static shell loads bounded feature controllers from `/static/aui/`:
+
+| Module | Responsibility |
+|---|---|
+| `tokens.css` | Density, spacing, focus, and surface tokens |
+| `route-events.js` | Loopback SSE/EventSource transport |
+| `layout.js` | Sidebar, density, and viewport behavior |
+| `workspace.js` | Safe read-only workspace context |
+| `runtime.js` | Persistent agents and Ollama orchestration |
+| `providers.js` | Solomon’s Key cards and provider actions |
+| `rooms.js` | Rooms, deliberation, Forums, and Chymeria actions |
+| `memory.js` | Local memory, search, deletion, and memory-hub status |
+
+The inline shell retains compatibility wrappers for each extracted controller. If an external module fails to load or initialize, the existing inline implementation remains available and reports the fallback through the UI where possible.
+
 ## Keyboard map
 
 | Shortcut | Function |

@@ -1,23 +1,26 @@
 Build Status Report - 2026-08-24
-==================================
+===================================
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: 4a56161 chore: refresh build status, add AUI loop11/12 packages, update docs and tests
+  ✅ Pushed: fc2a063 fix: wire rooms.js into AUI index and add contract assertion
   ✅ Branch: master -> origin/master (up to date)
-  ✅ Local diff: clean
+  ✅ Local diff: clean tracked files
 
 Submodules:
   🔶 warp: Up to date with upstream nvidia/warp main. Push blocked - 403 (upstream repo, expected)
   ❌ Understand-Anything: 2 commits ahead (OBus integration scaffolding). Push blocked - 403 (no permission to Egonex-AI/Understand-Anything)
 
-AUI Subsystem (new):
-  - backend/aui.py, backend/aui_events.py - core engine + event system
-  - backend/static/aui/ - layout.js, route-events.js, tokens.css, workspace.js
-  - 13 new AUI contract test files
+AUI Subsystem:
+  - backend/static/aui/rooms.js — new, wired into index.html
+  - backend/static/aui/providers.js — present (untracked)
+  - backend/scripts/ — present (untracked)
+  - 13 AUI contract test files
   - docs/obus-aui.md, docs/obus-aui-research.md
   - build-aui-loop11/OBus/OBus.pkg (67.1M, untracked)
   - build-aui-loop12/OBus/OBus.pkg (67.1M, untracked)
+  - build-aui-loop13/OBus/OBus.pkg (untracked)
 
 Exclusions (>100MB LFS limit):
   - build-remediation/OBus/OBus.pkg (140.3M)
   - build-warp-review/OBus/OBus.pkg (140.2M)
+  - build-remediation-final/ and dist-remediation-final/ (untracked)

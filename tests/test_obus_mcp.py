@@ -8,7 +8,14 @@ import obus_mcp_server as mcp
 class OBusMcpTests(unittest.TestCase):
     def test_mcp_lists_connected_rag_memory_and_route_tools(self):
         names = {tool["name"] for tool in mcp.tool_catalog()}
-        self.assertTrue({"obus_status", "obus_memory_search", "obus_memory_add", "obus_route_plan", "obus_route_run", "obus_connection", "obus_tentacle_status", "obus_tentacle_run"} <= names)
+        self.assertTrue({"obus_status", "obus_memory_search", "obus_memory_add", "obus_route_plan", "obus_route_run", "obus_deliberate_plan", "obus_connection", "obus_tentacle_status", "obus_tentacle_run"} <= names)
+
+    def test_mcp_deliberate_plan_uses_the_explicit_planning_endpoint(self):
+        with patch.object(mcp, "request_json", return_value={"kind": "multi-agent-plan"}) as request:
+            result = mcp.call_tool("obus_deliberate_plan", {"prompt": "Plan a safe release"})
+
+        self.assertEqual(result["kind"], "multi-agent-plan")
+        self.assertEqual(request.call_args.args[:2], ("/api/plan/deliberate", "POST"))
 
     def test_mcp_calls_backend_without_returning_secret_values(self):
         with patch.object(mcp, "request_json", return_value={"provider": "obus", "base_url": "http://127.0.0.1:38174/v1", "api_key_env": "OCCULTBUS_API_KEY"}) as request:

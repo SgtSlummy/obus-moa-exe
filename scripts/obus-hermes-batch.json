@@ -1,0 +1,22 @@
+[
+  {
+    "id": "deliberation-manifest",
+
+    "prompt": "Audit OBus automatic deliberation. Trace how Tarot cards, Solomon's Keys, routing policy, RAG context, and forum room execution currently flow. Return concrete gaps and a prioritized implementation checklist. Do not edit files."
+  },
+  {
+    "id": "performance-benchmark",
+
+    "prompt": "Design and, if safe, implement a benchmark plan for OBus deliberation latency, room concurrency, Ollama GPU usage, and NVIDIA Warp preprocessing. Do not claim Warp accelerates transformer inference. Prefer read-only analysis unless a small test artifact is necessary."
+  },
+  {
+    "id": "container-gpu",
+
+    "prompt": "Review the OBus Docker GPU setup. Verify the Dockerfile, .dockerignore, Warp dependency, --gpus all workflow, and CPU fallback design. Return concrete fixes and validation commands. Do not edit files."
+  },
+  {
+    "id": "integration-tests",
+
+    "prompt": "Review OBus integration coverage for auto-deliberation, persisted forum state, idempotent replay, readiness/cooldown enforcement, and GPU status. Return missing tests with exact test names and paths. Do not edit files."
+  }
+]

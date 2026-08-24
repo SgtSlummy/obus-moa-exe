@@ -24,6 +24,11 @@ class WorkspaceContextTests(unittest.TestCase):
         (self.root / "README.md").write_text("# workspace\n", encoding="utf-8")
         (self.root / ".env").write_text("API_KEY=secret\n", encoding="utf-8")
         (self.root / "private.pem").write_text("-----BEGIN PRIVATE KEY-----\nsecret\n", encoding="utf-8")
+        (self.root / ".aws").mkdir()
+        (self.root / ".aws" / "credentials").write_text("aws_secret", encoding="utf-8")
+        (self.root / ".ssh").mkdir()
+        (self.root / ".ssh" / "id_rsa").write_text("private", encoding="utf-8")
+        (self.root / ".npmrc").write_text("//registry.npmjs.org/:_authToken=secret", encoding="utf-8")
 
     def tearDown(self):
         self.tempdir.cleanup()
@@ -42,9 +47,16 @@ class WorkspaceContextTests(unittest.TestCase):
         self.assertIn("src/main.py", paths)
         self.assertNotIn(".env", paths)
         self.assertNotIn("private.pem", paths)
+        self.assertNotIn(".aws", paths)
+        self.assertNotIn(".ssh", paths)
+        self.assertNotIn(".npmrc", paths)
         self.assertLessEqual(len(tree["entries"]), 10)
 
-    def test_escape_paths_are_rejected(self):
+    def test_credential_files_are_rejected_from_direct_reads(self):
+        for path in (".aws/credentials", ".ssh/id_rsa", ".npmrc"):
+            with self.assertRaises(WorkspaceContextError):
+                read_workspace_file(str(self.root), path)
+
         with self.assertRaises(WorkspaceContextError):
             read_workspace_file(str(self.root), "../outside.txt")
         with self.assertRaises(WorkspaceContextError):

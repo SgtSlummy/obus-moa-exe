@@ -108,6 +108,24 @@ class LocalStudioIntegrationTests(unittest.TestCase):
         self.assertFalse(payload["tui_available"])
         self.assertFalse(payload["launch_ready"])
 
+    def test_warp_launch_endpoint_starts_only_the_expected_built_binary(self):
+        root = Path(self.tempdir.name) / "warp"
+        (root / "crates" / "warp_tui").mkdir(parents=True)
+        for relative in ("Cargo.toml", "LICENSE-AGPL", "crates/warp_tui/Cargo.toml"):
+            (root / relative).write_text("fixture", encoding="utf-8")
+        binary = warp_companion.warp_binary(root)
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b"fixture")
+
+        with patch.dict("os.environ", {"OBUS_WARP_COMPANION_ROOT": str(root)}, clear=False), patch.object(warp_companion.subprocess, "Popen") as popen:
+            response = self.client.post("/api/integrations/warp/launch")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["started"])
+        popen.assert_called_once()
+        self.assertEqual(popen.call_args.args[0], [str(binary)])
+        self.assertEqual(popen.call_args.kwargs["cwd"], str(root))
+
 
 if __name__ == "__main__":
     unittest.main()

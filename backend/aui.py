@@ -36,6 +36,15 @@ _ACTIONS: tuple[dict[str, Any], ...] = (
         "target": "route-btn",
     },
     {
+        "id": "plan.deliberate",
+        "label": "Deliberate a plan",
+        "hint": "Run bounded parallel Tarot proposals and review a synthesized plan",
+        "section": "Execution",
+        "shortcut": "Ctrl+Shift+L",
+        "surface_min": "terminal",
+        "target": "plan-input",
+    },
+    {
         "id": "route.reinput_latest",
         "label": "Re-input latest prompt",
         "hint": "Restore the last route prompt to the composer",
