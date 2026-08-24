@@ -3,7 +3,7 @@ FastAPI Backend for OBus MOA Runtime
 Supports Tarot cards, Solomon's Keys, Decks, and routing
 """
 from fastapi import FastAPI, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 import json
@@ -33,6 +33,8 @@ import uuid
 
 from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
 from backend import access_gate
+from backend.aui import build_manifest
+from backend.aui_events import ROUTE_EVENTS
 from backend.user_settings import (
     ROUTING_POLICIES,
     WORKSPACE_SURFACES,
@@ -92,6 +94,8 @@ USAGE_LOCK = threading.RLock()
 RECEIPT_LOCK = threading.RLock()
 ROOM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
+ROUTE_CANCEL_EVENTS: dict[str, threading.Event] = {}
+ROUTE_CANCEL_LOCK = threading.RLock()
 PERSISTENT_AGENT_THREADS: dict[str, threading.Thread] = {}
 PERSISTENT_AGENT_STOP_EVENTS: dict[str, threading.Event] = {}
 PERSISTENT_AGENT_KEY_LOADS: dict[str, int] = {}
@@ -106,6 +110,7 @@ VOICE_MODEL_PATH: Optional[str] = None
 OLLAMA_URL = "http://127.0.0.1:11434"
 OBUS_PROVIDER_BASE_URL = os.environ.get("OBUS_PROVIDER_BASE_URL", "http://127.0.0.1:38174/v1").rstrip("/")
 OBUS_PROVIDER_KEY_ENV = "OCCULTBUS_API_KEY"
+AUTO_DELIBERATION_STARTUP = os.environ.get("OBUS_AUTO_DELIBERATION", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def normalize_ollama_keep_alive(value):
@@ -258,10 +263,10 @@ from backend.forge_catalog import FORGE_NAME, PROJECTS, PROJECT_BY_ID
 from backend.memory_hub import default_memory_hub
 from backend.process_utils import silent_process_kwargs
 from backend.solomon_seals import BUILTIN_KEY_IDS, SOLOMON_SEALS
-from backend.room_models import ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate, sanitize_public_text
+from backend.room_models import AutoDeliberationRequest, ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate, sanitize_public_text
 from backend.room_council import build_card_prompt, build_chymeria_prompt, build_room_council_plan
 from backend.room_runner import OFFLINE_ROOM_KEY, RoomRuntimeError, offline_room_complete, run_room_council
-from backend.forum_runtime import append_packet_message, append_question_message, public_packet
+from backend.forum_runtime import append_packet_message, append_prompt_message, append_question_message, public_packet
 from backend.persistent_agents import (
     MAX_AGENT_HISTORY, MAX_PARALLEL_AGENT_RUNS, MAX_PERSISTENT_AGENTS,
     PersistentAgentCreate, PersistentAgentRunRequest, RuntimeOrchestratorRequest,
@@ -383,7 +388,7 @@ def normalize_state(state: dict) -> dict:
     state["cards"] = merged_cards
     # Local Ollama is the autonomous default. A remote aggregate is used only
     # after an explicit, persisted selection through /api/aggregator/select.
-    if not state.get("aggregation_explicit"):
+    if not state.get("aggregation_explicit") and state.get("aggregator_key_id") == "key-local-ollama":
         state["aggregator_key_id"] = "key-local-ollama"
         state["aggregation_order"] = ["key-local-ollama"]
     else:
@@ -394,7 +399,13 @@ def normalize_state(state: dict) -> dict:
     state.setdefault("forum_threads", [])
     state.setdefault("persistent_agents", [])
     state.setdefault("runtime_events", [])
-    state.setdefault("runtime_settings", {"max_agents": 30, "max_parallel": 8, "primary_key_id": "key-local-ollama"})
+    state.setdefault("runtime_settings", {
+        "max_agents": 30,
+        "max_parallel": 8,
+        "primary_key_id": "key-local-ollama",
+        "auto_deliberation": AUTO_DELIBERATION_STARTUP,
+    })
+    state["runtime_settings"].setdefault("auto_deliberation", AUTO_DELIBERATION_STARTUP)
     state.setdefault("machine_setup", {
         "role": None,
         "label": "",
@@ -423,7 +434,13 @@ def normalize_state(state: dict) -> dict:
     if not isinstance(state["runtime_events"], list):
         state["runtime_events"] = []
     if not isinstance(state["runtime_settings"], dict):
-        state["runtime_settings"] = {"max_agents": 30, "max_parallel": 8, "primary_key_id": "key-local-ollama"}
+        state["runtime_settings"] = {
+            "max_agents": 30,
+            "max_parallel": 8,
+            "primary_key_id": "key-local-ollama",
+            "auto_deliberation": AUTO_DELIBERATION_STARTUP,
+        }
+    state["runtime_settings"].setdefault("auto_deliberation", AUTO_DELIBERATION_STARTUP)
     if not isinstance(state["machine_setup"], dict):
         state["machine_setup"] = {"role": None, "label": "", "peer_label": "", "transport": "tailscale-ssh", "mode": "guide-only"}
     if not isinstance(state["quantum_inference"], dict):
@@ -533,6 +550,11 @@ class SettingsUpdate(BaseModel):
     workspace_root: Optional[str] = None
 
 
+class AutoDeliberationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+
+
 class SettingsImport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     settings_schema_version: int = 1
@@ -557,6 +579,8 @@ class RouteRequest(BaseModel):
     performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced"
     harness_enabled: Optional[bool] = None
     routing_policy: Optional[Literal["local-first", "auto-open", "manual"]] = None
+    confirm_remote_execution: bool = False
+    route_id: Optional[str] = None
 
 
 class HarnessPreviewRequest(BaseModel):
@@ -1476,6 +1500,29 @@ async def health():
     return {"status": "ok", "service": "obus-moa"}
 
 
+@app.get("/api/aui/manifest")
+async def aui_manifest(surface: Optional[str] = None):
+    """Return the secret-free Warp-inspired action and accessibility contract."""
+    requested = surface or get_settings(load_state()).get("workspace_surface", "operator")
+    return build_manifest(requested)
+
+
+@app.get("/api/route/events")
+async def route_events(route_id: Optional[str] = None, limit: int = 50, since: Optional[str] = None):
+    """Return bounded, secret-free route lifecycle events for polling clients."""
+    return ROUTE_EVENTS.snapshot(route_id=route_id, limit=limit, since=since)
+
+
+@app.get("/api/route/events/stream")
+async def route_event_stream(route_id: Optional[str] = None, since: Optional[str] = None):
+    """Stream bounded route lifecycle events over a local-only SSE connection."""
+    return StreamingResponse(
+        ROUTE_EVENTS.stream(route_id=route_id, since=since),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.get("/api/access/status")
 async def access_status():
     return access_gate.status()
@@ -1725,6 +1772,20 @@ async def update_settings(update: SettingsUpdate):
     state["settings"] = settings
     save_state(state)
     return settings
+
+
+@app.get("/api/settings/auto-deliberation")
+async def get_auto_deliberation():
+    state = load_state()
+    return {"enabled": bool(state["runtime_settings"].get("auto_deliberation", False))}
+
+
+@app.put("/api/settings/auto-deliberation")
+async def set_auto_deliberation(update: AutoDeliberationUpdate):
+    state = load_state()
+    state["runtime_settings"]["auto_deliberation"] = update.enabled
+    save_state(state)
+    return {"enabled": update.enabled}
 
 
 @app.get("/api/settings/export")
@@ -2391,16 +2452,30 @@ async def run_forum_round(thread_id: str):
         thread["status"] = "running"
         public_packets = [rooms[room_id].get("last_packet") for room_id in thread["room_ids"] if rooms[room_id].get("last_packet")]
         new_messages = []
+        round_results = []
         try:
-            for room_id in thread["room_ids"]:
+            async def execute_room(room_id: str):
                 room = rooms[room_id]
                 peer_packets = [packet for packet in public_packets if packet.get("room_id") != room_id]
-                result = await asyncio.to_thread(run_room_council, room, state, thread["prompt"], ROOM_COMPLETE, room_provider_ready, peer_packets)
+                result = await asyncio.to_thread(
+                    run_room_council, room, state, thread["prompt"], ROOM_COMPLETE, room_provider_ready, peer_packets
+                )
+                return room_id, result
+
+            executions = await asyncio.gather(*(execute_room(room_id) for room_id in thread["room_ids"]))
+            for room_id, result in executions:
+                room = rooms[room_id]
                 state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
                 state["room_messages"].extend(result["private_messages"])
                 message = append_packet_message(thread, result["decision_packet"], room)
                 if message:
                     new_messages.append(message)
+                round_results.append({
+                    "room_id": room_id,
+                    "plan": result["plan"],
+                    "assignments": result["assignments"],
+                    "decision_packet": public_packet(result["decision_packet"]),
+                })
         except RoomRuntimeError as exc:
             thread["status"] = "blocked"
             save_state(state)
@@ -2408,9 +2483,68 @@ async def run_forum_round(thread_id: str):
         thread["status"] = "complete"
         thread["last_round_signature"] = f"thread:{thread.get('revision', 0)}|" + ":".join(f"{room_id}:{rooms[room_id].get('revision', 0)}:{rooms[room_id].get('config_revision', 0)}" for room_id in thread["room_ids"])
         save_state(state)
-        return {"thread": thread, "messages": thread.get("messages", []), "new_messages": new_messages, "idempotent": False}
+        return {
+            "thread": thread,
+            "messages": thread.get("messages", []),
+            "new_messages": new_messages,
+            "round_results": round_results,
+            "idempotent": False,
+        }
     finally:
         lock.release()
+
+
+# ==================== AUTOMATIC DELIBERATION ====================
+
+
+@app.post("/api/deliberate")
+async def auto_deliberate(request: AutoDeliberationRequest):
+    """Create a two-room Tarot forum and execute one shared deliberation round."""
+    state = load_state()
+    if not state["runtime_settings"].get("auto_deliberation", False):
+        raise HTTPException(status_code=400, detail="Auto deliberation is disabled")
+
+    selected_cards = select_cards_for_prompt(state["cards"], request.prompt, limit=6)
+    if len(selected_cards) < 2:
+        selected_cards = state["cards"][:2]
+    if len(selected_cards) < 2:
+        raise HTTPException(status_code=503, detail="At least two Tarot cards are required for automatic deliberation")
+    split_at = max(1, (len(selected_cards) + 1) // 2)
+    card_sets = [selected_cards[:split_at], selected_cards[split_at:]]
+    card_sets = [cards for cards in card_sets if cards]
+
+    room_ids = []
+    prompt_slug = _room_slug(request.prompt[:48])
+    for index, cards in enumerate(card_sets, start=1):
+        room = await create_room(RoomCreate(
+            name=f"Auto deliberation {prompt_slug} {index}",
+            card_ids=[card["id"] for card in cards],
+            mode=request.mode,
+        ))
+        room_ids.append(room["id"])
+
+    thread = await create_forum_thread(ForumThreadCreate(
+        title=f"Auto deliberation: {request.prompt[:120]}",
+        prompt=request.prompt,
+        room_ids=room_ids,
+    ))
+    state = load_state()
+    thread_record = next(item for item in state["forum_threads"] if item["id"] == thread["id"])
+    first_room = next(item for item in state["rooms"] if item["id"] == room_ids[0])
+    append_prompt_message(thread_record, request.prompt, first_room)
+    save_state(state)
+
+    result = await run_forum_round(thread["id"])
+    return {
+        "thread_id": thread["id"],
+        "room_ids": room_ids,
+        "card_sets": [[card["id"] for card in cards] for cards in card_sets],
+        "thread": result["thread"],
+        "messages": result["messages"],
+        "new_messages": result.get("new_messages", []),
+        "round_results": result.get("round_results", []),
+        "idempotent": result.get("idempotent", False),
+    }
 
 
 # ==================== PERSISTENT AGENT RUNTIME ====================
@@ -3189,6 +3323,21 @@ def build_agent_harness(prompt: str, plan: dict) -> str:
     )
 
 
+def execution_scope_manifest(aggregator: dict, selected_model: str, *, local_executed: bool = False, remote_executed: bool = False, confirmation_required: bool = False) -> dict:
+    """Return the public, credential-free truth about planned or executed stages."""
+    aggregate_is_local = bool(aggregator.get("local"))
+    remote_planned = not aggregate_is_local
+    mode = "remote_executed" if remote_executed else "confirmation_required" if confirmation_required else "local_only" if aggregate_is_local else "preview_only"
+    return {
+        "mode": mode,
+        "remote_prompt_transfer": bool(remote_executed),
+        "stages": [
+            {"stage": "local synthesis", "provider": "Local Ollama", "model": selected_model, "executed": local_executed, "preview": not local_executed},
+            {"stage": "aggregate", "provider": str(aggregator.get("name", "OBus aggregate")), "model": str(aggregator.get("model", "")), "executed": remote_executed or (aggregate_is_local and local_executed), "preview": remote_planned and not remote_executed},
+        ],
+    }
+
+
 @app.get("/api/plan")
 async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced", rag_enabled: bool = True, routing_policy: Optional[str] = None):
     """Get MOA routing plan with deck selection"""
@@ -3225,6 +3374,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     return {
         "prompt": prompt,
         "routing_policy": policy,
+        "execution_scope": execution_scope_manifest(aggregator, str(settings.get("selected_model", ""))),
         "selected_deck": {
             "id": deck["id"],
             "name": deck["name"],
@@ -3558,6 +3708,34 @@ def start_tentacle_worms() -> dict:
 app.router.add_event_handler("startup", start_tentacle_worms)
 
 
+def register_route_cancel(route_id: str) -> threading.Event:
+    with ROUTE_CANCEL_LOCK:
+        if len(ROUTE_CANCEL_EVENTS) >= 512:
+            for stale_id in list(ROUTE_CANCEL_EVENTS)[:64]:
+                ROUTE_CANCEL_EVENTS.pop(stale_id, None)
+        return ROUTE_CANCEL_EVENTS.setdefault(route_id, threading.Event())
+
+
+def route_cancel_requested(route_id: str) -> bool:
+    with ROUTE_CANCEL_LOCK:
+        event = ROUTE_CANCEL_EVENTS.get(route_id)
+        return bool(event and event.is_set())
+
+
+@app.post("/api/route/{route_id}/cancel")
+async def cancel_route(route_id: str):
+    event = register_route_cancel(route_id)
+    event.set()
+    ROUTE_EVENTS.publish(route_id, "route.cancel_requested", {"status": "cancel_requested"})
+    return {"route_id": route_id, "status": "cancel_requested"}
+
+
+@app.get("/api/route/{route_id}/status")
+async def route_status(route_id: str):
+    events = ROUTE_EVENTS.snapshot(route_id=route_id, limit=100)
+    return {"route_id": route_id, "cancel_requested": route_cancel_requested(route_id), "events": events, "latest": events[-1] if events else None}
+
+
 def generate_offline_answer(prompt: str, plan: dict) -> str:
     """Keep routing usable without pretending that a model answered the task."""
     assignments = plan["agents"].get("dynamic_assignments", [])
@@ -3575,7 +3753,11 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     route_started = time.perf_counter()
+    route_id = request.route_id or ("route-" + uuid.uuid4().hex[:16])
+    register_route_cancel(route_id)
+    ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
     plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
+    ROUTE_EVENTS.publish(route_id, "route.plan_ready", {"deck": plan.get("selected_deck", {}).get("name"), "specialists": len(plan.get("agents", {}).get("dynamic_assignments", []))})
     settings = get_settings()
     model = request.model or settings["selected_model"]
     ollama_status = get_ollama_status()
@@ -3584,18 +3766,40 @@ async def run_route(request: RouteRequest):
         or ollama_status.get("model_contexts", {}).get(model)
         or 0
     )
+
+    def finalize_result(result: dict, event_type: str = "route.complete") -> dict:
+        result["route_id"] = route_id
+        ROUTE_EVENTS.publish(route_id, event_type, {"status": result.get("status"), "engine": result.get("engine"), "aggregate": (result.get("aggregate") or {}).get("status")})
+        return result
+
+    def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled") -> dict:
+        final = local_answer or f"Route cancellation acknowledged during {stage}; no further stages were executed."
+        result = {
+            "status": "cancelled", "engine": engine, "model": model,
+            "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "stages": [stage], "local_result": local_answer, "final": final,
+            "trace": local_trace or [{"stage": stage, "role": "OBus cancellation", "status": "cancelled", "output": final}],
+            "execution_scope": execution_scope_manifest(OFFLINE_ROOM_KEY, model, local_executed=bool(local_answer)),
+        }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return finalize_result(result, "route.cancelled")
+
+    if route_cancel_requested(route_id):
+        return cancelled_result("planning")
+
     if model not in ollama_status.get("models", []):
         offline_answer = generate_offline_answer(request.prompt, plan)
         remembered = remember_route_exchange(request.prompt, offline_answer, engine="offline-planner")
         result = {
             "status": "complete", "engine": "offline-planner", "model": OFFLINE_ROOM_KEY["model"],
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "execution_scope": execution_scope_manifest(OFFLINE_ROOM_KEY, model),
             "trace": [{"stage": "offline plan", "role": "OBus planner", "model": OFFLINE_ROOM_KEY["model"], "status": "complete", "output": offline_answer}],
             "final": offline_answer,
             "remembered": remembered,
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
-        return result
+        return finalize_result(result)
     try:
         routed_prompt = request.prompt
         if request.rag_enabled and plan.get("rag", {}).get("hub_results"):
@@ -3607,6 +3811,7 @@ async def run_route(request: RouteRequest):
         harness_enabled = settings.get("harness_enabled", True) if request.harness_enabled is None else bool(request.harness_enabled)
         if harness_enabled:
             routed_prompt = build_agent_harness(routed_prompt, plan)
+        ROUTE_EVENTS.publish(route_id, "route.local_started", {"model": model, "profile": request.performance_profile})
         moa_command = build_moa_router_command(routed_prompt, model, request.performance_profile)
         if moa_command is not None:
             generated = await asyncio.to_thread(generate_with_moa_router, routed_prompt, model, plan)
@@ -3624,7 +3829,11 @@ async def run_route(request: RouteRequest):
                 "stage": "local synthesis", "role": "OBus local aggregator", "model": model,
                 "status": "complete", "output": local_answer,
             }]
+        ROUTE_EVENTS.publish(route_id, "route.local_complete", {"engine": local_engine, "stages": len(local_trace)})
+        if route_cancel_requested(route_id):
+            return cancelled_result("local", local_answer, local_trace, local_engine)
     except RuntimeError as exc:
+        ROUTE_EVENTS.publish(route_id, "route.failed", {"phase": "local", "error": type(exc).__name__})
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     aggregate_calls = 0
@@ -3654,13 +3863,14 @@ async def run_route(request: RouteRequest):
         result = {
             "status": "complete", "engine": local_engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "execution_scope": execution_scope_manifest(aggregate_key, model, local_executed=True),
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
             "trace": local_trace,
             "aggregate": {"status": "local-default", "name": aggregate_key["name"], "model": aggregate_key["model"], "key_id": aggregate_key["id"]},
             "remembered": remembered, "usage": usage,
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
-        return result
+        return finalize_result(result)
     if not aggregate_key or not aggregate_status or not aggregate_status.get("connected"):
         usage = finish_usage(local_engine)
         remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
@@ -3669,12 +3879,27 @@ async def run_route(request: RouteRequest):
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
             "trace": local_trace,
+            "execution_scope": execution_scope_manifest(aggregate_key or aggregate_manifest, model, local_executed=True),
             "aggregate": {"status": "unavailable", "name": "GPT 5.6 Luna", "model": "gpt-5.6-luna"},
             "remembered": remembered,
             "usage": usage,
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
-        return result
+        return finalize_result(result)
+    if not request.confirm_remote_execution:
+        usage = finish_usage(local_engine)
+        remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)
+        result = {
+            "status": "complete", "engine": local_engine, "model": model,
+            "selected_deck": plan["selected_deck"], "agents": plan["agents"],
+            "execution_scope": execution_scope_manifest(aggregate_key, model, local_executed=True, confirmation_required=True),
+            "stages": ["local"], "local_result": local_answer, "final": local_answer,
+            "trace": local_trace,
+            "aggregate": {"status": "confirmation-required", "name": aggregate_key["name"], "model": aggregate_key["model"], "key_id": aggregate_key["id"]},
+            "remembered": remembered, "usage": usage,
+        }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return finalize_result(result)
     aggregate_calls = 1
     aggregate_started = time.perf_counter()
     try:
@@ -3688,12 +3913,13 @@ async def run_route(request: RouteRequest):
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": ["local"], "local_result": local_answer, "final": local_answer,
             "trace": local_trace,
+            "execution_scope": execution_scope_manifest(aggregate_key, model, local_executed=True, remote_executed=True),
             "aggregate": {"status": "failed", "name": aggregate_key["name"], "model": aggregate_key["model"], "reason": type(exc).__name__},
             "remembered": remembered,
             "usage": usage,
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
-        return result
+        return finalize_result(result)
     aggregate_seconds = time.perf_counter() - aggregate_started
     final_engine = f"{local_engine}+luna-aggregate"
     usage = finish_usage(final_engine)
@@ -3706,6 +3932,7 @@ async def run_route(request: RouteRequest):
         "agents": plan["agents"],
         "stages": ["local", "aggregate"],
         "local_result": local_answer,
+        "execution_scope": execution_scope_manifest(aggregate_key, model, local_executed=True, remote_executed=True),
         "aggregate": {"status": "complete", "name": aggregate_key["name"], "model": aggregate_key["model"], "key_id": aggregate_key["id"]},
         "trace": local_trace + [{
             "stage": "aggregate", "role": aggregate_key["name"], "model": aggregate_key["model"],
@@ -3716,7 +3943,7 @@ async def run_route(request: RouteRequest):
         "usage": usage,
     }
     result["receipt"] = record_run_receipt(request.prompt, plan, result)
-    return result
+    return finalize_result(result)
 
 
 @app.post("/api/execute")

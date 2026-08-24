@@ -1186,7 +1186,7 @@ class RuntimeContractTests(unittest.TestCase):
              patch.object(backend, "build_moa_router_command", return_value=None), \
              patch.object(backend, "generate_with_ollama", side_effect=local), \
              patch.object(backend, "AGGREGATE_WITH_KEY", side_effect=aggregate):
-            response = self.client.post("/api/route/run", json={"prompt": "Solve this", "model": "llama3.2:latest", "rag_enabled": False})
+            response = self.client.post("/api/route/run", json={"prompt": "Solve this", "model": "llama3.2:latest", "rag_enabled": False, "confirm_remote_execution": True})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual([call[0] for call in calls], ["local", "luna"])

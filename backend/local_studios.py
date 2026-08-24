@@ -52,14 +52,19 @@ def comfyui_status() -> dict[str, Any]:
     config = comfyui_configuration()
     reachable, stats = _json_probe(config["url"], "/system_stats")
     system = (stats or {}).get("system") or {}
+    launch_ready = (config["home"] / "main.py").is_file() and config["python"].is_file()
+    reason = "ready" if reachable else "service_not_running" if launch_ready else "source_not_found"
+    next_step = "none" if reachable else "start_local_service" if launch_ready else "configure_source_root"
     return {
         "url": config["url"],
         "reachable": reachable,
         "status": "ready" if reachable else "offline",
         "version": system.get("comfyui_version"),
         "device": system.get("device"),
-        "launch_ready": (config["home"] / "main.py").is_file() and config["python"].is_file(),
+        "launch_ready": launch_ready,
         "launch_mode": "local-source",
+        "reason": reason,
+        "next_step": next_step,
     }
 
 
@@ -115,6 +120,8 @@ def understand_anything_status(workspace_root: str | None) -> dict[str, Any]:
     nodes = graph.get("nodes") if isinstance(graph, dict) else []
     edges = graph.get("edges") if isinstance(graph, dict) else []
     reachable, _ = _json_probe(url, "/")
+    reason = "ready" if graph_path else "workspace_not_configured" if not workspace_root else "graph_not_found"
+    next_step = "none" if graph_path else "configure_workspace_root" if not workspace_root else "run_understand_analysis"
     return {
         "url": url,
         "reachable": reachable,
@@ -124,6 +131,8 @@ def understand_anything_status(workspace_root: str | None) -> dict[str, Any]:
         "edges": len(edges) if isinstance(edges, list) else 0,
         "graph_path": str(graph_path.relative_to(Path(workspace_root))) if graph_path and workspace_root else None,
         "workspace_configured": bool(workspace_root),
+        "reason": reason,
+        "next_step": next_step,
     }
 
 

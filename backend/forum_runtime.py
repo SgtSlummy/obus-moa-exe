@@ -68,3 +68,27 @@ def append_question_message(thread: dict[str, Any], request: dict[str, Any], roo
     thread["last_round_signature"] = None
     thread["updated_at"] = message["created_at"]
     return message
+
+
+def append_prompt_message(thread: dict[str, Any], prompt: str, room: dict[str, Any]) -> dict[str, Any]:
+    """Persist the originating user prompt as the first forum message."""
+    body = sanitize_public_text(prompt)
+    message = {
+        "id": "fmsg-" + hashlib.sha256(f"{thread['id']}:prompt:{body}".encode()).hexdigest()[:20],
+        "thread_id": thread["id"],
+        "room_id": room["id"],
+        "author_type": "user",
+        "author_id": "auto-deliberation",
+        "kind": "prompt",
+        "body": body,
+        "packet": None,
+        "reply_to": None,
+        "thread_revision": int(thread.get("revision", 0)) + 1,
+        "created_at": _now(),
+    }
+    if not any(item.get("id") == message["id"] for item in thread.get("messages", [])):
+        thread.setdefault("messages", []).append(message)
+        thread["revision"] = message["thread_revision"]
+        thread["last_round_signature"] = None
+        thread["updated_at"] = message["created_at"]
+    return message

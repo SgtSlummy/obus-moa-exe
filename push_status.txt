@@ -1,9 +1,37 @@
-Push attempt 2026-08-24 18:00 UTC
-Status: PUSHED SUCCESSFULLY
-Commit: 5218bab feat: AUI adaptive UI layer - layout, route events, tokens, workspace, tests, and 6 packaged builds
-Branch: master -> origin/master
-Network: github.com reachable, LFS objects uploaded (6/6), push completed.
-Build artifacts: 6 AUI-loop OBus.exe (LFS-tracked, ~67MB each), 6 build-aui-loop .pkg files (LFS-tracked, ~67MB each)
-Excluded: dist-remediation/OBus.exe (140MB), dist-warp-review/OBus.exe (140MB) - exceed 100MB LFS limit
-Excluded: build-remediation/, build-warp-review/ - contain 140MB .pkg files exceeding limit
-Submodules: warp updated to latest upstream, Understand-Anything ahead 2 (push blocked - 403: no permission to Egonex-AI/Understand-Anything)
+Push attempt 2026-08-24 12:34 UTC (cron cycle #7)
+
+Main repo (SgtSlummy/obus-moa-exe):
+  ✅ Pushed: d5e4f80 docs: refresh build/push status reports after AUI loop10 packaging
+  ✅ Branch: master -> origin/master
+  🔶 Local diff: 17 files modified (main.py, index.html, aui/runtime.js, tests/, room_models.py, etc.)
+  🔶 Ready to push on next cycle if commits land
+
+Submodules:
+  🔶 warp: Updated to latest upstream (nvidia/warp main). Push blocked - 403 (upstream, expected)
+  ❌ Understand-Anything: 2 commits ahead (OBus integration scaffolding). Push blocked - 403 (no permission to Egonex-AI/Understand-Anything)
+
+Optional external-source forks (non-blocking, no permission):
+  - free-ai-coding-source (inmve/free-ai-coding): 403 denied
+  - free-coding-models-source (vava-nessa/free-coding-models): 403 denied  
+  - mythos-router-source: up to date on SgtSlummy/mythos-router
+  - MoA-source: up to date on SgtSlummy/MoA; upstream togethercomputer/MoA 403 denied
+  - models-dev-source: up to date on SgtSlummy/models.dev dev branch
+
+Build artifacts:
+  📁 dist/OBus.exe — 67.4MB (console=False, noicon? — see spec)
+  📁 dist-aui-loop10/OBus.exe — 139.8MB (Setup variant)
+  📁 dist-aui-loop5/OBus.exe — 139.8MB (Setup variant)
+  📁 dist/OBus-Thor-Setup.exe — 139.9MB
+  📁 dist/OBus-Loki-Partner-Setup.exe — 139.9MB
+  📁 dist/OBus-Thor-Loki-Deployment.zip — 132.9M
+  📁 build-remediation/OBus/OBus.pkg — 140.3M (PyInstaller pkg, not EXE)
+  📁 build-warp-review/OBus/OBus.pkg — 140.2M (PyInstaller pkg, not EXE)
+  ❌ No OBus.exe on Desktop
+
+Tests:
+  ✅ 179 passed in 89.58s (full suite)
+
+Notable: 
+  - backend/static/aui/runtime.js exists (7.2K) but not confirmed embedded in any EXE
+  - OBus.spec console=False, icon=assets/obus_emblem.ico if it exists
+  - AUI contract tests pass; runtime.js not verified in EXE via pyi archive

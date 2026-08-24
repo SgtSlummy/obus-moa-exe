@@ -11,7 +11,7 @@ from copy import deepcopy
 from typing import Any, Iterator
 
 _SECRET_KEYS = {"api_key", "apikey", "token", "access_token", "refresh_token", "password", "secret", "private_key", "credential"}
-_SECRET_VALUE = re.compile(r"(?i)(?:bearer\s+|sk-[A-Za-z0-9_-]{12,}|gh[opusr]_[A-Za-z0-9_]{12,})")
+_SECRET_VALUE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+|\bsk-[A-Za-z0-9_-]{12,}|\bgh[opusr]_[A-Za-z0-9_]{12,}")
 
 
 def _safe_value(value: Any, key: str | None = None) -> Any:

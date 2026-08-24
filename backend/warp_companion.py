@@ -50,14 +50,19 @@ def status() -> dict[str, Any]:
     required = (root / "Cargo.toml", root / "LICENSE-AGPL", root / "crates" / "warp_tui" / "Cargo.toml")
     source_available = all(path.is_file() for path in required)
     binary = warp_binary(root)
+    tui_available = source_available and binary.is_file()
+    reason = "ready" if tui_available else "tui_not_built" if source_available else "source_not_found"
+    next_step = "none" if tui_available else "build_warp_tui" if source_available else "configure_source_root"
     return {
         "source_available": source_available,
-        "tui_available": binary.is_file(),
+        "tui_available": tui_available,
         "source_revision": _source_revision(root) if source_available else None,
         "license": "AGPL-3.0-only",
         "source_url": "https://github.com/warpdotdev/warp",
-        "launch_ready": source_available and binary.is_file(),
+        "launch_ready": tui_available,
         "integration_mode": "optional-local-companion",
+        "reason": reason,
+        "next_step": next_step,
     }
 
 

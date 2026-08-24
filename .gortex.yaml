@@ -1,0 +1,6 @@
+exclude:
+    - Understand-Anything/
+    - warp/
+    - third_party/
+    - dist-remediation/
+    - dist-warp-review/

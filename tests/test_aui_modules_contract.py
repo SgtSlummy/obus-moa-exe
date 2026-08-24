@@ -14,6 +14,7 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertIn('/static/aui/layout.js', html)
         self.assertIn('/static/aui/workspace.js', html)
         self.assertIn('/static/aui/runtime.js', html)
+        self.assertIn('legacyRuntime', html)
 
     def test_external_aui_modules_are_served(self):
         client = TestClient(backend.app)

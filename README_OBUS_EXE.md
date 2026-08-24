@@ -154,7 +154,9 @@ OBus now offers three configurable workspace surfaces in Setup:
 - **Operator** — Terminal plus Cards & Keys, Tarot personas, persistent agents, rooms, receipts, routing, and Memory.
 - **ADE** — the complete OBus surface, including Forums, Arcana Forge, Tentacle Worm safety, and integrations.
 
-Press **Ctrl+K** (or **Cmd+K**) to open the searchable command palette. It can focus a route, switch pages, refresh live state, warm the local GPU, open Settings/Memory/Rooms, and export the latest receipt.
+Press **Ctrl+K** (or **Cmd+K**) to open the searchable command palette. It can focus a route, switch pages, refresh live state, warm the local GPU, open Settings/Memory/Rooms, and export the latest receipt. **Ctrl+L** focuses the route composer, and **Escape** closes transient UI or returns focus to the composer.
+
+The AUI is modeled after the useful WarpUI patterns rather than embedding Warp's implementation. `backend/aui.py` owns a versioned, secret-free action and accessibility manifest exposed at `/api/aui/manifest`. It describes surface-bounded actions, keyboard bindings, accessible view roles/value/help, and live-region principles. The SPA loads this contract into the command palette and the visible AUI action rail; action execution remains bound to OBus's existing route, room, receipt, runtime, and workspace functions. The Run workbench also supports compact/comfortable/spacious density, sidebar collapse, responsive viewport modes, route re-input/retry, and bounded workspace file filtering. See `docs/obus-aui.md` and `docs/obus-aui-research.md` for the full interaction model and provenance.
 
 The local workspace context panel is explicitly **read-only local context**. Its status and bounded inspection APIs are exposed at `/api/workspace/status`, `/api/workspace/tree`, `/api/workspace/file`, and `/api/workspace/diff`. Configure a root manually; OBus bounds depth, file count, bytes, and text lines, rejects traversal/symlink escapes, omits secret-shaped files, and never runs a shell command. A selected bounded text file can be inserted into the next route.
 

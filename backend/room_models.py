@@ -106,6 +106,26 @@ class RoomRunRequest(StrictModel):
         return value
 
 
+class AutoDeliberationRequest(StrictModel):
+    prompt: str = Field(min_length=1, max_length=12000)
+    mode: str = "collaborative"
+
+    @field_validator("prompt")
+    @classmethod
+    def clean_prompt(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("prompt cannot be empty")
+        return value
+
+    @field_validator("mode")
+    @classmethod
+    def valid_mode(cls, value: str) -> str:
+        if value not in ROOM_MODES:
+            raise ValueError("mode must be collaborative or adversarial")
+        return value
+
+
 class DecisionPacket(StrictModel):
     room_id: str
     revision: int = Field(ge=1)

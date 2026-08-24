@@ -13,6 +13,7 @@ class AUIEventTests(unittest.TestCase):
         self.assertNotIn("api_key", event["payload"])
         self.assertNotIn("secret-value", str(event))
         self.assertNotIn("Bearer", str(event))
+        self.assertNotIn("credential-value", str(event))
 
     def test_route_events_endpoint_returns_bounded_events(self):
         backend.ROUTE_EVENTS.publish("route-test", "route.started", {"status": "planning"})

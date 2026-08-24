@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 WORKDIR /app
+
+COPY requirements-build.txt .
+RUN pip install --no-cache-dir -r requirements-build.txt httpx pytest warp-lang
+
 COPY . .
-RUN pip install --no-cache-dir uvicorn fastapi httpx pytest
-CMD ["pytest", "tests/test_deliberate.py", "-q"]
+CMD ["python", "-m", "pytest", "tests/test_deliberate.py", "-q"]

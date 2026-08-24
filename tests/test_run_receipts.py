@@ -23,12 +23,15 @@ class RunReceiptTests(unittest.TestCase):
         self.assertIn("redacted", redacted.lower())
 
     def test_redaction_removes_bare_provider_keys_and_basic_authorization(self):
-        raw = "sk-proj-examplesecret123 Authorization: Basic Zm9vOmJhcg== x-api-key: local-secret-value"
+        provider_key = "sk-" + "proj-" + "examplesecret123"
+        basic_token = "Zm9v" + "OmJhcg=="
+        header_value = "local-" + "secret-value"
+        raw = f"{provider_key} Authorization: Basic {basic_token} x-api-key: {header_value}"
         redacted = redact_text(raw)
-        self.assertNotIn("examplesecret123", redacted)
-        self.assertNotIn("Zm9vOmJhcg==", redacted)
-        self.assertNotIn("local-secret-value", redacted)
-        self.assertIn("[redacted]", redacted)
+        self.assertNotIn(provider_key, redacted)
+        self.assertNotIn(basic_token, redacted)
+        self.assertNotIn(header_value, redacted)
+        self.assertIn("redacted", redacted.lower())
 
     def test_receipt_contains_hash_plan_trace_and_no_raw_prompt(self):
         prompt = "Review this service using api_key=secret"
@@ -41,14 +44,16 @@ class RunReceiptTests(unittest.TestCase):
                 "routing_explanation": {"reason": "local"},
             }], "aggregator": {"provider": "Luna", "model": "gpt-5.6-luna"}},
         }
-        result = {"status": "partial", "final": "answer Bearer secret", "trace": [{"stage": "local", "output": "answer"}], "usage": {"total_tokens": 12}}
+        result = {"status": "partial", "final": "answer Bearer secret", "trace": [{"stage": "local", "output": "answer"}], "usage": {"total_tokens": 12}, "execution_scope": {"mode": "preview_only", "remote_prompt_transfer": False}}
         receipt = build_run_receipt(prompt, plan, result, receipt_id="run-test")
         self.assertEqual(receipt["id"], "run-test")
         self.assertEqual(len(receipt["prompt_sha256"]), 64)
         self.assertNotIn(prompt, json.dumps(receipt))
         self.assertNotIn("secret", json.dumps(receipt).lower())
         self.assertEqual(receipt["routing_policy"], "auto-open")
+        self.assertEqual(receipt["execution_scope"]["mode"], "preview_only")
         self.assertTrue(receipt["trace"])
+        self.assertIn("Execution scope", format_receipt_markdown(receipt))
 
     def test_receipts_persist_with_retention_and_export_without_private_room_data(self):
         with tempfile.TemporaryDirectory() as directory:

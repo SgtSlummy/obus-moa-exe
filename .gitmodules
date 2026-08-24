@@ -1,3 +1,9 @@
 [submodule "warpdotdev-warp"]
 	path = third_party/warpdotdev-warp
 	url = https://github.com/warpdotdev/warp.git
+[submodule "Understand-Anything"]
+	path = Understand-Anything
+	url = https://github.com/Egonex-AI/Understand-Anything.git
+[submodule "warp"]
+	path = warp
+	url = https://github.com/nvidia/warp.git
