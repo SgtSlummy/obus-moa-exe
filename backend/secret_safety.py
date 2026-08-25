@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from typing import Any
 
@@ -38,6 +39,13 @@ def is_secret_key(key: object) -> bool:
 
 def redact_text(value: Any, limit: int = 4000) -> str:
     text = str(value or "")
+    stripped = text.strip()
+    if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
+        try:
+            parsed = json.loads(stripped)
+            return json.dumps(redact_value(parsed), ensure_ascii=False, separators=(",", ":"))[:limit]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
     for pattern, replacement in _SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
     text = re.sub(r"(?is)(?:hidden|private)\s+(?:prompt|transcript|messages?)\s*:\s*.*", "[PRIVATE CONTEXT REDACTED]", text)

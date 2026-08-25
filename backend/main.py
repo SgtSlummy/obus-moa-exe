@@ -2226,7 +2226,12 @@ def room_public(room: dict) -> dict:
 def forum_public(thread: dict) -> dict:
     value = copy.deepcopy(thread)
     value.pop("private_messages", None)
-    return redact_value(value)
+    messages = value.pop("messages", [])
+    public = redact_value(value)
+    if isinstance(messages, list):
+        public["messages"] = [redact_value(message) for message in messages[:100]]
+        public["messages_truncated"] = len(messages) > 100
+    return public
 
 
 def room_message_public(message: dict) -> dict:
@@ -2776,7 +2781,7 @@ def _runtime_event(state: dict, kind: str, message: str, agent_id: str | None = 
 
 
 def _persistent_agent_public(agent: dict) -> dict:
-    return copy.deepcopy(agent)
+    return redact_value(copy.deepcopy(agent))
 
 
 def _spawn_persistent_agent_record(state: dict, request: PersistentAgentCreate) -> dict:
@@ -2784,9 +2789,11 @@ def _spawn_persistent_agent_record(state: dict, request: PersistentAgentCreate) 
     if len(active) >= MAX_PERSISTENT_AGENTS:
         raise HTTPException(status_code=409, detail=f"Persistent agent limit reached ({MAX_PERSISTENT_AGENTS})")
     cards = {card["id"]: card for card in state["cards"]}
+    safe_objective = redact_text(request.objective, 4000)
+    safe_name = redact_text(request.name, 240) if request.name else None
     card_id = request.card_id
     if card_id is None:
-        card_id = select_cards_for_prompt(state["cards"], request.objective, limit=1)[0]["id"]
+        card_id = select_cards_for_prompt(state["cards"], safe_objective, limit=1)[0]["id"]
     if card_id not in cards:
         raise HTTPException(status_code=400, detail=f"Unknown Tarot card: {card_id}")
     if request.provider_mode == "manual" and not request.key_id:
@@ -2799,8 +2806,8 @@ def _spawn_persistent_agent_record(state: dict, request: PersistentAgentCreate) 
         raise HTTPException(status_code=400, detail=f"Unknown Forum: {request.forum_thread_id}")
     now = _runtime_now()
     agent = {
-        "id": "agent-" + uuid.uuid4().hex[:12], "name": request.name or cards[card_id]["name"],
-        "card_id": card_id, "objective": request.objective, "provider_mode": request.provider_mode,
+        "id": "agent-" + uuid.uuid4().hex[:12], "name": safe_name or cards[card_id]["name"],
+        "card_id": card_id, "objective": safe_objective, "provider_mode": request.provider_mode,
         "key_id": request.key_id, "room_id": request.room_id, "forum_thread_id": request.forum_thread_id,
         "max_steps": request.max_steps, "auto_start": request.auto_start, "status": "idle",
         "current_step": 0, "run_count": 0, "history": [], "last_output": None, "last_error": None,
@@ -2919,7 +2926,8 @@ def _start_persistent_agent(agent_id: str, prompt: str | None = None) -> dict:
     PERSISTENT_AGENT_STOP_EVENTS[agent_id] = stop_event
     agent.update(status="queued", last_error=None, updated_at=_runtime_now())
     save_state(state)
-    thread = threading.Thread(target=_persistent_agent_worker, args=(agent_id, prompt or agent["objective"]), daemon=True, name=f"obus-{agent_id}")
+    safe_prompt = redact_text(prompt or agent["objective"], 4000)
+    thread = threading.Thread(target=_persistent_agent_worker, args=(agent_id, safe_prompt), daemon=True, name=f"obus-{agent_id}")
     PERSISTENT_AGENT_THREADS[agent_id] = thread
     thread.start()
     return _persistent_agent_public(agent)
@@ -3055,7 +3063,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=502, detail=f"Local orchestrator returned an invalid typed plan: {exc}") from exc
     if not request.execute:
-        return {"plan": plan.model_dump(), "executed": False, "created_agents": [], "created_rooms": [], "created_forums": []}
+        return {"plan": redact_value(plan.model_dump()), "executed": False, "created_agents": [], "created_rooms": [], "created_forums": []}
     if len([agent for agent in state["persistent_agents"] if agent.get("status") != "deleted"]) + len(plan.agents) > MAX_PERSISTENT_AGENTS:
         raise HTTPException(status_code=409, detail=f"Plan would exceed persistent agent maximum ({MAX_PERSISTENT_AGENTS})")
     created_agents = []
@@ -3084,7 +3092,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
             _start_persistent_agent(agent["id"], action.objective)
     if room_runs or forum_runs:
         asyncio.create_task(_run_orchestrated_structures(room_runs, forum_runs))
-    return {"plan": plan.model_dump(), "executed": True,
+    return {"plan": redact_value(plan.model_dump()), "executed": True,
             "created_agents": [_persistent_agent_public(agent) for agent in created_agents],
             "created_rooms": [room_public(room) for room in created_rooms],
             "created_forums": [forum_public(thread) for thread in created_forums]}

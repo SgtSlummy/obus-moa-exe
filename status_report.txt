@@ -1,51 +1,86 @@
 # Cron Job: [bot:default] Continue
 
 **Job ID:** 893c7df0ef71
-**Run Time:** 2026-08-24 17:02:00 UTC
+**Run Time:** 2026-08-24 17:53:47 UTC (Pacific Daylight: 10:53)
 **Schedule:** every 10m
 
 ## Summary
 
-### Main repo (SgtSlummy/obus-moa-exe) — PUSHED ✅
+### Repositories — Pushed This Cycle
 
-1. **Commit fd35065** (amended) — `fix: harden secret redaction, fix route-events empty listener, add shuffle-deck contract test`
-   - `backend/secret_safety.py`: improved field-pattern regex for secret detection
-   - `backend/main.py`: wired new redaction helpers into `bounded_memory_results` and `execution_scope_manifest`
-   - `backend/static/aui/route-events.js`: fixed empty `eventTypes` array causing no listener registration
-   - `tests/test_agent_visuals_contract.py`: added `test_compact_shuffle_decks_keep_key_copy_below_the_art`
+| Repo | Commit | Branch | Status |
+|------|---------|--------|--------|
+| obus-moa-exe (SgtSlummy) | `2cce885` | master | ✅ Pushed — `chore: continue AUI subsystem sync — deck-workspace, aui visuals, route-events, index, test coverage` (5 files, +62/-35) |
+| occultbus / Tarot-Router (SgtSlummy) | `dd10f4b` | main | ✅ Pushed — `chore: sync Tarot deck and Solomon's Keys (cron auto-commit)` (3 files, +14/-3) |
 
-2. **Commit 06fa8fd** — `feat: add deck-workspace.css for shuffle-deck card layouts`
-   - `backend/static/aui/deck-workspace.css`: new file (170 lines), compact card-table workspace CSS
-   - `backend/static/index.html`: wired the stylesheet link
-   - `backend/static/aui/providers.js`: added `shuffle-card` class, `key-figure` wrapper, `--shuffle-index` per-card, and `index` parameter to map
-   - All 4 AUI contract tests pass (0.11s)
+### Repositories — Already Up to Date (No Changes)
 
-### Submodules
+| Repo | Branch | Notes |
+|------|--------|-------|
+| mythos-router-source (SgtSlummy) | main | Clean, up to date |
+| warden (SgtSlummy) | main | Clean, up to date |
+| warden-discord-bot (SgtSlummy) | main | Clean, up to date |
+| awesome-free-llm-apis-mnfst-source (SgtSlummy) | main | Clean, up to date |
+| awesome-free-models-source (SgtSlummy) | main | Clean, up to date |
+| awesome-freellm-apis-source (SgtSlummy) | main | Clean, up to date |
+| free-ai-coding-source (SgtSlummy) | main | Clean, up to date |
+| free-coding-models-source (SgtSlummy) | main | Clean, up to date |
+| temporal (SgtSlummy) | main | Clean, up to date |
+| hermes-photon-client (SgtSlummy) | master | Clean, up to date |
+| hermes-photon-server (SgtSlummy) | master | Clean, up to date |
 
-| Submodule | Status | Push |
-|-----------|--------|------|
-| Understand-Anything | 2 commits ahead (OBus integration scaffolding) | ❌ Blocked — no permission to Egonex-AI/Understand-Anything (403) |
-| warp | Up to date with nvidia/warp main | 🔶 Blocked — 403 from upstream (expected) |
-| third_party/warpdotdev-warp | Detached at 378b74f (Windows arm64 fix) | N/A — sparse checkout, tracking upstream warpdotdev |
+### Repositories — Push Blocked (Expected, No Action Needed)
 
-### Build artifacts (untracked, not pushed)
+| Repo | Remote | Block Reason |
+|------|--------|-------------|
+| mempalace (fork: SgtSlummy/mempalace) | upstream MemPalace/mempalace | No local commits to push; on `develop` track (b522512), upstream-only branches ahead |
+| warden-source (wardenenv/warden) | upstream wardenenv/warden | 403 — not a collaborator on upstream; expected |
+| MoA-source (togethercomputer/MoA) | upstream togethercomputer/MoA | 403 — not a collaborator on upstream; expected |
+| models-dev-source (sst/models.dev) | upstream sst/models.dev | SSH key rejected; push permission not available |
 
-- dist/OBus.exe — 139.8MB
-- dist-aui-agent-visuals/OBus.exe, dist-aui-agent-visuals-v2/OBus.exe
-- build-aui-agent-visuals/OBus.pkg, build-aui-agent-visuals-v2/OBus.pkg
-- build-aui-loop23/, build-aui-loop24/ (new loops from recent builds)
+### Submodules (obus-moa-exe)
 
-### Active processes
+| Submodule | Status |
+|-----------|--------|
+| Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403, no Egonex-AI permission) |
+| warp | `-64c6cac` — behind upstream nvidia/warp main; push blocked (403, expected) |
+| third_party/warpdotdev-warp | `378b74f` — detached, tracking upstream warpdotdev |
 
-- 2x python (background Hermes processes)
-- 1x OBus executable (dist-aui-loop21/OBus)
+### Untracked Build Artifacts (Not Pushed — Intentionally Excluded)
 
-### Tests
+- `dist/OBus.exe` (139.8 MB)
+- `dist-aui-agent-visuals/OBus.exe`, `dist-aui-agent-visuals-v2/OBus.exe`
+- `build-aui-agent-visuals/OBus.pkg`, `build-aui-agent-visuals-v2/OBus.pkg`
+- `build-aui-loop23/`, `build-aui-loop24/`, `build-aui-loop25/`, `build-aui-loop26/`, `build-aui-loop27/` (new loops)
+- `skills/` (new)
 
-- AUI contract suite: 4/4 passed (0.11s)
-- Full suite: 179 passed in 89.58s (from prior cycle)
+### Active Processes
+
+| Process | Details |
+|---------|---------|
+| OBus executable | `dist-aui-loop21/OBus` (PID 29263, started 16:31 UTC) — running |
+| Hermes agent python | `.venv/Scripts/python` (PID 7939, started 14:53 UTC) — running |
+| Hermes cron python | `AppData/Local/hermes/hermes-agent/venv/Scripts/python` (PID 46077, started 17:53 UTC) — this job |
+
+### Service Health
+
+| Service | Port | Status |
+|---------|------|--------|
+| Ollama | 11434 | ✅ Running — v0.32.15 |
+| Qdrant | 6333 | ❌ Not running |
+| NPC Relay | 9020 | ❌ Not running |
+
+### OBus State (Solomon's Keys)
+
+- `key-local-ollama`: **ready**, active, approved — models `gpt-oss:20b`, 131072 context tokens
+- `key-codex-oauth` (GPT 5.6 Luna): **staged**, not active
+- Full registry: 3324-line state file, multiple key entries (local Ollama, staged OpenAI Codex, etc.)
+
+### Working Directory
+
+`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean (tracked files committed; only untracked build artifacts and new `skills/` remain).
 
 ### Network
 
-- github.com reachable (HTTP 200)
-- Push to origin/master: successful
+- github.com: reachable (HTTPS 200)
+- Push to SgtSlummy/* remotes: successful this cycle
