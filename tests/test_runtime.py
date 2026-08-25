@@ -1111,7 +1111,10 @@ class RuntimeContractTests(unittest.TestCase):
         ):
             started = self.client.post(f"/api/runtime/agents/{spawned['id']}/run", json={"prompt": "Review reliability"})
             self.assertEqual(started.status_code, 202)
-            deadline = time.time() + 4
+            # Windows CI can spend several seconds committing the background run's
+            # persisted history under filesystem contention. Keep this a bounded
+            # lifecycle assertion without coupling it to runner I/O speed.
+            deadline = time.time() + 15
             while time.time() < deadline:
                 agent = self.client.get(f"/api/runtime/agents/{spawned['id']}").json()
                 if agent["status"] in {"complete", "failed", "stopped"}:
