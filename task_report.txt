@@ -1,9 +1,8 @@
 Task: Continue OBus push. Status:
-- OBus executable running (6 processes detected).
-- Git push: COMPLETED - 2 commits pushed to origin/master this cycle:
-  - c0f9011 (feat: forum_round_public redaction, unique validator, AUI measurement coverage)
-  - afc8437 (feat: wire heritage workbench CSS/JS into AUI, add layout persistence test)
-- Local diff: clean tracked files. Untracked build artifacts present (build-aui-loop11/12/13, build-remediation, build-warp-review, build-remediation-final, dist-remediation-final, scripts/, data/hermes-batch-results/, tmp/).
+- Main repo (obus-moa-exe): on 0f1423e (feat: build private Thor Loki paired distribution), up to date with origin/master. No new commits to push this cycle.
+- Warp submodule: 2 local commits (fee1347, e98ac07) carrying cron status reports. Push to SgtSlummy/warp failed (fork does not exist). Superproject shows M warp (working tree pointer diverges from HEAD).
+- Understand-Anything: 2 commits ahead, push blocked 403 (expected).
+- Tarot-Router (occultbus): clean, up to date.
+- Local diff: tracked files clean. Untracked: warp/ (excluded by .gitignore).
 - Network: github.com reachable (HTTP 200).
-- Submodule push blocks remain: warp (403, expected), Understand-Anything (403, no permission).
-- No active background jobs in process manager.
+- Active processes: OBus.exe (PID 29263), python (PID 7939). No background jobs.

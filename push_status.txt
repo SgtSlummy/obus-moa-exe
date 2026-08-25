@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 10:37 UTC (cron cycle)
+# Push Status Report - 2026-08-25 11:15 PDT (cron cycle)
 
-**Job ID:** 893c7df0ef71
-**Schedule:** every 10m
-**Run Time:** 2026-08-25 10:37:xx PDT
+**Job ID:** 893c7df0ef71  
+**Schedule:** every 10m  
+**Run Time:** 2026-08-25 11:15 PDT
 
 ---
 
@@ -10,26 +10,42 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `c814752` | master | ✅ **Pushed** — `test: include Thor portal deployment scripts` (LFS: 215 MB uploaded) |
-| third_party/warpdotdev-warp (SgtSlummy) | `21f413b` (detached) | — | ❌ No fork — tracks upstream warpdotdev/warp; no SgtSlummy fork to push to |
-| Understand-Anything (SgtSlummy) | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything (2 commits ahead) |
-| warp (SgtSlummy) | `64c6cac` | main | ❌ Push blocked — 403, not a collaborator on nvidia/warp; SgtSlummy/warp fork does not exist |
+| obus-moa-exe (SgtSlummy) | `0f1423e` | master | ✅ **Pushed** — `feat: build private Thor Loki paired distribution` (already on origin/master) |
+| warp submodule (SgtSlummy) | `fee1347` | main | ⚠️ **Committed locally, not pushed** — `chore: update warp submodule cron status reports` (SgtSlummy/warp fork does not exist) |
+| third_party/warpdotdev-warp | `21f413b` | detached | ✅ Clean — tracks upstream warpdotdev/warp; no push needed |
+| Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
+| Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
+| ComfyUI | — | master | ℹ️ 1 commit behind upstream comfyanonymous/ComfyUI — not our repo |
 
-**Main repo:** Pushed successfully. LFS objects (OBus.pkg + OBus.exe) uploaded in prior attempt; commit landed on retry.
+**Main repo:** On `0f1423e` (Thor/Loki paired build), up to date with origin/master. No new commits this cycle — prior cycle's push (`0f1423e`) is the current HEAD.
 
 ---
 
-## Recent Commit Chain (all pushed)
+## Recent Commit Chain (obus-moa-exe, all pushed)
 
 ```
-c814752 (HEAD, origin/master) test: include Thor portal deployment scripts
+0f1423e (HEAD, origin/master) feat: build private Thor Loki paired distribution
+e3841a9                        chore: update warp submodule pointer to latest status reports
+dd88b1b                        chore: update push status and status report for this cycle
+c814752                        test: include Thor portal deployment scripts
 89881e9                        feat: expose secure local LLM portal for Thor
-3ec96eb                        fix: initialize windowed launcher logging streams
-61b0ec6                        test: release Windows state handles before cleanup
-d505e5e                        fix: keep startup registry typing cross-platform
 ```
 
 All commits pushed to origin/master.
+
+---
+
+## Warp Submodule — This Cycle
+
+| Item | Detail |
+|------|--------|
+| Current HEAD | `fee1347` — `chore: update warp submodule cron status reports` |
+| Prior commit | `e98ac07` — same purpose (from prior cycle, rebased away during rebase) |
+| Upstream (nvidia/warp main) | `64c6cacd6` — behind by 2 commits |
+| SgtSlummy/warp fork | **Does not exist** — push failed with "Repository not found" |
+| Superproject pointer | `0f1423e` records `e98ac07`; working tree has `fee1347` (unstaged) |
+
+The superproject `warp` is shown as modified because the working tree pointer (`fee1347`) differs from what's recorded in HEAD (`e98ac07`). This is the same chronic blocker as prior cycles.
 
 ---
 
@@ -37,22 +53,28 @@ All commits pushed to origin/master.
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-Tracked files clean. Untracked: `warp/` (local git repo, excluded by .gitignore).
+- Tracked files: clean (on `0f1423e`)
+- Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 2 committed-but-unpushable changes (`fee1347`, `e98ac07`)
+- Untracked scripts (from stash, now checked out): `scripts/build_thor_loki_pair.py`, `tests/test_thor_loki_pair_build.py` — these are committed in `0f1423e`
 
 ---
 
 ## Active Jobs / Processes
 
-No new processes detected this cycle.
+- **OBus executable:** `dist-aui-loop21/OBus` (PID 29263) — running
+- **Hermes python process:** PID 7939 — running
+- **No background job processes** in process manager
 
 ---
 
 ## Summary
 
-1. **Main repo pushed** — `c814752` on origin/master. Includes Thor portal deployment scripts (Enable-OBus-Thor-Portal.ps1, Invoke-OBus-Portal.ps1, docs/thor-portal.md), LFS-tracked build artifacts (build-onedrive-fix/OBus.pkg + dist-onedrive-fix/OBus.exe), and *.pkg added to git-lfs tracking in .gitattributes.
+1. **Main repo up to date** — `0f1423e` on origin/master. No new commits to push this cycle. Prior cycle's Thor/Loki paired build is the current HEAD.
 
-2. **Submodule pushes remain blocked** — Understand-Anything (403, Egonex-AI), warp (403, nvidia; SgtSlummy fork not found), warpdotdev-warp (no SgtSlummy fork configured). Expected, no action needed.
+2. **Warp submodule has 2 local commits** (`fee1347`, `e98ac07`) carrying cron status reports, but neither can be pushed — SgtSlummy/warp fork does not exist. The superproject shows `warp` as modified because the working tree pointer (`fee1347`) diverges from HEAD's recorded pointer (`e98ac07`).
 
-3. **No active background processes** detected.
+3. **Understand-Anything:** 2 commits ahead, push blocked 403 (expected).
 
-4. **Large artifact note:** `OBus.pkg` (133 MB) required *.pkg LFS tracking addition; `OBus.exe` already tracked via *.exe rule.
+4. **Tarot-Router (occultbus):** clean, up to date.
+
+5. **Network:** github.com reachable. Main repo push not needed (up to date). Submodule push blocks are fork-existence/permission, not network.
