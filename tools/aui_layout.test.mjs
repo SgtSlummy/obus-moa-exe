@@ -75,3 +75,16 @@ test("splitter binding is idempotent and destroy removes listeners", () => {
   }
   assert.equal(observers[0].disconnected, true);
 });
+
+test("auxiliary pane splitters bind once and share teardown", () => {
+  const {root} = loadLayout();
+  const splitter = new FakeTarget();
+  const container = new FakeTarget();
+  const controller = root.OBusAuiLayout.create({
+    resizablePanes: [{key: "rooms", label: "Rooms", splitter, container}],
+  });
+  assert.equal(splitter.listenerCount("pointerdown"), 1);
+  assert.equal(splitter.attributes.get("aria-valuenow"), "62");
+  controller.destroy();
+  assert.equal(splitter.listenerCount("pointerdown"), 0);
+});

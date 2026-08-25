@@ -17,6 +17,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "mobile-nav-drawer",
             "mobile-control-drawer",
             "mobile-current-page",
+            "rooms-workspace-splitter",
+            "workspace-context-splitter",
+            "studio-workspace-splitter",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn('role="separator"', html)
@@ -46,6 +49,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "obus-layout-preset",
             "61.803398875",
             'event.key === "Home") next = MIN_SPLIT',
+            "obus-aui-split-rooms",
+            "obus-aui-split-workspace",
+            "obus-aui-split-studio",
         ):
             self.assertIn(marker, layout.text)
         for marker in (
@@ -57,6 +63,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "--splitter-size: 40px",
             ".aui-action > span",
             ".guide div",
+            ".adjustable-workspace",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]
@@ -69,7 +76,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn(".mobile-drawer-summary", phone)
         self.assertIn(".mobile-control-drawer:not([open]) > .actions", phone)
         self.assertIn(".mobile-nav-drawer:not([open]) > .nav", phone)
-        self.assertNotIn("overflow-x: auto", phone)
+        self.assertIn("overflow-x: auto", phone)
         for forbidden in ("prompt", "output", "provider", "api_key", "bearer"):
             self.assertNotIn(f'obus-aui-{forbidden}', layout.text.lower())
 

@@ -22,7 +22,7 @@
   };
 
   const OBusAuiLayout = {
-    create({densitySelect, sidebarToggle, presetSelect, resetButton, runSplitter, runWorkbench, announce} = {}) {
+    create({densitySelect, sidebarToggle, presetSelect, resetButton, runSplitter, runWorkbench, mobileDrawers = [], announce} = {}) {
       const safeStorage = createSafeStorage();
       const cleanup = [];
       let splitterBound = false;
@@ -65,6 +65,8 @@
         }
         setSplit(prefs.runSplit, {persist: false});
       };
+      const mobileMedia = root.matchMedia?.("(max-width: 720px)") || null;
+      const syncMobileDrawers = () => mobileDrawers.filter(Boolean).forEach((drawer) => { drawer.open = !mobileMedia?.matches; });
       const updateViewport = (width) => {
         root.document.body.dataset.viewportMode = width < 720 ? "phone" : width < 960 ? "narrow" : width < 1280 ? "medium" : width < 1600 ? "wide" : "ultrawide";
       };
@@ -149,6 +151,8 @@
         notify("Workspace layout reset");
       });
       bindResizablePane();
+      syncMobileDrawers();
+      listen(mobileMedia, "change", syncMobileDrawers);
       apply();
       updateViewport(root.document.documentElement.clientWidth);
       if (root.ResizeObserver) {
@@ -163,7 +167,7 @@
         cleanup.splice(0).forEach((remove) => remove());
         splitterBound = false;
       };
-      return {apply, applyPreset, bindResizablePane, destroy, setSplit, updateViewport, observer};
+      return {apply, applyPreset, bindResizablePane, destroy, setSplit, syncMobileDrawers, updateViewport, observer};
     },
   };
   root.OBusAuiLayout = OBusAuiLayout;
