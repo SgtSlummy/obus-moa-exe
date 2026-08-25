@@ -6,6 +6,7 @@ from backend.process_utils import silent_process_kwargs
 
 
 class SilentProcessTests(unittest.TestCase):
+    @unittest.skipUnless(hasattr(subprocess, "STARTUPINFO"), "Windows-only process flags")
     def test_windows_processes_use_no_window_flags(self):
         with mock.patch("backend.process_utils.os.name", "nt"):
             options = silent_process_kwargs()

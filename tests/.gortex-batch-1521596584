@@ -1093,7 +1093,7 @@ class RuntimeContractTests(unittest.TestCase):
         spawned = self.client.post("/api/runtime/agents", json={
             "name": "Persistent Hermit", "card_id": "card-hermit",
             "objective": "Analyze the service architecture", "max_steps": 2,
-            "key_id": "key-local-ollama",
+            "key_id": "key-ollama-local",
         }).json()
 
         def fake_complete(**kwargs):
