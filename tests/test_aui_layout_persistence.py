@@ -64,6 +64,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             ".aui-action > span",
             ".guide div",
             ".adjustable-workspace",
+            "word-break: break-word",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]

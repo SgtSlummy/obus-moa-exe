@@ -1537,7 +1537,7 @@ async def route_events(route_id: Optional[str] = None, limit: int = 50, since: O
     """Return bounded, secret-free route lifecycle events for polling clients."""
     if not route_id:
         raise HTTPException(status_code=400, detail="route_id is required")
-    if since and not ROUTE_EVENTS.contains_id(since):
+    if since and not ROUTE_EVENTS.contains_id(since, safe_route_id(route_id)):
         return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return ROUTE_EVENTS.snapshot(route_id=safe_route_id(route_id), limit=limit, since=since)
 
@@ -1547,7 +1547,7 @@ async def route_event_stream(route_id: Optional[str] = None, since: Optional[str
     """Stream bounded route lifecycle events over a local-only SSE connection."""
     if not route_id:
         raise HTTPException(status_code=400, detail="route_id is required")
-    if since and not ROUTE_EVENTS.contains_id(since):
+    if since and not ROUTE_EVENTS.contains_id(since, safe_route_id(route_id)):
         return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return StreamingResponse(
         ROUTE_EVENTS.stream(route_id=safe_route_id(route_id) if route_id else None, since=since),
@@ -2944,7 +2944,14 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str) -> None:
                 _runtime_event(state, "agent_failed", f"{agent['name']} failed: {type(exc).__name__}", agent_id)
                 save_state(state)
         finally:
-            PERSISTENT_AGENT_STOP_EVENTS.pop(agent_id, None)
+            if PERSISTENT_AGENT_STOP_EVENTS.get(agent_id) is stop_event:
+                PERSISTENT_AGENT_STOP_EVENTS.pop(agent_id, None)
+            if PERSISTENT_AGENT_THREADS.get(agent_id) is threading.current_thread():
+                PERSISTENT_AGENT_THREADS.pop(agent_id, None)
+            state = load_state()
+            agent = next((item for item in state.get("persistent_agents", []) if item.get("id") == agent_id), None)
+            if agent and agent.get("status") == "deleted":
+                PERSISTENT_AGENT_START_LOCKS.pop(agent_id, None)
 
 
 def _start_persistent_agent(agent_id: str, prompt: str | None = None) -> dict:
@@ -3032,6 +3039,9 @@ async def delete_persistent_agent(agent_id: str):
         raise HTTPException(status_code=409, detail="Stop the agent before deleting it")
     agent["status"] = "deleted"
     agent["updated_at"] = _runtime_now()
+    PERSISTENT_AGENT_THREADS.pop(agent_id, None)
+    PERSISTENT_AGENT_STOP_EVENTS.pop(agent_id, None)
+    PERSISTENT_AGENT_START_LOCKS.pop(agent_id, None)
     save_state(state)
     return {"success": True, "deleted": agent_id}
 
@@ -4199,6 +4209,8 @@ async def _run_route_impl(request: RouteRequest):
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
         return finalize_result(result)
     aggregate_seconds = time.perf_counter() - aggregate_started
+    if route_cancel_requested(route_id):
+        return cancelled_result("aggregate", local_answer, local_trace, f"{local_engine}+luna-aggregate")
     final_engine = f"{local_engine}+luna-aggregate"
     usage = finish_usage(final_engine)
     remembered = remember_route_exchange(request.prompt, final_answer, engine=final_engine)

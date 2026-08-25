@@ -101,6 +101,17 @@ body {
   color: var(--parchment-muted);
 }
 
+.hint {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.actions > .hint {
+  flex: 1 1 12rem;
+}
+
 .nav {
   gap: var(--space-2);
 }
@@ -280,6 +291,8 @@ textarea:focus-visible,
 }
 
 .hermes-composer textarea {
+  min-width: 0;
+  max-width: 100%;
   min-block-size: var(--control-min);
   max-block-size: min(45vh, 34rem);
   padding: var(--space-2) 0;
@@ -287,6 +300,8 @@ textarea:focus-visible,
   color: var(--parchment);
   font-family: var(--font-code);
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   scrollbar-gutter: stable;
 }
 

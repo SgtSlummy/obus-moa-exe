@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  auditScopeIncludesRect,
   buildPreparationExpression,
+  clipRectToAncestors,
   deviceMetricsFor,
   effectiveSettleMs,
   GOLDEN_RATIO,
@@ -12,7 +14,10 @@ import {
   layoutRatio,
   overlapArea,
   paneLayoutRatio,
+  parseArgs,
   ratioScore,
+  motionMediaFeatures,
+  screenshotParameters,
   validatePreparationResult,
   weightedScore,
 } from "./aui_visual_audit.mjs";
@@ -74,6 +79,46 @@ test("page preparation happens before measurement and eagerly loads visible art"
   assert.match(expression, /foreignVisibleRoots/);
   assert.match(expression, /1\.61803398875fr/);
   assert.match(expression, /checkVisibility/);
+});
+
+
+test("audit accepts deterministic content-state and motion matrices", () => {
+  const options = parseArgs(["--states", "default,long,error", "--motions", "normal,reduced", "--scopes", "viewport,document"]);
+  assert.deepEqual(options.states, ["default", "long", "error"]);
+  assert.deepEqual(options.motions, ["normal", "reduced"]);
+  assert.deepEqual(options.scopes, ["viewport", "document"]);
+  assert.deepEqual(motionMediaFeatures("reduced"), [{name: "prefers-reduced-motion", value: "reduce"}]);
+  assert.deepEqual(motionMediaFeatures("normal"), [{name: "prefers-reduced-motion", value: "no-preference"}]);
+});
+
+
+test("document scope includes below-fold geometry and bounded full-page screenshots", () => {
+  const belowFold = {x: 10, y: 1200, width: 100, height: 40};
+  assert.equal(auditScopeIncludesRect(belowFold, 1024, 900, "viewport"), false);
+  assert.equal(auditScopeIncludesRect(belowFold, 1024, 900, "document"), true);
+  const params = screenshotParameters("document", {contentSize: {width: 1200.2, height: 25000.7}}, 1024, 900);
+  assert.equal(params.captureBeyondViewport, true);
+  assert.equal(params.clip.height, 16384);
+  assert.equal(params.clip.width, 1201);
+});
+
+
+test("painted geometry is clipped by scroll-container ancestors", () => {
+  assert.deepEqual(
+    clipRectToAncestors({x: 10, y: 180, width: 100, height: 60}, [{x: 0, y: 0, width: 200, height: 200, clipX: true, clipY: true}]),
+    {x: 10, y: 180, width: 100, height: 20},
+  );
+  assert.equal(clipRectToAncestors({x: 10, y: 220, width: 100, height: 30}, [{x: 0, y: 0, width: 200, height: 200, clipX: true, clipY: true}]), null);
+});
+
+
+test("long and error stress fixtures are deterministic and reversible", () => {
+  const longExpression = buildPreparationExpression("run", "comfortable", "long");
+  const errorExpression = buildPreparationExpression("run", "comfortable", "error");
+  assert.match(longExpression, /__obusAuditOriginal/);
+  assert.match(longExpression, /OBUS_STRESS_LONG/);
+  assert.match(errorExpression, /OBUS_STRESS_ERROR/);
+  assert.doesNotMatch(longExpression, /api[_-]?key|bearer|password/i);
 });
 
 

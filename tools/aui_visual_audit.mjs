@@ -55,6 +55,46 @@ export function isRectInViewport(rect, viewportWidth, viewportHeight) {
     rect.x <= viewportWidth && rect.y <= viewportHeight;
 }
 
+export function auditScopeIncludesRect(rect, viewportWidth, viewportHeight, scope = "viewport") {
+  return scope === "document" || isRectInViewport(rect, viewportWidth, viewportHeight);
+}
+
+export function clipRectToAncestors(rect, clips = []) {
+  let left = rect.x;
+  let top = rect.y;
+  let right = rect.x + rect.width;
+  let bottom = rect.y + rect.height;
+  for (const clip of clips) {
+    if (clip.clipX) {
+      left = Math.max(left, clip.x);
+      right = Math.min(right, clip.x + clip.width);
+    }
+    if (clip.clipY) {
+      top = Math.max(top, clip.y);
+      bottom = Math.min(bottom, clip.y + clip.height);
+    }
+  }
+  if (right <= left || bottom <= top) return null;
+  return {x: left, y: top, width: right - left, height: bottom - top};
+}
+
+export function screenshotParameters(scope, metrics, viewportWidth, viewportHeight) {
+  const base = {format: "png", fromSurface: true};
+  if (scope !== "document") return base;
+  const content = metrics?.contentSize || {};
+  return {
+    ...base,
+    captureBeyondViewport: true,
+    clip: {
+      x: 0,
+      y: 0,
+      width: Math.max(viewportWidth, Math.ceil(Number(content.width) || viewportWidth)),
+      height: Math.min(16384, Math.max(viewportHeight, Math.ceil(Number(content.height) || viewportHeight))),
+      scale: 1,
+    },
+  };
+}
+
 export function layoutRatio(firstRect, secondRect) {
   if (!firstRect || !secondRect || Math.abs(firstRect.y - secondRect.y) > 2) return null;
   if (firstRect.width <= 0 || secondRect.width <= 0) return null;
@@ -87,13 +127,18 @@ export function isInvalidSeparator({orientation, minimum, now, maximum}) {
   return ![minimum, now, maximum].every(Number.isFinite) || minimum > now || now > maximum;
 }
 
-export function validatePreparationResult(result, expectedPageId, expectedDensity) {
+export function validatePreparationResult(result, expectedPageId, expectedDensity, expectedState = "default") {
   if (!result?.buttonFound) throw new Error(`Page button missing for ${expectedPageId}`);
   if (result.foreignVisibleRoots > 0) throw new Error(`Foreign visible browser overlay detected (${result.foreignVisibleRoots})`);
-  if (!result.panelVisible || result.actualPageId !== expectedPageId || result.actualDensity !== expectedDensity) {
-    throw new Error(`Audit state mismatch: expected ${expectedPageId}/${expectedDensity}, got ${result?.actualPageId}/${result?.actualDensity}`);
+  const actualStressState = result.actualStressState || "default";
+  if (!result.panelVisible || result.actualPageId !== expectedPageId || result.actualDensity !== expectedDensity || actualStressState !== expectedState) {
+    throw new Error(`Audit state mismatch: expected ${expectedPageId}/${expectedDensity}/${expectedState}, got ${result?.actualPageId}/${result?.actualDensity}/${actualStressState}`);
   }
   return result;
+}
+
+export function motionMediaFeatures(motion) {
+  return [{name: "prefers-reduced-motion", value: motion === "reduced" ? "reduce" : "no-preference"}];
 }
 
 export function ratioScore(ratio) {
@@ -121,6 +166,9 @@ export function parseArgs(argv) {
     viewports: [390, 720, 1024, 1440, 1920],
     densities: ["compact", "comfortable", "spacious"],
     pages: [...DEFAULT_PAGES],
+    states: ["default"],
+    motions: ["normal"],
+    scopes: ["viewport"],
     height: 900,
     settleMs: 500,
   };
@@ -140,6 +188,15 @@ export function parseArgs(argv) {
     } else if (key === "--pages" && next) {
       values.pages = next.split(",").map((value) => value.trim()).filter((value) => PAGE_IDS[value]);
       index += 1;
+    } else if (key === "--states" && next) {
+      values.states = next.split(",").map((value) => value.trim()).filter((value) => ["default", "long", "error"].includes(value));
+      index += 1;
+    } else if (key === "--motions" && next) {
+      values.motions = next.split(",").map((value) => value.trim()).filter((value) => ["normal", "reduced"].includes(value));
+      index += 1;
+    } else if (key === "--scopes" && next) {
+      values.scopes = next.split(",").map((value) => value.trim()).filter((value) => ["viewport", "document"].includes(value));
+      index += 1;
     } else if (key === "--height" && next) {
       values.height = Number(next);
       index += 1;
@@ -153,6 +210,9 @@ export function parseArgs(argv) {
   if (!values.viewports.length) throw new Error("At least one viewport is required");
   if (!values.densities.length) throw new Error("At least one density is required");
   if (!values.pages.length) throw new Error("At least one known page is required");
+  if (!values.states.length) throw new Error("At least one known state is required");
+  if (!values.motions.length) throw new Error("At least one known motion mode is required");
+  if (!values.scopes.length) throw new Error("At least one known audit scope is required");
   return values;
 }
 
@@ -215,7 +275,7 @@ async function findPageTarget(cdpBase) {
   return page;
 }
 
-export function buildPreparationExpression(pageName, density) {
+export function buildPreparationExpression(pageName, density, stressState = "default") {
   const pageId = PAGE_IDS[pageName] || pageName;
   return `(async () => {
     const pageButton = document.querySelector('[data-page="' + ${JSON.stringify(pageId)} + '"]');
@@ -238,11 +298,29 @@ export function buildPreparationExpression(pageName, density) {
       freeze.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}';
       document.head.append(freeze);
     }
+    const activePanel = document.querySelector('.page.active[data-page-panel]');
+    window.__obusAuditOriginal ||= new Map();
+    const stressTargets = activePanel ? [...activePanel.querySelectorAll('.hint,.result,.code-output,textarea')].slice(0, 12) : [];
+    stressTargets.forEach((element) => {
+      if (!window.__obusAuditOriginal.has(element)) window.__obusAuditOriginal.set(element, {text: element.textContent, value: element.value, className: element.className});
+      const original = window.__obusAuditOriginal.get(element);
+      element.className = original.className;
+      if (element.matches('textarea')) element.value = original.value;
+      else element.textContent = original.text;
+    });
+    const requestedStressState = ${JSON.stringify(stressState)};
+    if (requestedStressState === 'long') {
+      const longFixture = 'OBUS_STRESS_LONG — ' + 'X'.repeat(180) + ' — bounded deterministic long-content fixture for wrapping and resizing.';
+      stressTargets.forEach((element) => { if (element.matches('textarea')) element.value = longFixture; else element.textContent = longFixture; });
+    } else if (requestedStressState === 'error') {
+      const errorFixture = 'OBUS_STRESS_ERROR — deterministic offline failure state with recovery guidance and no private data.';
+      stressTargets.forEach((element) => { if (element.matches('textarea')) element.value = errorFixture; else { element.textContent = errorFixture; element.classList.add('audit-error-fixture'); } });
+    }
+    document.body.dataset.auditState = requestedStressState;
     const auditWorkbench = document.querySelector('#terminal-workbench');
     auditWorkbench?.style.setProperty('--run-primary-fr', '1.61803398875fr');
     auditWorkbench?.style.setProperty('--run-secondary-fr', '1fr');
     document.querySelector('#run-workbench-splitter')?.setAttribute('aria-valuenow', '62');
-    const activePanel = document.querySelector('.page.active[data-page-panel]');
     const foreignVisibleRoots = [...document.body.children].filter((element) => {
       if (element.matches('.shell,script,dialog,.toast,.setup,.access-overlay')) return false;
       const rect = element.getBoundingClientRect();
@@ -254,15 +332,17 @@ export function buildPreparationExpression(pageName, density) {
       panelVisible: Boolean(activePanel && getComputedStyle(activePanel).display !== 'none'),
       actualPageId: activePanel?.dataset.pagePanel || null,
       actualDensity: document.body.dataset.density || null,
+      actualStressState: document.body.dataset.auditState || 'default',
       foreignVisibleRoots,
     };
   })()`;
 }
 
-function evaluationExpression(pageId, density) {
+function evaluationExpression(pageId, density, scope = "viewport") {
   return `(() => {
     const pageId = ${JSON.stringify(pageId)};
     const density = ${JSON.stringify(density)};
+    const auditScope = ${JSON.stringify(scope)};
 
     const selectors = [
       'main', '.panel', '.panel-head', '.panel-body', '.terminal-workbench',
@@ -273,12 +353,29 @@ function evaluationExpression(pageId, density) {
       '[role="tab"]', '[role="menuitem"]', '[role="separator"]'
     ];
     const intentionalOverlays = new Set(['DIALOG', 'MENU']);
+    const paintedRectFor = (element) => {
+      const rect = element.getBoundingClientRect();
+      let left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom;
+      for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        const clipX = ['auto','scroll','hidden','clip'].includes(style.overflowX);
+        const clipY = ['auto','scroll','hidden','clip'].includes(style.overflowY);
+        if (!clipX && !clipY) continue;
+        const outer = parent.getBoundingClientRect();
+        const clipLeft = outer.left + parent.clientLeft;
+        const clipTop = outer.top + parent.clientTop;
+        if (clipX) { left = Math.max(left, clipLeft); right = Math.min(right, clipLeft + parent.clientWidth); }
+        if (clipY) { top = Math.max(top, clipTop); bottom = Math.min(bottom, clipTop + parent.clientHeight); }
+      }
+      return right > left && bottom > top ? {x: left, y: top, width: right - left, height: bottom - top} : null;
+    };
     const nodes = [...new Set(selectors.flatMap((selector) => [...document.querySelectorAll(selector)]))]
       .filter((element) => {
         const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        const inViewport = rect.right >= 0 && rect.bottom >= 0 && rect.left <= innerWidth && rect.top <= innerHeight;
-        return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0 && rect.width > 0 && rect.height > 0 && inViewport;
+        const rect = paintedRectFor(element);
+        if (!rect) return false;
+        const inViewport = rect.x + rect.width >= 0 && rect.y + rect.height >= 0 && rect.x <= innerWidth && rect.y <= innerHeight;
+        return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0 && rect.width > 0 && rect.height > 0 && (auditScope === 'document' || inViewport);
       });
     const describe = (element, index) => ({
       index,
@@ -287,7 +384,7 @@ function evaluationExpression(pageId, density) {
       classes: [...element.classList].slice(0, 5),
       role: element.getAttribute('role'),
       name: element.id || element.getAttribute('role') || element.tagName.toLowerCase(),
-      rect: (() => { const rect = element.getBoundingClientRect(); return {x: rect.x, y: rect.y, width: rect.width, height: rect.height}; })(),
+      rect: paintedRectFor(element),
     });
     const records = nodes.map(describe);
     const overlapIndexes = nodes.map((element, index) => ({element, index}))
@@ -354,6 +451,11 @@ function evaluationExpression(pageId, density) {
       })
       .map((element) => records[nodes.indexOf(element)]);
     const horizontalOverflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
+    const overflowingElements = [...document.querySelectorAll('body *')].filter((element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && (rect.right > document.documentElement.clientWidth + 1 || rect.left < -1);
+    }).slice(0, 20).map((element, index) => describe(element, index));
 
     const ratioTarget = [...document.querySelectorAll('.terminal-workbench, .room-workspace, .adjustable-workspace')].find((element) => {
       const rect = element.getBoundingClientRect();
@@ -373,6 +475,7 @@ function evaluationExpression(pageId, density) {
     return {
       pageId,
       density,
+      scope: auditScope,
       document: {clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth},
       layoutState: {
         phoneMedia: matchMedia('(max-width: 720px)').matches,
@@ -384,6 +487,7 @@ function evaluationExpression(pageId, density) {
       counts: {auditedNodes: nodes.length, overlaps: overlaps.length, clipped: clipped.length, brokenImages: brokenImages.length, distortedImages: distortedImages.length, undersizedTargets: undersizedTargets.length, invalidSeparators: invalidSeparators.length},
       advisories: {targetsBelow40: targetSizeAdvisories.length},
       horizontalOverflow,
+      overflowingElements,
       primaryRatio,
       overlaps,
       clipped,
@@ -418,18 +522,22 @@ export async function runAudit(options) {
       await client.send("Emulation.setDeviceMetricsOverride", deviceMetricsFor(width, options.height));
       await delay(options.settleMs);
       for (const density of options.densities) {
+        for (const stressState of options.states) {
+          for (const motion of options.motions) {
+            await client.send("Emulation.setEmulatedMedia", {features: motionMediaFeatures(motion)});
+          for (const scope of options.scopes) {
         for (const pageName of options.pages) {
           const pageId = PAGE_IDS[pageName];
           const prepared = await client.send("Runtime.evaluate", {
-            expression: buildPreparationExpression(pageName, density),
+            expression: buildPreparationExpression(pageName, density, stressState),
             returnByValue: true,
             awaitPromise: true,
           });
           if (prepared.exceptionDetails) throw new Error(`Audit preparation failed for ${pageName}`);
-          validatePreparationResult(prepared.result?.value, pageId, density);
+          validatePreparationResult(prepared.result?.value, pageId, density, stressState);
           await delay(effectiveSettleMs(options.settleMs));
           const evaluated = await client.send("Runtime.evaluate", {
-            expression: evaluationExpression(pageId, density),
+            expression: evaluationExpression(pageId, density, scope),
             returnByValue: true,
             awaitPromise: true,
           });
@@ -437,13 +545,20 @@ export async function runAudit(options) {
           const report = evaluated.result?.value;
           if (!report) throw new Error(`No audit result for ${pageName}`);
           report.page = pageName;
+          report.state = stressState;
+          report.motion = motion;
+          report.scope = scope;
           report.viewport = {width, height: options.height};
           report.goldenRatioScore = report.primaryRatio ? ratioScore(report.primaryRatio) : null;
           reports.push(report);
 
-          const screenshot = await client.send("Page.captureScreenshot", {format: "png", fromSurface: true});
-          const fileName = `${width}-${slug(density)}-${slug(pageName)}.png`;
+          const metrics = scope === "document" ? await client.send("Page.getLayoutMetrics") : null;
+          const screenshot = await client.send("Page.captureScreenshot", screenshotParameters(scope, metrics, width, options.height));
+          const fileName = `${width}-${slug(density)}-${slug(stressState)}-${slug(motion)}-${slug(scope)}-${slug(pageName)}.png`;
           await writeFile(path.join(options.out, fileName), Buffer.from(screenshot.data, "base64"));
+        }
+          }
+          }
         }
       }
     }
@@ -456,7 +571,7 @@ export async function runAudit(options) {
     report.counts.undersizedTargets + report.counts.invalidSeparators + (report.horizontalOverflow ? 1 : 0), 0);
   const stable = {
     schema: "obus-aui-visual-audit-v1",
-    matrix: {pages: options.pages, viewports: options.viewports, densities: options.densities, height: options.height},
+    matrix: {pages: options.pages, viewports: options.viewports, densities: options.densities, states: options.states, motions: options.motions, scopes: options.scopes, height: options.height},
     hardGateFailures,
     reports,
   };
@@ -475,6 +590,9 @@ function helpText() {
     "  --viewports 390,720,1024,1440,1920",
     "  --densities compact,comfortable,spacious",
     `  --pages ${DEFAULT_PAGES.join(",")}`,
+    "  --states default,long,error",
+    "  --motions normal,reduced",
+    "  --scopes viewport,document",
     "  --height 900",
     "  --settle-ms 500",
   ].join("\n");
