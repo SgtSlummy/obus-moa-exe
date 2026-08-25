@@ -813,6 +813,7 @@ class MachineSetupUpdate(BaseModel):
 
 
 class VoiceTranscriptionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     audio_base64: str = Field(..., min_length=1, max_length=20_000_000)
     mime_type: str = Field(default="audio/webm", max_length=100)
 
@@ -1066,22 +1067,31 @@ def merge_memory_chunks(local: list, remote: list) -> list:
     """Merge shared memory deterministically; remote versions replace matching IDs."""
     ordered = []
     positions = {}
+    total_bytes = 0
+    max_bytes = 2_000_000
     for item in (local[:500] if isinstance(local, list) else []) + (remote[:500] if isinstance(remote, list) else []):
         if not isinstance(item, dict):
             continue
         text = item.get("text")
         if not isinstance(text, str) or not text.strip():
             continue
-        identity = str(item.get("id") or hashlib.sha256(json.dumps(item, sort_keys=True).encode()).hexdigest())
+        identity = str(item.get("id") or hashlib.sha256(json.dumps(item, sort_keys=True, default=str)[:100000].encode()).hexdigest())[:240]
+        tags = item.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
         value = {
             "id": identity,
             "text": redact_text(text, 12000, parse_json=False),
-            "tags": [redact_text(str(tag), 120, parse_json=False) for tag in item.get("tags", [])[:32] if isinstance(tag, str)],
+            "tags": [redact_text(str(tag), 120, parse_json=False) for tag in tags[:32] if isinstance(tag, str)],
         }
         for field in ("source", "created_at", "updated_at"):
             if field in item and isinstance(item[field], (str, int, float, bool)):
                 value[field] = redact_text(str(item[field]), 500, parse_json=False) if isinstance(item[field], str) else item[field]
         value.setdefault("id", identity)
+        value_bytes = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+        if total_bytes + value_bytes > max_bytes:
+            break
+        total_bytes += value_bytes
         if identity in positions:
             ordered[positions[identity]] = value
         else:
@@ -1155,7 +1165,7 @@ def github_memory_get(config: dict, token: str) -> tuple[list, Optional[str]]:
     if len(content) > MAX_PROVIDER_RESPONSE_BYTES:
         raise RuntimeError("GitHub memory document exceeds the bounded size limit")
     document = json.loads(content)
-    chunks = document.get("chunks", document if isinstance(document, list) else [])
+    chunks = document.get("chunks", []) if isinstance(document, dict) else document if isinstance(document, list) else []
     return merge_memory_chunks([], chunks if isinstance(chunks, list) else []), response.get("sha")
 
 
@@ -1163,9 +1173,12 @@ def github_memory_put(config: dict, token: str, chunks: list, sha: Optional[str]
     path = str(config.get("memory_path", "obus/memory.json")).lstrip("/")
     url = f"https://api.github.com/repos/{config['owner']}/{config['repo']}/contents/{path}"
     document = {"version": 1, "updated_at": int(time.time()), "chunks": chunks}
+    document_bytes = json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")
+    if len(document_bytes) > 2_000_000:
+        raise RuntimeError("GitHub memory upload exceeds the bounded size limit")
     payload = {
         "message": "Sync OBus shared memory",
-        "content": base64.b64encode(json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")).decode("ascii"),
+        "content": base64.b64encode(document_bytes).decode("ascii"),
         "branch": config.get("branch", "main"),
     }
     if sha:
@@ -1333,6 +1346,8 @@ def run_codex_login(job_id: str) -> None:
     if not command:
         CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex CLI is not installed")
         return
+    process = None
+    watchdog = None
     try:
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **silent_process_kwargs())
         CODEX_LOGIN_JOBS[job_id].update(pid=process.pid, status="running")
@@ -1364,6 +1379,14 @@ def run_codex_login(job_id: str) -> None:
         CODEX_LOGIN_JOBS[job_id]["status"] = "complete" if code == 0 else "error"
         CODEX_LOGIN_JOBS[job_id]["return_code"] = code
     except Exception as exc:
+        if watchdog:
+            watchdog.cancel()
+        if process and process.poll() is None:
+            try:
+                process.kill()
+                process.wait(timeout=5)
+            except (OSError, subprocess.SubprocessError):
+                pass
         CODEX_LOGIN_JOBS[job_id].update(status="error", output=str(exc))
 
 

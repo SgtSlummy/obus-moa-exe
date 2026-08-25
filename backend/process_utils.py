@@ -41,12 +41,23 @@ def run_bounded_subprocess(
     stdout = bytearray()
     stderr = bytearray()
     overflow = threading.Event()
+    budget = [limit]
+    budget_lock = threading.Lock()
 
     def drain(stream, target: bytearray) -> None:
         while True:
             chunk = stream.read(65536)
             if not chunk:
                 return
+            with budget_lock:
+                if len(chunk) > budget[0]:
+                    overflow.set()
+                    try:
+                        process.kill()
+                    except OSError:
+                        pass
+                    return
+                budget[0] -= len(chunk)
             if len(target) + len(chunk) > limit:
                 overflow.set()
                 try:

@@ -1,8 +1,8 @@
-# Status Report - 2026-08-25 00:15 UTC (cron cycle)
+# Status Report - 2026-08-25 02:10 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Last Run:** 2026-08-24 23:00 UTC (previous cycle)
+**Last Run:** 2026-08-25 00:38 UTC (previous cycle)
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `6194424` | master | ✅ Pushed — `feat: bounded route output redaction, valid_custom_deck validator, select_deck hardening` (2 files, +46/-16) |
+| obus-moa-exe (SgtSlummy) | `b4c71ca` | master | ✅ Pushed — `fix: tighten AUI event slicing, share secret-safety redaction in receipts, validate selected_deck` (5 files, +101/-32) |
 
 **Total: 1 commit pushed to master this cycle.**
 
@@ -38,24 +38,24 @@
 | Submodule | Status |
 |-----------|--------|
 | Understand-Anything | `-99e62b7` — 2 commits ahead of origin/main, push blocked (403, no Egonex-AI permission) |
-| warp | `-64c6cac` — up to date with origin/main; upstream nvidia/warp main ahead by ~125 commits; push blocked (403, expected) |
-| third_party/warpdotdev-warp | `e054075` — 2 commits ahead of previous `378b74f`; no SgtSlummy fork configured; push not attempted |
+| warp | `-64c6cac` — up to date with origin/main; upstream nvidia/warp main ahead; push blocked (403, expected); untracked status files present |
+| third_party/warpdotdev-warp | `e054075` — detached at heads/master-16-ge054075; no SgtSlummy fork configured; push not attempted |
 
 ---
 
 ## Working Directory
 
-`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean (tracked files committed; only untracked build artifacts and status files remain).
+`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean after commit this cycle (tracked files committed; only untracked build artifacts and status files remain).
 
-**Local diffs committed this cycle:** backend/main.py (+46/-16), backend/secret_safety.py (+2/-2).
+**Local diffs committed this cycle:** 5 backend files (+101/-32).
 
-**Untracked artifacts:** build-aui-loop11–56, build-remediation*, build-warp-review, dist*, scripts/, data/, tmp/.
+**Untracked artifacts:** build-aui-loop*, build-remediation*, build-warp-review, dist*, scripts/, data/, tmp/, status/push/task report files.
 
 ---
 
 ## Network
 
-- github.com: reachable (HTTPS 200)
+- github.com: reachable (HTTPS)
 - Push to SgtSlummy/* remotes: successful this cycle (1 commit)
 - Push blocked: Understand-Anything (403), warp (403), warpdotdev-warp (no SgtSlummy fork) — upstream/fork configuration, not network
 
@@ -63,18 +63,18 @@
 
 ## Active Jobs / Processes
 
-- **Background processes:** none detected (pgrep obus and python returned empty — OBus executable from previous cycle not running)
-- **Process manager:** empty — no active timed jobs
-- **No pending build/deploy tasks**
+- **Background processes:** multiple python.exe, OBus.exe (9+ instances), node.exe, gortex.exe, llama-server.exe, codex.exe, headroom.exe, pinchtab instances active — Hermes + bridge + AUI + LLM serving running
+- **cua-driver.exe:** running (desktop automation available)
+- **Docker Desktop + WSL2:** active
 
 ---
 
 ## OBus Tarot Router Status
 
-(get_status not called this cycle — next run will report)
+(submodule / provider status not polled this cycle)
 
 ---
 
 ## Summary
 
-1 commit pushed to obus-moa-exe master this cycle (route output redaction hardening). No active processes. Understand-Anything and warp submodule push blocks unchanged (expected). Warpdotdev-warp submodule has new upstream commits since last cycle but no SgtSlummy fork to push to.
+1 commit pushed to obus-moa-exe master this cycle (AUI event slicing, secret-safety redaction sharing, selected_deck validation, and bounded output hardening across 5 backend files). Submodule push blocks unchanged (expected). Active runtime processes present — Hermes, OBus, AUI, and LLM serving all running.

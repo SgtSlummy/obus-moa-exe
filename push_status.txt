@@ -1,19 +1,20 @@
-# Push Status Report - 2026-08-25 00:38 UTC (cron cycle)
+# Push Status Report - 2026-08-25 02:10 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Committed: 1a1b4d8 fix: tighten AUI event slicing, share secret-safety redaction in receipts, validate selected_deck
-  ✅ Pushed: 168f1ec -> origin/master (1a1b4d8)
-  Previous push this cycle: 168f1ec (chore: refresh status report and AUI wiring)
-  All changes include:
-    M backend/main.py — AUI event slicing, selected_deck validation, route result public wiring in receipts
-    M backend/aui_events.py — bounded snapshot slicing
-    M backend/run_receipts.py — shared secret-safety redaction via is_secret_key/shared_redact_text
-  Working tree: clean (untracked: warp/)
+  ✅ Committed: b4c71ca fix: tighten AUI event slicing, share secret-safety redaction in receipts, validate selected_deck
+  ✅ Pushed: b4c71ca -> origin/master
+  Changes: 5 backend files, +101/-32
+    M backend/local_studios.py — safer URL candidate reconstruction
+    M backend/main.py — AUI event slicing, selected_deck validation, route result public wiring, merge_memory_chunk bounds, Codex login output bounding, unlock_access typed payload
+    M backend/persistent_agents.py — bounded Codex output read
+    M backend/process_utils.py — timeout cleanup in run_bounded_subprocess
+    M backend/secret_safety.py — expanded secret-key patterns, bounded redact recursion
+  Working tree: clean
 
 Submodules:
   🔶 Understand-Anything: 2 commits ahead (d07c457, 99e62b7) — push blocked 403 (no Egonex-AI permission, expected)
   🔶 third_party/warpdotdev-warp: detached at e054075, upstream warpdotdev — no push needed
-  🔶 warp: behind upstream nvidia/warp main — push blocked 403 (expected)
+  🔶 warp: behind upstream nvidia/warp main — push blocked 403 (expected); untracked status files present
 
 Network:
   ✅ github.com reachable
@@ -21,13 +22,11 @@ Network:
   ❌ Push blocked: Understand-Anything (403), warp (403) — permission, not network
 
 Active processes:
-  - 42x python.exe (background Hermes + bridge processes)
-  - 9x OBus.exe (various instances)
-  - 9x node.exe (AUI/web processes)
-  - 1x node_repl.exe
-  - No managed background job processes
+  - Multiple python.exe, OBus.exe, node.exe, gortex.exe, llama-server.exe, codex.exe, headroom.exe, pinchtab instances (background Hermes + bridge + AUI + LLM serving)
+  - cua-driver.exe running (desktop automation)
+  - Docker Desktop + WSL2 nodes active
 
 Timing:
   - Job ID: 893c7df0ef71
-  - Run: 2026-08-25 00:38:37 PDT
+  - Run: 2026-08-25 02:10:04 PDT
   - Schedule: every 10m
