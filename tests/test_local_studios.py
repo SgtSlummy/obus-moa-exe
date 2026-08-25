@@ -93,7 +93,7 @@ class LocalStudioIntegrationTests(unittest.TestCase):
         executable = root / "dist-review" / "OBus.exe"
         executable.parent.mkdir()
         with patch.object(warp_companion.sys, "frozen", True, create=True), patch.object(warp_companion.sys, "executable", str(executable)):
-            self.assertEqual(warp_companion.warp_root(), source)
+            self.assertEqual(warp_companion.warp_root(), source.resolve())
 
     def test_warp_companion_refuses_an_arbitrary_binary_override(self):
         root = Path(self.tempdir.name) / "warp"

@@ -157,7 +157,7 @@ def understand_anything_status(workspace_root: str | None) -> dict[str, Any]:
         "graph_available": bool(graph_path),
         "nodes": len(nodes) if isinstance(nodes, list) else 0,
         "edges": len(edges) if isinstance(edges, list) else 0,
-        "graph_path": str(graph_path.relative_to(Path(workspace_root))) if graph_path and workspace_root else None,
+        "graph_path": str(graph_path.relative_to(Path(workspace_root).expanduser().resolve())) if graph_path and workspace_root else None,
         "workspace_configured": bool(workspace_root),
         "reason": reason,
         "next_step": next_step,

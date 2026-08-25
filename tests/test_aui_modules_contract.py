@@ -73,7 +73,7 @@ class AUIModuleContractTests(unittest.TestCase):
             self.assertIn(marker, heritage.text)
         self.assertNotIn('@import url(', heritage.text)
         self.assertNotIn('https://fonts.', heritage.text)
-        phone = heritage.text.split('@media (max-width: 720px)', 1)[1].split('@media', 1)[0]
+        phone = heritage.text.replace('\r\n', '\n').split('@media (max-width: 720px)', 1)[1].split('@media', 1)[0]
         self.assertIn('display: block', phone)
         self.assertIn('grid-template-columns: minmax(0, 1fr)', phone)
         self.assertIn('overflow-x: visible', phone)
