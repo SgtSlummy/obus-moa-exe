@@ -1,8 +1,8 @@
 Task: Continue OBus push. Status:
-- Main repo (obus-moa-exe): on 0f1423e (feat: build private Thor Loki paired distribution), up to date with origin/master. No new commits to push this cycle.
-- Warp submodule: 2 local commits (fee1347, e98ac07) carrying cron status reports. Push to SgtSlummy/warp failed (fork does not exist). Superproject shows M warp (working tree pointer diverges from HEAD).
+- Main repo (obus-moa-exe): pushed `4a2b782` (chore: update push status and status report for this cycle) to origin/master. Up to date.
+- Warp submodule: 2 local commits (fee1347, e98ac07) carrying cron status reports. Push to SgtSlummy/warp failed (fork does not exist). Superproject pointer in 4a2b782 matches working tree (fee1347) — clean now.
 - Understand-Anything: 2 commits ahead, push blocked 403 (expected).
 - Tarot-Router (occultbus): clean, up to date.
 - Local diff: tracked files clean. Untracked: warp/ (excluded by .gitignore).
-- Network: github.com reachable (HTTP 200).
+- Network: github.com reachable (HTTP 200). Main repo push succeeded. Submodule push blocks are fork-existence/permission, not network.
 - Active processes: OBus.exe (PID 29263), python (PID 7939). No background jobs.

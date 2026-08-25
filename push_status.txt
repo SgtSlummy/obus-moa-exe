@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 11:15 PDT (cron cycle)
+# Push Status Report - 2026-08-25 19:55 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 11:15 PDT
+**Run Time:** 2026-08-25 19:55 PDT
 
 ---
 
@@ -10,25 +10,31 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `0f1423e` | master | ✅ **Pushed** — `feat: build private Thor Loki paired distribution` (already on origin/master) |
-| warp submodule (SgtSlummy) | `fee1347` | main | ⚠️ **Committed locally, not pushed** — `chore: update warp submodule cron status reports` (SgtSlummy/warp fork does not exist) |
+| obus-moa-exe (SgtSlummy) | `4a2b782` | master | ✅ **Pushed** — `chore: update push status and status report for this cycle` |
+| warp submodule (SgtSlummy) | `fee1347` | main | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found) |
 | third_party/warpdotdev-warp | `21f413b` | detached | ✅ Clean — tracks upstream warpdotdev/warp; no push needed |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
 | ComfyUI | — | master | ℹ️ 1 commit behind upstream comfyanonymous/ComfyUI — not our repo |
 
-**Main repo:** On `0f1423e` (Thor/Loki paired build), up to date with origin/master. No new commits this cycle — prior cycle's push (`0f1423e`) is the current HEAD.
+**Main repo:** Pushed `4a2b782` to origin/master. Prior cycle's push (`9470a23`) is now 1 commit behind.
 
 ---
 
 ## Recent Commit Chain (obus-moa-exe, all pushed)
 
 ```
-0f1423e (HEAD, origin/master) feat: build private Thor Loki paired distribution
+4a2b782 (HEAD, origin/master) chore: update push status and status report for this cycle
+9470a23                        chore: preserve existing warp submodule pointer
+fd54ca3                        fix: start paired Loki build in portal serve mode
+0f1423e                        feat: build private Thor Loki paired distribution
 e3841a9                        chore: update warp submodule pointer to latest status reports
 dd88b1b                        chore: update push status and status report for this cycle
 c814752                        test: include Thor portal deployment scripts
 89881e9                        feat: expose secure local LLM portal for Thor
+3ec96eb                        fix: initialize windowed launcher logging streams
+61b0ec6                        test: release Windows state handles before cleanup
+d505e5e                        fix: keep startup registry typing cross-platform
 ```
 
 All commits pushed to origin/master.
@@ -40,12 +46,13 @@ All commits pushed to origin/master.
 | Item | Detail |
 |------|--------|
 | Current HEAD | `fee1347` — `chore: update warp submodule cron status reports` |
-| Prior commit | `e98ac07` — same purpose (from prior cycle, rebased away during rebase) |
+| Prior commit | `e98ac07` — same purpose (from prior cycle) |
 | Upstream (nvidia/warp main) | `64c6cacd6` — behind by 2 commits |
 | SgtSlummy/warp fork | **Does not exist** — push failed with "Repository not found" |
-| Superproject pointer | `0f1423e` records `e98ac07`; working tree has `fee1347` (unstaged) |
+| Superproject pointer (in `9470a23`) | `e98ac07` — but working tree has `fee1347` (unstaged, now staged in `4a2b782`) |
+| Superproject pointer (in `4a2b782`) | `fee1347` — updated to match working tree |
 
-The superproject `warp` is shown as modified because the working tree pointer (`fee1347`) differs from what's recorded in HEAD (`e98ac07`). This is the same chronic blocker as prior cycles.
+The superproject `warp` is now clean in `4a2b782` because the working tree pointer (`fee1347`) matches what's recorded in HEAD. However, `fee1347` still cannot be pushed to SgtSlummy/warp because the fork doesn't exist.
 
 ---
 
@@ -53,9 +60,9 @@ The superproject `warp` is shown as modified because the working tree pointer (`
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: clean (on `0f1423e`)
+- Tracked files: clean (on `4a2b782`)
 - Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 2 committed-but-unpushable changes (`fee1347`, `e98ac07`)
-- Untracked scripts (from stash, now checked out): `scripts/build_thor_loki_pair.py`, `tests/test_thor_loki_pair_build.py` — these are committed in `0f1423e`
+- `.gitmodules` tracks `warp` at `https://github.com/SgtSlummy/warp.git` (fetch+push)
 
 ---
 
@@ -69,12 +76,12 @@ The superproject `warp` is shown as modified because the working tree pointer (`
 
 ## Summary
 
-1. **Main repo up to date** — `0f1423e` on origin/master. No new commits to push this cycle. Prior cycle's Thor/Loki paired build is the current HEAD.
+1. **Main repo pushed** — `4a2b782` (chore: update push status) is now on origin/master. Prior cycle's `9470a23` is 1 commit behind.
 
-2. **Warp submodule has 2 local commits** (`fee1347`, `e98ac07`) carrying cron status reports, but neither can be pushed — SgtSlummy/warp fork does not exist. The superproject shows `warp` as modified because the working tree pointer (`fee1347`) diverges from HEAD's recorded pointer (`e98ac07`).
+2. **Warp submodule:** 2 local commits (`fee1347`, `e98ac07`) carrying cron status reports. The superproject pointer in `4a2b782` matches the working tree (`fee1347`), so `warp` shows clean in the superproject. But `fee1347` cannot be pushed to SgtSlummy/warp — the fork does not exist.
 
 3. **Understand-Anything:** 2 commits ahead, push blocked 403 (expected).
 
 4. **Tarot-Router (occultbus):** clean, up to date.
 
-5. **Network:** github.com reachable. Main repo push not needed (up to date). Submodule push blocks are fork-existence/permission, not network.
+5. **Network:** github.com reachable (HTTPS 200). Main repo push succeeded. Submodule push blocks are fork-existence/permission, not network.
