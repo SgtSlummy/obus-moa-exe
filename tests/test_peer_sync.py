@@ -90,3 +90,25 @@ def test_tailscale_address_boundary() -> None:
     assert is_tailscale_address("fd7a:115c:a1e0::1")
     assert not is_tailscale_address("192.168.1.10")
     assert not is_tailscale_address("8.8.8.8")
+
+
+def test_identity_private_key_is_protected_and_can_sign(tmp_path: Path) -> None:
+    store = PeerSyncStore(tmp_path / "peers.sqlite3")
+    identity = store._identity()
+    assert identity["private_key"].startswith(("dpapi:", "portable:"))
+    envelope = store.signed_envelope({"health": "ready"})
+    assert envelope["peer_id"] == identity["device_id"]
+    assert envelope["signature"]
+
+
+def test_legacy_plaintext_identity_is_migrated(tmp_path: Path) -> None:
+    store = PeerSyncStore(tmp_path / "peers.sqlite3")
+    identity = store._identity()
+    from backend.peer_sync import unprotect_private_key
+    legacy = encode_key(unprotect_private_key(identity["private_key"]))
+    with store._connection() as connection:
+        connection.execute("UPDATE harness_identity SET private_key=? WHERE id=1", (legacy,))
+    migrated = store._identity()
+    assert migrated["private_key"].startswith(("dpapi:", "portable:"))
+    assert migrated["private_key"] != legacy
+    assert store.sign({"migration": "verified"})

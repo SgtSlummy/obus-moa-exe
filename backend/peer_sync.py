@@ -40,6 +40,57 @@ def is_tailscale_address(address: str) -> bool:
     return ip in ipaddress.ip_network("100.64.0.0/10") or ip in ipaddress.ip_network("fd7a:115c:a1e0::/48")
 
 
+def protect_private_key(value: bytes) -> str:
+    """Protect identity material with Windows DPAPI; portable encoding supports non-Windows CI."""
+    if os.name != "nt":
+        return f"portable:{encode_key(value)}"
+    import ctypes
+    from ctypes import wintypes
+
+    class DataBlob(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
+
+    buffer = ctypes.create_string_buffer(value)
+    input_blob = DataBlob(len(value), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_byte)))
+    output_blob = DataBlob()
+    if not ctypes.windll.crypt32.CryptProtectData(
+        ctypes.byref(input_blob), "Obus peer identity", None, None, None, 0x1, ctypes.byref(output_blob)
+    ):
+        raise OSError(ctypes.get_last_error(), "CryptProtectData failed")
+    try:
+        protected = ctypes.string_at(output_blob.pbData, output_blob.cbData)
+    finally:
+        ctypes.windll.kernel32.LocalFree(output_blob.pbData)
+    return f"dpapi:{encode_key(protected)}"
+
+
+def unprotect_private_key(value: str) -> bytes:
+    if value.startswith("portable:"):
+        return decode_key(value.removeprefix("portable:"))
+    if not value.startswith("dpapi:"):
+        return decode_key(value)
+    if os.name != "nt":
+        raise OSError("DPAPI identity can only be opened by its Windows account")
+    import ctypes
+    from ctypes import wintypes
+
+    class DataBlob(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
+
+    protected = decode_key(value.removeprefix("dpapi:"))
+    buffer = ctypes.create_string_buffer(protected)
+    input_blob = DataBlob(len(protected), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_byte)))
+    output_blob = DataBlob()
+    if not ctypes.windll.crypt32.CryptUnprotectData(
+        ctypes.byref(input_blob), None, None, None, None, 0x1, ctypes.byref(output_blob)
+    ):
+        raise OSError(ctypes.get_last_error(), "CryptUnprotectData failed")
+    try:
+        return ctypes.string_at(output_blob.pbData, output_blob.cbData)
+    finally:
+        ctypes.windll.kernel32.LocalFree(output_blob.pbData)
+
+
 class PeerSyncStore:
     def __init__(self, database: Path):
         self.database = database
@@ -83,12 +134,17 @@ class PeerSyncStore:
         with self._connection() as connection:
             row = connection.execute("SELECT device_id,private_key,public_key FROM harness_identity WHERE id=1").fetchone()
             if row:
-                return dict(row)
+                identity = dict(row)
+                if not identity["private_key"].startswith(("dpapi:", "portable:")):
+                    identity["private_key"] = protect_private_key(decode_key(identity["private_key"]))
+                    connection.execute("UPDATE harness_identity SET private_key=? WHERE id=1",
+                                       (identity["private_key"],))
+                return identity
             private = Ed25519PrivateKey.generate()
             private_raw = private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
                                                 serialization.NoEncryption())
             public_raw = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-            identity = {"device_id": uuid.uuid4().hex, "private_key": encode_key(private_raw),
+            identity = {"device_id": uuid.uuid4().hex, "private_key": protect_private_key(private_raw),
                         "public_key": encode_key(public_raw)}
             connection.execute("INSERT INTO harness_identity(id,device_id,private_key,public_key) VALUES(1,?,?,?)",
                                (identity["device_id"], identity["private_key"], identity["public_key"]))
@@ -99,7 +155,7 @@ class PeerSyncStore:
         return {"device_id": identity["device_id"], "public_key": identity["public_key"]}
 
     def sign(self, payload: Any) -> str:
-        private = Ed25519PrivateKey.from_private_bytes(decode_key(self._identity()["private_key"]))
+        private = Ed25519PrivateKey.from_private_bytes(unprotect_private_key(self._identity()["private_key"]))
         return encode_key(private.sign(canonical_json(payload)))
 
     def pair(self, name: str, public_key: str, supplied_key: str) -> dict[str, Any]:
