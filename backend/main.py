@@ -74,12 +74,14 @@ from .autonomy_api import router as autonomy_router
 from .peer_api import router as peer_router
 from .recovery_api import router as recovery_router
 from .voice_api import router as voice_router
+from .github_webhook_api import router as github_webhook_router
 
 app.include_router(harness_router)
 app.include_router(autonomy_router)
 app.include_router(peer_router)
 app.include_router(recovery_router)
 app.include_router(voice_router)
+app.include_router(github_webhook_router)
 
 
 @app.middleware("http")
