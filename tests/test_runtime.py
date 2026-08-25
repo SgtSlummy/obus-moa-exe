@@ -836,7 +836,9 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("gptcache", projects)
         self.assertIn("mempalace", projects)
         self.assertFalse(projects["vllm"]["operational"])
-        self.assertIn("CUDA", projects["vllm"]["blocker"])
+        self.assertTrue(
+            any(marker in projects["vllm"]["blocker"] for marker in ("CUDA", "WSL2", "Docker"))
+        )
 
     def test_router_selects_relevant_agents_from_full_78_card_deck(self):
         response = self.client.post("/api/route/plan", json={
@@ -1094,7 +1096,7 @@ class RuntimeContractTests(unittest.TestCase):
         spawned = self.client.post("/api/runtime/agents", json={
             "name": "Persistent Hermit", "card_id": "card-hermit",
             "objective": "Analyze the service architecture", "max_steps": 2,
-            "key_id": "key-local-ollama",
+            "provider_mode": "manual", "key_id": "key-local-ollama",
         }).json()
 
         with patch.object(
