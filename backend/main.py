@@ -266,7 +266,7 @@ def select_deck_for_prompt(prompt: str, decks: Optional[list[dict]] = None) -> d
 from backend.card_catalog import DEFAULT_CARDS
 from backend.forge_catalog import FORGE_NAME, PROJECTS, PROJECT_BY_ID
 from backend.memory_hub import default_memory_hub
-from backend.process_utils import MAX_SUBPROCESS_OUTPUT_BYTES, run_bounded_subprocess, silent_process_kwargs
+from backend.process_utils import MAX_SUBPROCESS_OUTPUT_BYTES, run_bounded_subprocess, silent_process_kwargs, terminate_process_tree
 from backend.solomon_seals import BUILTIN_KEY_IDS, SOLOMON_SEALS
 from backend.room_models import AutoDeliberationRequest, ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate, sanitize_public_text
 from backend.room_council import build_card_prompt, build_chymeria_prompt, build_room_council_plan, is_council_worthy
@@ -1353,7 +1353,7 @@ def run_codex_login(job_id: str) -> None:
         CODEX_LOGIN_JOBS[job_id].update(pid=process.pid, status="running")
         output_bytes = bytearray()
         timed_out = threading.Event()
-        watchdog = threading.Timer(CODEX_LOGIN_TIMEOUT_SECONDS, lambda: (timed_out.set(), process.kill()))
+        watchdog = threading.Timer(CODEX_LOGIN_TIMEOUT_SECONDS, lambda: (timed_out.set(), terminate_process_tree(process)))
         watchdog.daemon = True
         watchdog.start()
         assert process.stdout is not None
@@ -1362,7 +1362,7 @@ def run_codex_login(job_id: str) -> None:
             if not chunk:
                 break
             if len(output_bytes) + len(chunk) > MAX_SUBPROCESS_OUTPUT_BYTES:
-                process.kill()
+                terminate_process_tree(process)
                 process.wait()
                 watchdog.cancel()
                 CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex device login output exceeded the bounded limit")
@@ -1383,7 +1383,7 @@ def run_codex_login(job_id: str) -> None:
             watchdog.cancel()
         if process and process.poll() is None:
             try:
-                process.kill()
+                terminate_process_tree(process)
                 process.wait(timeout=5)
             except (OSError, subprocess.SubprocessError):
                 pass

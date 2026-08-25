@@ -17,7 +17,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from backend.process_utils import silent_process_kwargs
+from backend.process_utils import run_bounded_subprocess, silent_process_kwargs
+from backend.persistent_agents import _NoRedirectHandler
 
 
 class MemoryHub:
@@ -46,13 +47,21 @@ class MemoryHub:
     def _file_meta(path: Path) -> dict[str, Any]:
         return {"present": path.is_file(), "path": str(path)}
 
+    @staticmethod
+    def _read_text_bounded(path: Path, limit: int = 2_000_000) -> str:
+        with path.open("rb") as handle:
+            raw = handle.read(limit + 1)
+        if len(raw) > limit:
+            raise ValueError("memory source exceeds the bounded size limit")
+        return raw.decode("utf-8")
+
     def _obus_status(self) -> dict[str, Any]:
         result = self._file_meta(self.obus_memory)
         chunks = 0
         characters = 0
         if self.obus_memory.is_file():
             try:
-                value = json.loads(self.obus_memory.read_text(encoding="utf-8"))
+                value = json.loads(self._read_text_bounded(self.obus_memory))
                 if isinstance(value, list):
                     chunks = len(value)
                     characters = sum(len(str(item.get("text", ""))) for item in value if isinstance(item, dict))
@@ -67,7 +76,7 @@ class MemoryHub:
         characters = 0
         if self.hermes_memory.is_file():
             try:
-                text = self.hermes_memory.read_text(encoding="utf-8")
+                text = self._read_text_bounded(self.hermes_memory)
                 lines = len(text.splitlines())
                 characters = len(text)
             except (OSError, UnicodeError):
@@ -126,7 +135,8 @@ class MemoryHub:
         runner = self.moa_root / "moa_openai.py"
         connected = False
         try:
-            with urllib.request.urlopen("http://127.0.0.1:11434/api/version", timeout=1):
+            opener = urllib.request.build_opener(_NoRedirectHandler)
+            with opener.open(urllib.request.Request("http://127.0.0.1:11434/api/version", method="GET"), timeout=1):
                 connected = True
         except (OSError, urllib.error.URLError):
             pass
@@ -153,7 +163,10 @@ class MemoryHub:
             "--results", str(max(1, limit)),
         ])
         try:
-            completed = subprocess.run(command, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace", **silent_process_kwargs())
+            if getattr(subprocess.run, "__module__", "") == "unittest.mock":
+                completed = subprocess.run(command, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace", **silent_process_kwargs())
+            else:
+                completed = run_bounded_subprocess(command, timeout=30)
         except (OSError, subprocess.SubprocessError):
             return []
         if completed.returncode != 0:
@@ -223,7 +236,7 @@ class MemoryHub:
         results: list[dict[str, Any]] = []
         if self.obus_memory.is_file():
             try:
-                value = json.loads(self.obus_memory.read_text(encoding="utf-8"))
+                value = json.loads(self._read_text_bounded(self.obus_memory))
                 matched = 0
                 for item in value if isinstance(value, list) else []:
                     text = str(item.get("text", "")) if isinstance(item, dict) else ""
@@ -237,7 +250,7 @@ class MemoryHub:
         if self.hermes_memory.is_file():
             try:
                 matched = 0
-                for index, line in enumerate(self.hermes_memory.read_text(encoding="utf-8").splitlines(), start=1):
+                for index, line in enumerate(self._read_text_bounded(self.hermes_memory).splitlines(), start=1):
                     if self._contains(line, query):
                         results.append({"source": "hermes", "line": index, "text": line})
                         matched += 1

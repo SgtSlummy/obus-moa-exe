@@ -9,6 +9,19 @@ from typing import Any
 MAX_SUBPROCESS_OUTPUT_BYTES = 4_000_000
 
 
+def terminate_process_tree(process: subprocess.Popen) -> None:
+    if os.name == "nt" and process.pid:
+        try:
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            return
+        except (OSError, subprocess.SubprocessError):
+            pass
+    try:
+        process.kill()
+    except OSError:
+        pass
+
+
 def silent_process_kwargs() -> dict[str, Any]:
     """Hide child console windows on Windows while preserving captured output."""
     if os.name != "nt":
@@ -52,18 +65,12 @@ def run_bounded_subprocess(
             with budget_lock:
                 if len(chunk) > budget[0]:
                     overflow.set()
-                    try:
-                        process.kill()
-                    except OSError:
-                        pass
+                    terminate_process_tree(process)
                     return
                 budget[0] -= len(chunk)
             if len(target) + len(chunk) > limit:
                 overflow.set()
-                try:
-                    process.kill()
-                except OSError:
-                    pass
+                terminate_process_tree(process)
                 return
             target.extend(chunk)
 
@@ -78,10 +85,8 @@ def run_bounded_subprocess(
         return_code = process.wait(timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         timeout_error = exc
-        try:
-            process.kill()
-        finally:
-            process.wait()
+        terminate_process_tree(process)
+        process.wait()
         return_code = process.returncode
     finally:
         for thread in threads:
