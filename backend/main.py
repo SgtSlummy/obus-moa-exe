@@ -71,9 +71,11 @@ app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
 from .harness_api import router as harness_router
 from .autonomy_api import router as autonomy_router
+from .peer_api import router as peer_router
 
 app.include_router(harness_router)
 app.include_router(autonomy_router)
+app.include_router(peer_router)
 
 
 @app.middleware("http")
@@ -84,12 +86,13 @@ async def enforce_local_access(request: Request, call_next):
     is_local = client_host in {"127.0.0.1", "::1", "localhost", "testclient"}
     thor_portal = path.startswith("/api/portal/thor")
     autonomous_harness = path.startswith("/api/harness")
-    if not is_local and not (thor_portal or autonomous_harness):
+    signed_peers = path.startswith("/api/peers")
+    if not is_local and not (thor_portal or autonomous_harness or signed_peers):
         return JSONResponse(status_code=403, content={"detail": "Remote access is limited to authenticated Thor services."})
 
     public = (
         path == "/" or path == "/health" or path.startswith("/static/")
-        or path.startswith("/api/access/") or thor_portal or autonomous_harness
+        or path.startswith("/api/access/") or thor_portal or autonomous_harness or signed_peers
     )
     access = access_gate.status()
     if access["enabled"] and not access["machine_bound"] and not public:
