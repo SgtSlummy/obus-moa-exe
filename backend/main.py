@@ -3040,7 +3040,11 @@ def _create_orchestrated_room(state: dict, action) -> dict:
 
 
 def _create_orchestrated_forum(state: dict, action, room_names: dict[str, str]) -> dict:
-    room_ids = [room_names[name] for name in action.room_names if name in room_names]
+    normalized_names = [_room_slug(name) for name in action.room_names]
+    unresolved = [name for name, normalized in zip(action.room_names, normalized_names) if normalized not in room_names]
+    if unresolved:
+        raise ValueError(f"Forum {action.title} references unknown room names: {', '.join(unresolved)}")
+    room_ids = [room_names[normalized] for normalized in normalized_names]
     if len(room_ids) < 2:
         raise ValueError(f"Forum {action.title} requires at least two created room names")
     safe_title = redact_text(action.title, 240)
@@ -3092,14 +3096,17 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
     room_runs: list[tuple[str, str]] = []
     for action in plan.rooms:
         room = _create_orchestrated_room(state, action)
-        room_name_map[action.name] = room["id"]
+        room_name_map[_room_slug(action.name)] = room["id"]
         created_rooms.append(room)
         if action.run:
             room_runs.append((room["id"], room["last_prompt"]))
     created_forums = []
     forum_runs = []
     for action in plan.forums:
-        thread = _create_orchestrated_forum(state, action, room_name_map)
+        try:
+            thread = _create_orchestrated_forum(state, action, room_name_map)
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=f"Local orchestrator returned an invalid forum plan: {exc}") from exc
         created_forums.append(thread)
         if action.run:
             forum_runs.append(thread["id"])

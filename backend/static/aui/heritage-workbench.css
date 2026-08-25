@@ -28,6 +28,9 @@
   --font-code: "Cascadia Mono", Consolas, ui-monospace, monospace;
   --control-min: 40px;
   --reading-measure: 76ch;
+  --run-primary-fr: var(--phi);
+  --run-secondary-fr: 1;
+  --splitter-size: 13px;
 
   /* Compatibility aliases for the existing shell. */
   --bg: var(--ink);
@@ -309,9 +312,40 @@ textarea::placeholder {
 }
 
 .terminal-workbench {
-  grid-template-columns: minmax(0, var(--phi)fr) minmax(17rem, 1fr);
-  gap: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, var(--run-primary-fr)fr) var(--splitter-size) minmax(17rem, var(--run-secondary-fr)fr);
+  gap: var(--space-3);
   align-items: start;
+}
+
+.pane-splitter {
+  position: relative;
+  align-self: stretch;
+  min-block-size: 12rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.pane-splitter::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--space-5);
+  left: 50%;
+  width: 1px;
+  border-radius: 999px;
+  background: var(--rule-strong);
+  transform: translateX(-50%);
+}
+
+.pane-splitter:hover,
+.pane-splitter:focus-visible {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+  outline: 0;
+  box-shadow: var(--focus);
 }
 
 .terminal-stack,
@@ -464,6 +498,10 @@ dialog {
   .terminal-rail {
     position: static;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pane-splitter {
+    display: none;
   }
 }
 
