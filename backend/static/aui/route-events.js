@@ -33,7 +33,8 @@
           if (typeof onEvent === "function") onEvent(payload, event);
           lastEventId = payload.id || event.lastEventId || lastEventId;
         };
-        eventTypes.forEach((type) => source.addEventListener(type, handle));
+        if (eventTypes.length) eventTypes.forEach((type) => source.addEventListener(type, handle));
+        else source.addEventListener("message", handle);
         let fallback = null;
         source.onerror = (event) => {
           if (!fallback) { source.close(); fallback = startPolling(lastEventId); }

@@ -35,6 +35,7 @@ from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
 from backend import access_gate
 from backend.aui import build_manifest
 from backend.aui_events import ROUTE_EVENTS, safe_route_id
+from backend.secret_safety import redact_text, redact_value
 from backend.user_settings import (
     ROUTING_POLICIES,
     WORKSPACE_SURFACES,
@@ -826,11 +827,13 @@ def bounded_memory_results(results: list[dict], character_budget: int = 3200, li
     for raw in results:
         if len(bounded) >= max(1, int(limit)) or remaining <= 0 or not isinstance(raw, dict):
             break
-        text = str(raw.get("text", "")).strip()
+        safe = redact_value(raw)
+        text = str(safe.get("text", "")).strip() if isinstance(safe, dict) else redact_text(raw.get("text", ""))
         if not text:
             continue
         text = text[:remaining]
-        item = {key: value for key, value in raw.items() if key != "text"}
+        allowed = {"id", "source", "path", "created_at", "tags", "text"}
+        item = {key: safe[key] for key in allowed if isinstance(safe, dict) and key in safe}
         item["text"] = text
         bounded.append(item)
         remaining -= len(text)
@@ -3490,6 +3493,7 @@ def execution_scope_manifest(aggregator: dict, selected_model: str, *, local_exe
 @app.get("/api/plan")
 async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced", rag_enabled: bool = True, routing_policy: Optional[str] = None):
     """Get MOA routing plan with deck selection"""
+    prompt = redact_text(prompt)
     state = load_state()
     profile = resolve_performance_profile(performance_profile)
     settings = get_settings(state)
@@ -3976,7 +3980,7 @@ async def run_route(request: RouteRequest):
                 f"- {item.get('source')}: {item.get('text', '')}"
                 for item in plan["rag"]["hub_results"]
             )
-            routed_prompt = f"{request.prompt}\n\nRelevant local memory context:\n{memory_lines}"
+            routed_prompt += f"\n\nRelevant local memory context:\n{memory_lines}"
         harness_enabled = settings.get("harness_enabled", True) if request.harness_enabled is None else bool(request.harness_enabled)
         if harness_enabled:
             routed_prompt = build_agent_harness(routed_prompt, plan)

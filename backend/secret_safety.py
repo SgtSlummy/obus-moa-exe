@@ -12,11 +12,14 @@ SECRET_KEYS = {
     "session_token", "id_token", "secret_key", "privatekey", "credentials",
 }
 
+_FIELD_PATTERN = re.compile(
+    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|password|secret)["']?)\s*[:=]\s*["']?[^"'\s,}\]]+'''
+)
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
     (re.compile(r"(?i)\b(?:bearer|basic|token)\s+[A-Za-z0-9._~+/=-]+"), "[AUTHORIZATION REDACTED]"),
     (re.compile(r"\b[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\b"), "[TOKEN REDACTED]"),
-    (re.compile(r"(?i)([\"']?)(?:api[_-]?key|x-api-key|access[_-]?token|session[_-]?token|client[_-]?secret|private[_-]?key|id[_-]?token|auth[_-]?token|password|secret)([\"']?)\s*[:=]\s*[\"']?[^\"',\s}\\]]+"), "[REDACTED FIELD]"),
+    (_FIELD_PATTERN, "[REDACTED FIELD]"),
     (re.compile(r"(?i)https?://[^\s/@]+:[^\s/@]+@[^\s]+"), "[CREDENTIAL URL REDACTED]"),
     (re.compile(r"\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_)[A-Za-z0-9_-]{8,}\b"), "[TOKEN REDACTED]"),
 )

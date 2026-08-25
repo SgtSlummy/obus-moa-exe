@@ -39,6 +39,26 @@ class AgentVisualsContractTests(unittest.TestCase):
         result = subprocess.run(['node', '--check', str(path)], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_compact_shuffle_decks_keep_key_copy_below_the_art(self):
+        client = TestClient(backend.app)
+        html = client.get('/').text
+        css = client.get('/static/aui/deck-workspace.css')
+        providers = client.get('/static/aui/providers.js').text
+
+        self.assertIn('/static/aui/deck-workspace.css', html)
+        self.assertEqual(css.status_code, 200)
+        self.assertIn('class="key-grid shuffle-deck key-shuffle-deck"', html)
+        self.assertIn('class="grid shuffle-deck tarot-shuffle-deck"', html)
+        self.assertIn('--tarot-art-scale: .75', css.text)
+        self.assertIn('--key-art-scale: .75', css.text)
+        self.assertIn('grid-template-areas: "art" "meta" "actions"', css.text)
+        self.assertIn('@keyframes card-shuffle-deal', css.text)
+        self.assertIn('@media (prefers-reduced-motion: reduce)', css.text)
+        self.assertIn('map((provider, index)', providers)
+        self.assertIn('class="key-card selectable shuffle-card"', providers)
+        self.assertIn('class="key-figure"', providers)
+        self.assertLess(providers.index('class="key-figure"'), providers.index('class="key-meta"'))
+
 
 if __name__ == '__main__':
     unittest.main()
