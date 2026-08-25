@@ -212,6 +212,20 @@ def headless_requested(args: list[str] | None = None) -> bool:
 
 def main(args: list[str] | None = None):
     """Start OBus in desktop, MCP, or API-only headless mode."""
+    if sys.stdout is None or sys.stderr is None:
+        try:
+            log_dir = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Obus" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            windowed_stream = (log_dir / "launcher.log").open(
+                "a", encoding="utf-8", buffering=1
+            )
+        except OSError:
+            windowed_stream = open(os.devnull, "a", encoding="utf-8", buffering=1)
+        if sys.stdout is None:
+            sys.stdout = windowed_stream
+        if sys.stderr is None:
+            sys.stderr = windowed_stream
+
     args = list(sys.argv[1:] if args is None else args)
     if "--mcp" in args:
         from obus_mcp_server import serve
