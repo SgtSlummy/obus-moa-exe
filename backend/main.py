@@ -69,19 +69,25 @@ from backend.warp_companion import launch as launch_warp_companion, status as wa
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
 
+from .harness_api import router as harness_router
+
+app.include_router(harness_router)
+
+
 @app.middleware("http")
 async def enforce_local_access(request: Request, call_next):
-    """Keep the dashboard local and expose only the authenticated Thor portal remotely."""
+    """Keep the dashboard local and expose authenticated Thor/harness APIs remotely."""
     path = request.url.path
     client_host = (request.client.host if request.client else "").split("%", 1)[0]
     is_local = client_host in {"127.0.0.1", "::1", "localhost", "testclient"}
     thor_portal = path.startswith("/api/portal/thor")
-    if not is_local and not thor_portal:
-        return JSONResponse(status_code=403, content={"detail": "Remote access is limited to the Thor portal."})
+    autonomous_harness = path.startswith("/api/harness")
+    if not is_local and not (thor_portal or autonomous_harness):
+        return JSONResponse(status_code=403, content={"detail": "Remote access is limited to authenticated Thor services."})
 
     public = (
         path == "/" or path == "/health" or path.startswith("/static/")
-        or path.startswith("/api/access/") or thor_portal
+        or path.startswith("/api/access/") or thor_portal or autonomous_harness
     )
     access = access_gate.status()
     if access["enabled"] and not access["machine_bound"] and not public:
