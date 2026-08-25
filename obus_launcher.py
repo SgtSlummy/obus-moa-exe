@@ -166,13 +166,52 @@ def _tray_image():
 def start_system_tray(open_action, exit_action):
     """Keep OBus alive in the Windows notification area after its window closes."""
     try:
+        import json
+        import urllib.error
+        import urllib.request
+
         import pystray
+
+        state = {"status": "starting", "muted": False}
+
+        def request_json(path: str, method: str = "GET", payload=None):
+            body = None if payload is None else json.dumps(payload).encode("utf-8")
+            request = urllib.request.Request(
+                f"{APP_URL}{path}", data=body, method=method,
+                headers={"Content-Type": "application/json"} if body else {},
+            )
+            with urllib.request.urlopen(request, timeout=0.4) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        def refresh_status():
+            try:
+                health = request_json("/api/harness/health")
+                active = health.get("active", health.get("active_objectives", 0))
+                provider = health.get("provider", health.get("default_provider", "codex"))
+                state["status"] = f"ready · {active} active · {provider}"
+                state["muted"] = bool(request_json("/api/harness/voice/status").get("muted", False))
+            except (OSError, ValueError, urllib.error.URLError):
+                state["status"] = "starting or unavailable"
+            return state
+
+        def toggle_mute(icon, _item):
+            desired = not bool(state["muted"])
+            try:
+                state["muted"] = bool(request_json(
+                    "/api/harness/voice/mute", "PATCH", {"muted": desired}
+                ).get("muted", desired))
+            except (OSError, ValueError, urllib.error.URLError):
+                state["status"] = "voice control unavailable"
+            icon.update_menu()
+
         icon = pystray.Icon(
-            "OBus",
-            _tray_image(),
-            "OBus — GPU runtime active",
+            "OBus", _tray_image(), "OBus — starting",
             menu=pystray.Menu(
+                pystray.MenuItem(lambda _item: f"OBus — {refresh_status()['status']}", None, enabled=False),
+                pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Open OBus", lambda _icon, _item: open_action(), default=True),
+                pystray.MenuItem("Mute voice", toggle_mute, checked=lambda _item: bool(refresh_status()["muted"])),
+                pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit OBus", lambda tray, _item: (exit_action(), tray.stop())),
             ),
         )
