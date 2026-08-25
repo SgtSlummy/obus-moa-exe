@@ -411,6 +411,19 @@ pre {
   gap: var(--space-5);
 }
 
+.adjustable-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, var(--pane-primary-fr, 1.618fr)) var(--splitter-size) minmax(16rem, var(--pane-secondary-fr, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.studio-secondary {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
 .aui-summary {
   display: flex;
   align-items: center;
@@ -569,7 +582,8 @@ dialog {
 
 @media (max-width: 960px) {
   .terminal-workbench,
-  .room-workspace {
+  .room-workspace,
+  .adjustable-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
 

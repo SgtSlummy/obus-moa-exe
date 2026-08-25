@@ -355,7 +355,7 @@ function evaluationExpression(pageId, density) {
       .map((element) => records[nodes.indexOf(element)]);
     const horizontalOverflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
 
-    const ratioTarget = [...document.querySelectorAll('.terminal-workbench, .room-workspace')].find((element) => {
+    const ratioTarget = [...document.querySelectorAll('.terminal-workbench, .room-workspace, .adjustable-workspace')].find((element) => {
       const rect = element.getBoundingClientRect();
       const visible = typeof element.checkVisibility === 'function' ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) : getComputedStyle(element).display !== 'none';
       return visible && rect.width > 0 && rect.height > 0;

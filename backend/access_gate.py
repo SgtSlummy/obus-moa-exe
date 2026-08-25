@@ -41,8 +41,10 @@ def machine_fingerprint() -> str:
 
 def load_config() -> dict | None:
     path = config_path()
-    if not path or not path.is_file():
+    if not path:
         return None
+    if not path.is_file():
+        return {"_invalid": True}
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict) or not value:

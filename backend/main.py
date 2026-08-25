@@ -99,6 +99,7 @@ FORUM_EXECUTION_LOCKS: dict[str, threading.Lock] = {}
 ROUTE_CANCEL_EVENTS: dict[str, threading.Event] = {}
 ROUTE_CANCEL_LOCK = threading.RLock()
 PERSISTENT_AGENT_THREADS: dict[str, threading.Thread] = {}
+PERSISTENT_AGENT_START_LOCKS: dict[str, threading.Lock] = {}
 PERSISTENT_AGENT_STOP_EVENTS: dict[str, threading.Event] = {}
 PERSISTENT_AGENT_KEY_LOADS: dict[str, int] = {}
 PERSISTENT_AGENT_SEMAPHORE = threading.Semaphore(8)
@@ -1534,14 +1535,18 @@ async def aui_manifest(surface: Optional[str] = None):
 @app.get("/api/route/events")
 async def route_events(route_id: Optional[str] = None, limit: int = 50, since: Optional[str] = None):
     """Return bounded, secret-free route lifecycle events for polling clients."""
+    if not route_id:
+        raise HTTPException(status_code=400, detail="route_id is required")
     if since and not ROUTE_EVENTS.contains_id(since):
         return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
-    return ROUTE_EVENTS.snapshot(route_id=safe_route_id(route_id) if route_id else None, limit=limit, since=since)
+    return ROUTE_EVENTS.snapshot(route_id=safe_route_id(route_id), limit=limit, since=since)
 
 
 @app.get("/api/route/events/stream")
 async def route_event_stream(route_id: Optional[str] = None, since: Optional[str] = None):
     """Stream bounded route lifecycle events over a local-only SSE connection."""
+    if not route_id:
+        raise HTTPException(status_code=400, detail="route_id is required")
     if since and not ROUTE_EVENTS.contains_id(since):
         return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return StreamingResponse(
@@ -2922,6 +2927,12 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str) -> None:
                 save_state(state)
             state = load_state()
             agent = next(item for item in state["persistent_agents"] if item["id"] == agent_id)
+            stop_event = PERSISTENT_AGENT_STOP_EVENTS.get(agent_id)
+            if stop_event and stop_event.is_set():
+                agent.update(status="stopped", current_step=0, updated_at=_runtime_now())
+                _runtime_event(state, "agent_stopped", f"{agent['name']} stopped", agent_id)
+                save_state(state)
+                return
             agent.update(status="complete", run_count=int(agent.get("run_count", 0)) + 1, current_step=0, updated_at=_runtime_now(), last_error=None)
             _runtime_event(state, "agent_complete", f"{agent['name']} completed run {agent['run_count']}", agent_id)
             save_state(state)
@@ -2937,22 +2948,24 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str) -> None:
 
 
 def _start_persistent_agent(agent_id: str, prompt: str | None = None) -> dict:
-    state = load_state()
-    agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
-    if not agent:
-        raise HTTPException(status_code=404, detail="Persistent agent not found")
-    thread = PERSISTENT_AGENT_THREADS.get(agent_id)
-    if thread and thread.is_alive():
-        raise HTTPException(status_code=409, detail="Agent already has a run in progress")
-    stop_event = threading.Event()
-    PERSISTENT_AGENT_STOP_EVENTS[agent_id] = stop_event
-    agent.update(status="queued", last_error=None, updated_at=_runtime_now())
-    save_state(state)
-    safe_prompt = redact_text(prompt or agent["objective"], 4000)
-    thread = threading.Thread(target=_persistent_agent_worker, args=(agent_id, safe_prompt), daemon=True, name=f"obus-{agent_id}")
-    PERSISTENT_AGENT_THREADS[agent_id] = thread
-    thread.start()
-    return _persistent_agent_public(agent)
+    start_lock = PERSISTENT_AGENT_START_LOCKS.setdefault(agent_id, threading.Lock())
+    with start_lock:
+        state = load_state()
+        agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Persistent agent not found")
+        thread = PERSISTENT_AGENT_THREADS.get(agent_id)
+        if thread and thread.is_alive():
+            raise HTTPException(status_code=409, detail="Agent already has a run in progress")
+        stop_event = threading.Event()
+        PERSISTENT_AGENT_STOP_EVENTS[agent_id] = stop_event
+        agent.update(status="queued", last_error=None, updated_at=_runtime_now())
+        save_state(state)
+        safe_prompt = redact_text(prompt or agent["objective"], 4000)
+        thread = threading.Thread(target=_persistent_agent_worker, args=(agent_id, safe_prompt), daemon=True, name=f"obus-{agent_id}")
+        PERSISTENT_AGENT_THREADS[agent_id] = thread
+        thread.start()
+        return _persistent_agent_public(agent)
 
 
 @app.get("/api/runtime/agents")

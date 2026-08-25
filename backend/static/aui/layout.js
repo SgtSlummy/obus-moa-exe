@@ -4,6 +4,11 @@
   const DEFAULT_SPLIT = 61.803398875;
   const MIN_SPLIT = 45;
   const MAX_SPLIT = 75;
+  const AUXILIARY_SPLIT_KEYS = {
+    rooms: "obus-aui-split-rooms",
+    workspace: "obus-aui-split-workspace",
+    studio: "obus-aui-split-studio",
+  };
   const PRESETS = {
     focus: {split: 61.803398875, density: "comfortable", sidebarCollapsed: false},
     review: {split: 55, density: "comfortable", sidebarCollapsed: false},
@@ -22,7 +27,7 @@
   };
 
   const OBusAuiLayout = {
-    create({densitySelect, sidebarToggle, presetSelect, resetButton, runSplitter, runWorkbench, mobileDrawers = [], announce} = {}) {
+    create({densitySelect, sidebarToggle, presetSelect, resetButton, runSplitter, runWorkbench, resizablePanes = [], mobileDrawers = [], announce} = {}) {
       const safeStorage = createSafeStorage();
       const cleanup = [];
       let splitterBound = false;
@@ -126,6 +131,62 @@
         listen(runSplitter, "lostpointercapture", stopDragging);
         listen(runSplitter, "keydown", keyDown);
       };
+      const auxiliaryResets = [];
+      const bindAuxiliaryPane = ({key, label, splitter, container, defaultSplit = DEFAULT_SPLIT} = {}) => {
+        if (!AUXILIARY_SPLIT_KEYS[key] || !splitter || !container) return;
+        const storageKey = AUXILIARY_SPLIT_KEYS[key];
+        const stored = Number(safeStorage.getItem(storageKey));
+        let value = Number.isFinite(stored) && stored >= MIN_SPLIT && stored <= MAX_SPLIT ? stored : defaultSplit;
+        const setValue = (next, {persist = true} = {}) => {
+          value = clamp(Number(next) || defaultSplit, MIN_SPLIT, MAX_SPLIT);
+          const ratio = value / (100 - value);
+          container.style.setProperty("--pane-primary-fr", `${ratio.toFixed(4)}fr`);
+          container.style.setProperty("--pane-secondary-fr", "1fr");
+          splitter.setAttribute("aria-valuenow", String(Math.round(value)));
+          if (persist) safeStorage.setItem(storageKey, String(value));
+        };
+        let dragging = false;
+        const updateFromPointer = (event) => {
+          if (!dragging) return;
+          const bounds = container.getBoundingClientRect();
+          if (bounds.width) setValue(((event.clientX - bounds.left) / bounds.width) * 100);
+        };
+        const pointerDown = (event) => {
+          if (event.button !== 0) return;
+          dragging = true;
+          splitter.setPointerCapture?.(event.pointerId);
+          updateFromPointer(event);
+        };
+        const stopDragging = (event) => {
+          if (!dragging) return;
+          dragging = false;
+          splitter.releasePointerCapture?.(event.pointerId);
+          notify(`${label || key} split set to ${Math.round(value)} percent`);
+        };
+        const keyDown = (event) => {
+          const step = event.shiftKey ? 5 : 1;
+          let next = null;
+          if (event.key === "ArrowLeft") next = value - step;
+          else if (event.key === "ArrowRight") next = value + step;
+          else if (event.key === "Home") next = MIN_SPLIT;
+          else if (event.key === "End") next = MAX_SPLIT;
+          if (next === null) return;
+          event.preventDefault();
+          setValue(next);
+          notify(`${label || key} split set to ${Math.round(value)} percent`);
+        };
+        listen(splitter, "pointerdown", pointerDown);
+        listen(splitter, "pointermove", updateFromPointer);
+        listen(splitter, "pointerup", stopDragging);
+        listen(splitter, "pointercancel", stopDragging);
+        listen(splitter, "lostpointercapture", stopDragging);
+        listen(splitter, "keydown", keyDown);
+        setValue(value, {persist: false});
+        auxiliaryResets.push(() => {
+          safeStorage.removeItem(storageKey);
+          setValue(defaultSplit, {persist: false});
+        });
+      };
       listen(densitySelect, "change", (event) => {
         prefs.density = event.target.value;
         safeStorage.setItem("obus-aui-density", prefs.density);
@@ -147,10 +208,12 @@
         prefs.sidebarCollapsed = false;
         prefs.preset = "focus";
         prefs.runSplit = DEFAULT_SPLIT;
+        auxiliaryResets.forEach((reset) => reset());
         apply();
         notify("Workspace layout reset");
       });
       bindResizablePane();
+      resizablePanes.forEach(bindAuxiliaryPane);
       syncMobileDrawers();
       listen(mobileMedia, "change", syncMobileDrawers);
       apply();
