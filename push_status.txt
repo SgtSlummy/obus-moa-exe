@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 08:25 UTC (cron cycle)
+# Push Status Report - 2026-08-25 10:37 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-08-25 08:25:07 PDT
+**Run Time:** 2026-08-25 10:37:xx PDT
 
 ---
 
@@ -10,23 +10,23 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `2d01290` (HEAD) | master | ✅ **Pushed** — up-to-date with origin/master |
-| third_party/warpdotdev-warp (SgtSlummy) | `21f413b` (detached) | — | ❌ Push failed — detached HEAD, no branch to push |
-| Understand-Anything (SgtSlummy) | — | — | ❌ Push failed — 403, not a collaborator on Egonex-AI/Understand-Anything |
-| warp (SgtSlummy) | — | — | ❌ Push failed — 403, not a collaborator on nvidia/warp |
+| obus-moa-exe (SgtSlummy) | `c814752` | master | ✅ **Pushed** — `test: include Thor portal deployment scripts` (LFS: 215 MB uploaded) |
+| third_party/warpdotdev-warp (SgtSlummy) | `21f413b` (detached) | — | ❌ No fork — tracks upstream warpdotdev/warp; no SgtSlummy fork to push to |
+| Understand-Anything (SgtSlummy) | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything (2 commits ahead) |
+| warp (SgtSlummy) | `64c6cac` | main | ❌ Push blocked — 403, not a collaborator on nvidia/warp; SgtSlummy/warp fork does not exist |
 
-**Main repo:** Everything up-to-date on remote. Working directory clean.
+**Main repo:** Pushed successfully. LFS objects (OBus.pkg + OBus.exe) uploaded in prior attempt; commit landed on retry.
 
 ---
 
 ## Recent Commit Chain (all pushed)
 
 ```
-2d01290 (HEAD, origin/master) chore: update push status, test changes, and gortex batch artifacts
-7c3c115                        fix: make launcher type checks cross-platform
-8d52716                        ci: validate master branch pushes
-8bdde3e                        release: assemble production-ready Obus full stack
-32f2ac5                        chore: sync build scripts and gitignore
+c814752 (HEAD, origin/master) test: include Thor portal deployment scripts
+89881e9                        feat: expose secure local LLM portal for Thor
+3ec96eb                        fix: initialize windowed launcher logging streams
+61b0ec6                        test: release Windows state handles before cleanup
+d505e5e                        fix: keep startup registry typing cross-platform
 ```
 
 All commits pushed to origin/master.
@@ -37,7 +37,7 @@ All commits pushed to origin/master.
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-Clean. Untracked: `warp/` (local git repo, excluded by .gitignore).
+Tracked files clean. Untracked: `warp/` (local git repo, excluded by .gitignore).
 
 ---
 
@@ -49,10 +49,10 @@ No new processes detected this cycle.
 
 ## Summary
 
-1. **Main repo fully pushed and clean** — `2d01290` on origin/master, working directory has no uncommitted changes. Previous cycle's 3 modified files (push_status.txt, test_runtime.py, test_silent_processes.py) plus 3 gortex batch artifacts all committed and pushed.
+1. **Main repo pushed** — `c814752` on origin/master. Includes Thor portal deployment scripts (Enable-OBus-Thor-Portal.ps1, Invoke-OBus-Portal.ps1, docs/thor-portal.md), LFS-tracked build artifacts (build-onedrive-fix/OBus.pkg + dist-onedrive-fix/OBus.exe), and *.pkg added to git-lfs tracking in .gitattributes.
 
-2. **Submodule pushes remain blocked** — Understand-Anything (403, Egonex-AI), warp (403, nvidia), warpdotdev-warp (detached HEAD). Expected, no action needed.
+2. **Submodule pushes remain blocked** — Understand-Anything (403, Egonex-AI), warp (403, nvidia; SgtSlummy fork not found), warpdotdev-warp (no SgtSlummy fork configured). Expected, no action needed.
 
-3. **Hermes_Sandbox_Output** tracks the main repo's origin; no independent push needed.
+3. **No active background processes** detected.
 
-4. **No new untracked artifacts** beyond pre-existing `warp/` local repo.
+4. **Large artifact note:** `OBus.pkg` (133 MB) required *.pkg LFS tracking addition; `OBus.exe` already tracked via *.exe rule.

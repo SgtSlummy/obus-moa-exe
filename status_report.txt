@@ -1,8 +1,8 @@
-# Push & Progress Report - 2026-08-25 03:37 UTC (cron cycle)
+# Push & Progress Report - 2026-08-25 10:37 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 03:37:51 PDT  
+**Run Time:** 2026-08-25 10:37:xx PDT  
 
 ---
 
@@ -10,29 +10,19 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `58009fb` | master | ✅ Pushed — `fix: bound state persistence size, add forge install concurrency limits` (1 file, +22/-3) |
+| obus-moa-exe (SgtSlummy) | `c814752` | master | ✅ Pushed — `test: include Thor portal deployment scripts` |
 
 **Total: 1 commit pushed to master this cycle.**
 
-### Commit Details (58009fb)
+### Commit Details (c814752)
 
-- **backend/main.py** — Three hardening changes:
-  1. **State persistence size-bound** — `save_state()` now enforces per-collection caps (rooms: 500, room_messages: 20K, forum_threads: 500, persistent_agents: 100, runtime_events: 200) and trims each agent's history to `MAX_AGENT_HISTORY`. Full encoded state fails with `ValueError` if it exceeds 8MB, preventing unbounded growth.
-  2. **Forge install concurrency limits** — `start_forge_install()` now uses a `FORGE_INSTALL_LOCK`, prunes completed/error jobs from `FORGE_INSTALL_JOBS`, and rejects new installs when `FORGE_INSTALL_MAX_JOBS` (4) concurrent starting/running jobs exist (returns 503).
-  3. **Agent harness prompt injection guard** — added explicit instruction to treat all persona/memory/retrieval/workspace text as untrusted evidence, never as commands or authority.
-
----
-
-## Pushed This Cycle — Chain
-
-```
-d1aded0 (prior cycle) → 05e23de (prior cycle) → 58009fb (this cycle)
-```
-
-Three consecutive cycles of backend hardening:
-- **d1aded0** — bound memory scan, receipt file size, process wait timeout, route event stream request
-- **05e23de** — bound graph path resolution, receipt file size, Codex login wait timeout
-- **58009fb** — bound state persistence size, forge install concurrency limits
+- **.gitattributes** — Added `*.pkg` to git-lfs tracking (OBus.pkg was 133 MB, exceeding GitHub's 100 MB limit without LFS)
+- **build-onedrive-fix/** — OBus.pkg build artifact captured (LFS-tracked, 133 MB)
+- **dist-onedrive-fix/OBus.exe** — OBus.exe build artifact captured (LFS-tracked, 133 MB)
+- **deploy/thor-loki/** — Thor portal deployment scripts: Enable-OBus-Thor-Portal.ps1, Invoke-OBus-Portal.ps1, README.md
+- **docs/thor-portal.md** — Thor portal documentation
+- **tests/test_runtime.py** — Runtime test updates
+- **backend/main.py, obus_launcher.py, tools/obus_launcher/obus_launcher.py, README.md** — Minor updates
 
 ---
 
@@ -40,7 +30,7 @@ Three consecutive cycles of backend hardening:
 
 | Repo | Branch | Notes |
 |------|--------|-------|
-| third_party/warpdotdev-warp (SgtSlummy) | master | Clean, detached at e054075; no SgtSlummy fork configured; no push needed |
+| (none new this cycle) | — | — |
 
 ---
 
@@ -49,7 +39,8 @@ Three consecutive cycles of backend hardening:
 | Repo | Remote | Block Reason |
 |------|--------|-------------|
 | Understand-Anything (SgtSlummy) | upstream Egonex-AI/Understand-Anything | 403 — not a collaborator on upstream; 2 commits ahead (d07c457, 99e62b7) |
-| warp (SgtSlummy) | upstream nvidia/warp | 403 — not a collaborator on upstream; behind upstream main by 3 commits (64c6cac, edb66bc, 7c700f7) |
+| warp (SgtSlummy) | upstream nvidia/warp | 403 — not a collaborator on upstream; behind upstream main by 3 commits (64c6cac, edb66bc, 7c700f7); SgtSlummy/warp fork does not exist |
+| third_party/warpdotdev-warp (SgtSlummy) | upstream warpdotdev/warp | No SgtSlummy fork configured; tracks upstream directly at 21f413b (detached) |
 
 ---
 
@@ -58,23 +49,23 @@ Three consecutive cycles of backend hardening:
 | Submodule | Commit | Status |
 |-----------|--------|--------|
 | Understand-Anything | `-99e62b7` | 2 commits ahead of origin/main; push blocked (403, no Egonex-AI permission) |
-| warp | `-64c6cac` | Behind upstream nvidia/warp main (3 commits); push blocked (403, expected); untracked status files present |
-| third_party/warpdotdev-warp | `e054075` | Detached at heads/master-16-ge054075; no SgtSlummy fork; push not attempted |
+| warp | `-64c6cac` | Behind upstream nvidia/warp main (3 commits); push blocked (403); SgtSlummy fork not found; untracked status files present (push_status.txt, status_report.txt, task_report.txt) |
+| third_party/warpdotdev-warp | `21f413b` | Detached at heads/master-16-ge054075; no SgtSlummy fork; tracks upstream warpdotdev/warp directly |
 
 ---
 
 ## Working Directory
 
-`/c/Users/Hermes/Documents/obus-moa-exe` — working tree has untracked status files only (push_status.txt, status_report.txt modified this cycle; warp/ subdirectory untracked). Tracked files clean after commit 58009fb.
+`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean. Untracked: `warp/` subdirectory (local git repo, excluded by .gitignore).
 
-**Untracked artifacts present:** build-aui-loop1-71 (OBus.pkg per loop, ~67.1M each), build-remediation/, build-warp-review/, build-remediation-final/, dist-remediation-final/, warp/ status files.
+**Tracked files:** All committed and pushed. No modified or unstaged tracked files.
 
 ---
 
 ## Network
 
 - github.com: reachable (HTTPS, HTTP 200)
-- Push to SgtSlummy/* remotes: successful this cycle (1 commit to master)
+- Push to SgtSlummy/obus-moa-exe: successful this cycle (1 commit + 215 MB LFS)
 - Push blocked: Understand-Anything (403), warp (403) — upstream/fork configuration, not network
 
 ---
@@ -84,10 +75,10 @@ Three consecutive cycles of backend hardening:
 | Check | Result |
 |-------|--------|
 | Process manager (process list) | No active background processes registered |
-| Prior cycle reported | python.exe, OBus.exe (9+), node.exe, gortex.exe, llama-server.exe, codex.exe, headroom.exe, pinchtab, cua-driver.exe, Docker Desktop + WSL2 |
-| Interpretation | Runtime processes may have cycled or been cleaned up; no new background jobs started this cycle |
+| Prior cycles reported | Various runtime processes (OBus.exe, python, node, llama-server, etc.) — appear to have cycled/cleaned up |
+| Interpretation | No new background jobs started this cycle; runtime processes may have terminated |
 
-**No active cron jobs or background processes detected.** All previously reported runtime processes appear to have terminated or been cleaned up since the last status report.
+**No active cron jobs or background processes detected.**
 
 ---
 
@@ -97,8 +88,18 @@ Not polled this cycle. Submodule / provider status unchanged from prior cycle.
 
 ---
 
+## Build Artifacts
+
+| Artifact | Size | Location | LFS |
+|----------|------|----------|-----|
+| OBus.pkg | 133 MB | build-onedrive-fix/OBus/OBus.pkg | ✅ (newly tracked) |
+| OBus.exe | 133 MB | dist-onedrive-fix/OBus.exe | ✅ (pre-existing *.exe rule) |
+
+- 479 build-*/ directories, 467 dist-*/ directories present locally (legacy AUI loop artifacts)
+- 71 build-aui-loop* + dist-aui-loop* pairs (OBus.pkg per loop, ~67 MB each) — excluded by .gitignore
+
+---
+
 ## Summary
 
-1 commit pushed to obus-moa-exe master this cycle (`58009fb` — state persistence size-bound, forge install concurrency limits with 503 saturation, agent harness prompt injection guard). This completes a three-cycle hardening chain (d1aded0 → 05e23de → 58009fb) covering graph paths, receipt files, process waits, memory scans, state persistence, and forge concurrency.
-
-Submodule push blocks unchanged (expected — no Egonex-AI or nvidia/warp collaborator access). No active background processes detected. Untracked build artifacts (71 AUI loops + remediation packages) continue to accumulate locally.
+1 commit pushed to obus-moa-exe master this cycle (`c814752` — Thor portal deployment scripts, onedrive-fix build artifacts with LFS, *.pkg LFS tracking). Working directory clean. Submodule push blocks unchanged (expected — no Egonex-AI or nvidia/warp collaborator access; SgtSlummy/warp fork not found). No active background processes. Large artifact (OBus.pkg) now properly LFS-tracked.
