@@ -3352,7 +3352,11 @@ async def update_key(key_id: str, update: KeyUpdate = Body(...)):
                    last_probe_reason="configuration_changed", last_probe_message="Configuration changed; run Test & enable again")
         if key.get("state") != "disabled":
             key["state"] = "staged"
+    save_state(state)
     return key_public(key)
+
+
+@app.delete("/api/keys/{key_id}")
 async def delete_key(key_id: str):
     state = load_state()
     before = len(state["keys"])
