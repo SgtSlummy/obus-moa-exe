@@ -11,6 +11,9 @@ dist-aui-loop*/
 dist-remediation/
 build-onedrive-fix/
 dist-onedrive-fix/
+/dist/OBus-Thor-Loki-Paired/
+/dist/OBus-Thor-Loki-Paired.zip
+*.pairing.json
 dist-warp-review/
 __pycache__/
 *.pyc
