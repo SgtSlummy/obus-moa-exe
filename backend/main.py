@@ -405,6 +405,13 @@ def normalize_state(state: dict) -> dict:
             value.update(state="disabled", verified=False, approved=False, active=False)
         merged_keys.append(value)
     for custom in existing_keys.values():
+        if not all(custom.get(field) for field in ("name", "provider", "model")):
+            custom.setdefault("name", f"Quarantined {custom.get('id', 'custom')}")
+            custom.setdefault("provider", "custom")
+            custom.setdefault("model", "unconfigured")
+            custom["base_url"] = ""
+            custom["env_var"] = None
+            custom.update(state="disabled", verified=False, approved=False, active=False)
         custom.setdefault("max_context_tokens", 131072)
         custom.setdefault("capabilities", ["general"])
         custom.setdefault("state", "staged")
@@ -434,7 +441,7 @@ def normalize_state(state: dict) -> dict:
             value["assignment_mode"] = "auto"
             value["assigned_key_id"] = None
         merged_cards.append(value)
-    merged_cards.extend(existing_cards.values())
+    merged_cards.extend(card for card in existing_cards.values() if all(card.get(field) for field in ("name", "persona", "image")))
     state["cards"] = merged_cards
     # Codex is the first-class default. Preserve an explicit persisted selection,
     # while migrating legacy implicit local-Ollama defaults to Codex.
@@ -535,6 +542,16 @@ def save_state(state: dict):
 
 
 # ==================== API MODELS ====================
+
+class DeckUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    style: Optional[str] = None
+    best_for: Optional[List[str]] = None
+    enabled: Optional[bool] = None
+    priority: Optional[int] = None
+
 
 class CardUpdate(BaseModel):
     name: Optional[str] = None
@@ -1546,7 +1563,7 @@ def provider_statuses(state: Optional[dict] = None) -> list:
             "can_aggregate": bool(key.get("can_aggregate")),
             "setup": key_setup_guide(key),
         })
-    return providers
+    return [redact_value(item) for item in providers]
 
 
 # ==================== ROUTES ====================
@@ -3225,12 +3242,13 @@ async def get_deck(deck_id: str):
 
 
 @app.put("/api/decks/{deck_id}")
-async def update_deck(deck_id: str, update: dict = Body(...)):
-    """Update a deck configuration"""
-    for i, deck in enumerate(ALL_DECKS):
+async def update_deck(deck_id: str, update: DeckUpdate):
+    """Update only documented deck configuration fields."""
+    changes = update.model_dump(exclude_none=True)
+    for deck in ALL_DECKS:
         if deck["id"] == deck_id:
-            ALL_DECKS[i].update(update)
-            return ALL_DECKS[i]
+            deck.update(changes)
+            return redact_value({key: deck[key] for key in {"id", "name", "symbol", "description", "style", "best_for", "image_pack", "enabled", "priority"} if key in deck})
     raise HTTPException(status_code=404, detail="Deck not found")
 
 
@@ -3370,7 +3388,7 @@ async def update_key(key_id: str, update: KeyUpdate = Body(...)):
         raise HTTPException(status_code=400, detail="base_url must be an approved secret-free provider endpoint") from exc
     if "base_url" in changes or "provider" in changes:
         changes["base_url"] = canonical_base_url
-    sensitive_fields = {"provider", "model", "base_url", "env_var"}
+    sensitive_fields = {"provider", "model", "base_url", "env_var", "local"}
     sensitive_changed = any(field in changes and changes[field] != key.get(field) for field in sensitive_fields)
     prospective_verified = bool(key.get("verified")) and not sensitive_changed
     prospective_approved = bool(key.get("approved")) and not sensitive_changed
@@ -3505,7 +3523,7 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str, routing_policy: O
             and float(key.get("cooldown_until") or 0) <= now
         ]
     if not eligible:
-        return [{
+        return [redact_value(item) for item in [{
             "agent_id": card["id"], "agent_title": card["name"], "persona": card["persona"],
             "provider": OFFLINE_ROOM_KEY["name"], "model": OFFLINE_ROOM_KEY["model"],
             "llm_key": OFFLINE_ROOM_KEY["id"], "pairing_mode": "offline",
@@ -3517,7 +3535,7 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str, routing_policy: O
                 "reason": "No Ready, connected, eligible provider matched this routing policy; offline planning is active.",
                 "eligible": False,
             },
-        } for card in cards]
+        } for card in cards]]
     prompt_words = set(re.findall(r"[a-z_]+", prompt.lower()))
     assignments = []
     use_counts = {key["id"]: 0 for key in eligible}
@@ -3559,7 +3577,7 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str, routing_policy: O
                 "cooldown_active": float(chosen.get("cooldown_until") or 0) > time.time(),
             },
         })
-    return assignments
+    return [redact_value(item) for item in assignments]
 
 
 def build_harness_preview(state: dict, prompt: str) -> dict:
