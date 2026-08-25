@@ -204,9 +204,17 @@ def _chat_url(base_url: str) -> str:
     return base if base.endswith("/chat/completions") else base + "/chat/completions"
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
+
+
 def _http_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeout: int = 180) -> dict[str, Any]:
     request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "OBus-Persistent-Agent/1.0", **headers}, method="POST")
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with _NO_REDIRECT_OPENER.open(request, timeout=timeout) as response:
         return json.load(response)
 
 
