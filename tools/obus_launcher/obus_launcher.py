@@ -68,10 +68,13 @@ def silent_process_kwargs() -> dict[str, Any]:
     """Hide the backend child console on Windows without suppressing failures."""
     if os.name != "nt":
         return {}
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    startupinfo.wShowWindow = subprocess.SW_HIDE
-    return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": startupinfo}
+    startupinfo = getattr(subprocess, "STARTUPINFO")()
+    startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW")
+    startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE")
+    return {
+        "creationflags": getattr(subprocess, "CREATE_NO_WINDOW"),
+        "startupinfo": startupinfo,
+    }
 
 
 def backend_command() -> list[str]:
@@ -115,7 +118,9 @@ def collect_readiness() -> dict[str, Any]:
 def show_error(message: str) -> None:
     """Show a visible error when a windowed EXE cannot start its backend."""
     if os.name == "nt":
-        ctypes.windll.user32.MessageBoxW(0, message, "OBus Launcher", 0x10)
+        getattr(ctypes, "windll").user32.MessageBoxW(
+            0, message, "OBus Launcher", 0x10
+        )
     else:
         print(message, file=sys.stderr)
 
