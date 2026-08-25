@@ -55,6 +55,12 @@ export function isRectInViewport(rect, viewportWidth, viewportHeight) {
     rect.x <= viewportWidth && rect.y <= viewportHeight;
 }
 
+export function layoutRatio(firstRect, secondRect) {
+  if (!firstRect || !secondRect || Math.abs(firstRect.y - secondRect.y) > 2) return null;
+  if (firstRect.width <= 0 || secondRect.width <= 0) return null;
+  return Math.max(firstRect.width, secondRect.width) / Math.min(firstRect.width, secondRect.width);
+}
+
 export function ratioScore(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return 0;
   const logarithmicDistance = Math.abs(Math.log(ratio / GOLDEN_RATIO));
@@ -176,7 +182,7 @@ async function findPageTarget(cdpBase) {
 
 export function buildPreparationExpression(pageName, density) {
   const pageId = PAGE_IDS[pageName] || pageName;
-  return `(() => {
+  return `(async () => {
     const pageButton = document.querySelector('[data-page="' + ${JSON.stringify(pageId)} + '"]');
     if (pageButton) pageButton.click();
     const densitySelect = document.querySelector('#density-select');
@@ -186,7 +192,9 @@ export function buildPreparationExpression(pageName, density) {
     } else {
       document.body.dataset.density = ${JSON.stringify(density)};
     }
-    document.querySelectorAll('img[loading="lazy"]').forEach((image) => { image.loading = 'eager'; });
+    const images = [...document.querySelectorAll('img')];
+    images.forEach((image) => { image.loading = 'eager'; });
+    await Promise.all(images.map((image) => image.complete && image.naturalWidth > 0 ? Promise.resolve() : image.decode().catch(() => undefined)));
     return {pageId: ${JSON.stringify(pageId)}, density: ${JSON.stringify(density)}};
   })()`;
 }
@@ -263,9 +271,11 @@ function evaluationExpression(pageId, density) {
     const ratioTarget = document.querySelector('.terminal-workbench, .room-workspace');
     let primaryRatio = null;
     if (ratioTarget && ratioTarget.children.length >= 2) {
-      const first = ratioTarget.children[0].getBoundingClientRect().width;
-      const second = ratioTarget.children[1].getBoundingClientRect().width;
-      if (first > 0 && second > 0) primaryRatio = Math.max(first, second) / Math.min(first, second);
+      const first = ratioTarget.children[0].getBoundingClientRect();
+      const second = ratioTarget.children[1].getBoundingClientRect();
+      if (Math.abs(first.y - second.y) <= 2 && first.width > 0 && second.width > 0) {
+        primaryRatio = Math.max(first.width, second.width) / Math.min(first.width, second.width);
+      }
     }
 
     return {
@@ -314,6 +324,7 @@ export async function runAudit(options) {
           await client.send("Runtime.evaluate", {
             expression: buildPreparationExpression(pageName, density),
             returnByValue: true,
+            awaitPromise: true,
           });
           await delay(options.settleMs);
           const evaluated = await client.send("Runtime.evaluate", {

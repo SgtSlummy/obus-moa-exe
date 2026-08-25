@@ -2234,6 +2234,17 @@ def forum_public(thread: dict) -> dict:
     return public
 
 
+def forum_round_public(result: dict) -> dict:
+    value = redact_value(copy.deepcopy(result))
+    value["thread"] = forum_public(result.get("thread", {}))
+    for field in ("messages", "new_messages"):
+        messages = result.get(field, [])
+        value[field] = [redact_value(message) for message in messages[:100]] if isinstance(messages, list) else []
+    value["round_results"] = [redact_value(item) for item in result.get("round_results", [])[:100]]
+    value["message_cap"] = 100
+    return value
+
+
 def room_message_public(message: dict) -> dict:
     allowed = {"id", "room_id", "visibility", "author_type", "author_id", "phase", "body", "created_at"}
     value = redact_value({key: message.get(key) for key in allowed if key in message})
@@ -2516,7 +2527,7 @@ async def run_forum_round(thread_id: str):
             raise HTTPException(status_code=400, detail="Forum contains an unavailable room")
         signature = f"thread:{thread.get('revision', 0)}|" + ":".join(f"{room_id}:{rooms[room_id].get('revision', 0)}:{rooms[room_id].get('config_revision', 0)}" for room_id in thread["room_ids"])
         if thread.get("last_round_signature") == signature:
-            return {"thread": thread, "messages": thread.get("messages", []), "idempotent": True}
+            return forum_round_public({"thread": thread, "messages": thread.get("messages", []), "idempotent": True})
         thread["status"] = "running"
         public_packets = [rooms[room_id].get("last_packet") for room_id in thread["room_ids"] if rooms[room_id].get("last_packet")]
         new_messages = []
@@ -2551,13 +2562,13 @@ async def run_forum_round(thread_id: str):
         thread["status"] = "complete"
         thread["last_round_signature"] = f"thread:{thread.get('revision', 0)}|" + ":".join(f"{room_id}:{rooms[room_id].get('revision', 0)}:{rooms[room_id].get('config_revision', 0)}" for room_id in thread["room_ids"])
         save_state(state)
-        return {
+        return forum_round_public({
             "thread": thread,
             "messages": thread.get("messages", []),
             "new_messages": new_messages,
             "round_results": round_results,
             "idempotent": False,
-        }
+        })
     finally:
         lock.release()
 
@@ -2636,7 +2647,7 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
     save_state(state)
 
     result = await run_forum_round(thread["id"])
-    return {
+    return forum_round_public({
         "thread_id": thread["id"],
         "room_ids": room_ids,
         "card_sets": [[card["id"] for card in cards] for cards in card_sets],
@@ -2645,7 +2656,7 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
         "new_messages": result.get("new_messages", []),
         "round_results": result.get("round_results", []),
         "idempotent": result.get("idempotent", False),
-    }
+    })
 
 
 def route_deliberation_summary(result: dict) -> dict:
@@ -2750,6 +2761,7 @@ PERSISTENT_AGENT_COMPLETE = persistent_agent_complete
 
 
 def primary_orchestrator_complete(*, objective: str, state: dict, max_agents: int) -> str:
+    objective = redact_text(objective, 4000)
     local_key = next((key for key in state["keys"] if key.get("provider") == "ollama" and key.get("state") == "ready"), None)
     if not local_key or not get_ollama_status().get("connected"):
         raise RuntimeError("Primary local Ollama Key is not ready and connected")

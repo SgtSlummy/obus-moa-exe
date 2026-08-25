@@ -11,3 +11,6 @@ __pycache__/
 third_party/warp/
 third_party/warpdotdev-warp/
 Understand-Anything/
+build-aui-*/
+dist-aui-*/
+.hermes/audits/

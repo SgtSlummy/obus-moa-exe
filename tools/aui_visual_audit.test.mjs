@@ -5,6 +5,7 @@ import {
   buildPreparationExpression,
   GOLDEN_RATIO,
   isRectInViewport,
+  layoutRatio,
   overlapArea,
   ratioScore,
   weightedScore,
@@ -44,12 +45,21 @@ test("page preparation happens before measurement and eagerly loads visible art"
   assert.match(expression, /data-page/);
   assert.match(expression, /comfortable/);
   assert.match(expression, /loading = 'eager'/);
+  assert.match(expression, /image\.decode/);
 });
 
 
 test("golden ratio receives a perfect score without rounding", () => {
   assert.equal(ratioScore(GOLDEN_RATIO), 10);
   assert.ok(ratioScore(1.5) < 10);
+});
+
+
+test("golden ratio is measured only for side-by-side panes", () => {
+  const primary = {x: 0, y: 0, width: 618, height: 600};
+  const rail = {x: 631, y: 0, width: 382, height: 600};
+  assert.ok(Math.abs(layoutRatio(primary, rail) - GOLDEN_RATIO) < 0.001);
+  assert.equal(layoutRatio(primary, {...rail, x: 0, y: 620}), null);
 });
 
 

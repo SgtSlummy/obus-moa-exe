@@ -649,6 +649,9 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.headers["content-type"], "image/svg+xml")
             self.assertIn(provider["solomon_seal"].upper().encode(), response.content.upper())
+            svg = __import__("xml.etree.ElementTree", fromlist=["ElementTree"]).fromstring(response.content)
+            text_nodes = [node for node in svg.iter() if node.tag.rsplit("}", 1)[-1] == "text"]
+            self.assertFalse(text_nodes, f"Key art must keep all text below the image: {provider['id']}")
             hashes.add(__import__("hashlib").sha256(response.content).hexdigest())
         self.assertEqual(len(hashes), 16)
 

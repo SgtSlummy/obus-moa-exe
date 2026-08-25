@@ -1,0 +1,522 @@
+:root {
+  --phi: 1.61803398875;
+  --space-phi: 1.61803398875;
+  --space-1: 3px;
+  --space-2: 5px;
+  --space-3: 8px;
+  --space-4: 13px;
+  --space-5: 21px;
+  --space-6: 34px;
+  --ink: #08090d;
+  --ink-soft: #0d0f15;
+  --ink-raised: #12151d;
+  --ink-high: #181c25;
+  --parchment: #f2eadb;
+  --parchment-soft: #d8cdbc;
+  --parchment-muted: #a99f90;
+  --brass: #c5a35d;
+  --brass-bright: #e2c37a;
+  --verdigris: #63aaa2;
+  --indigo: #8072ad;
+  --danger-heritage: #d97978;
+  --rule: color-mix(in srgb, var(--parchment) 15%, transparent);
+  --rule-strong: color-mix(in srgb, var(--brass) 38%, var(--rule));
+  --focus: 0 0 0 3px color-mix(in srgb, var(--verdigris) 52%, transparent);
+  --shadow-resting: 0 1px 0 #ffffff08, 0 13px 34px #0000003d;
+  --font-reading: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-editorial: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-code: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --control-min: 40px;
+  --reading-measure: 76ch;
+
+  /* Compatibility aliases for the existing shell. */
+  --bg: var(--ink);
+  --panel: var(--ink-raised);
+  --panel2: var(--ink-high);
+  --line: var(--rule);
+  --text: var(--parchment);
+  --muted: var(--parchment-muted);
+  --gold: var(--brass-bright);
+  --cyan: var(--verdigris);
+  --violet: var(--indigo);
+  --shadow: var(--shadow-resting);
+  --focus-ring: var(--focus);
+}
+
+html {
+  background: var(--ink);
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(90deg, transparent 0 20px, #c5a35d0a 21px, transparent 22px),
+    linear-gradient(0deg, transparent 0 20px, #f2eadb08 21px, transparent 22px);
+  background-size: 22px 22px;
+  color: var(--parchment);
+  font-family: var(--font-reading);
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brass) 42%, transparent);
+  color: var(--parchment);
+}
+
+.shell {
+  max-width: none;
+  grid-template-columns: clamp(12rem, 15vw, 15.5rem) minmax(0, 1fr);
+}
+
+.side {
+  border-color: var(--rule);
+  background: color-mix(in srgb, var(--ink) 94%, var(--brass) 6%);
+  backdrop-filter: none;
+}
+
+.brand {
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-5);
+}
+
+.brand h1,
+.title h2,
+.panel-head h3,
+.dialog-head h3 {
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+
+.brand small,
+.hint,
+.title p {
+  color: var(--parchment-muted);
+}
+
+.nav {
+  gap: var(--space-2);
+}
+
+.nav button {
+  min-block-size: var(--control-min);
+  border: 1px solid transparent;
+  border-radius: var(--space-3);
+  color: var(--parchment-muted);
+  line-height: 1.25;
+}
+
+.nav button:hover,
+.nav button.active {
+  border-color: var(--rule);
+  background: var(--ink-high);
+  color: var(--parchment);
+}
+
+.nav button.active {
+  box-shadow: inset 3px 0 var(--brass);
+}
+
+main {
+  padding: var(--space-5) clamp(var(--space-4), 2.4vw, var(--space-6)) var(--space-6);
+}
+
+.top {
+  align-items: flex-start;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.top > .actions,
+.panel-head > .actions,
+.terminal-block-head > .output-options,
+.key-actions,
+.row-actions {
+  min-width: 0;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  min-width: min(100%, 16rem);
+}
+
+.title h2 {
+  font-size: clamp(1.6rem, 2.4vw, 2.35rem);
+  line-height: 1.08;
+}
+
+.panel,
+.terminal-block,
+.shuffle-deck,
+.integration,
+.row,
+.forge-card,
+.agent-stage {
+  border-color: var(--rule);
+  background: var(--ink-raised);
+  box-shadow: var(--shadow-resting);
+}
+
+.panel,
+.terminal-block,
+.shuffle-deck {
+  border-radius: var(--space-4);
+}
+
+.panel-head,
+.terminal-block-head,
+.dialog-head,
+.dialog-foot {
+  min-width: 0;
+  gap: var(--space-4);
+  border-color: var(--rule);
+}
+
+.panel-head {
+  min-block-size: 55px;
+  padding: var(--space-4) var(--space-5);
+  flex-wrap: wrap;
+}
+
+.panel-head > :first-child,
+.panel-head h3,
+.panel-head .hint {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.panel-head h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.panel-body {
+  min-width: 0;
+  padding: var(--space-5);
+}
+
+.button,
+.select,
+.terminal-tab,
+button:not(.agent-face-button),
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-block-size: var(--control-min);
+}
+
+.button,
+.select,
+.terminal-tab,
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+  border-color: var(--rule);
+  border-radius: var(--space-3);
+  background: var(--ink-high);
+  color: var(--parchment);
+}
+
+.button {
+  padding: var(--space-3) var(--space-4);
+  font-weight: 600;
+}
+
+.button.primary {
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: #221b0f;
+  font-weight: 700;
+}
+
+.button:hover,
+.select:hover,
+.terminal-tab:hover {
+  border-color: var(--brass);
+  transform: none;
+}
+
+.button:focus-visible,
+.select:focus-visible,
+.terminal-tab:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus);
+}
+
+.status,
+.badge {
+  border-color: var(--rule);
+  background: var(--ink-soft);
+  color: var(--parchment-soft);
+}
+
+.badge {
+  margin-top: var(--space-2);
+}
+
+.hermes-composer {
+  min-block-size: 63px;
+  border-color: var(--rule-strong);
+  border-radius: var(--space-4);
+  background: var(--ink);
+  box-shadow: inset 0 1px #ffffff08;
+}
+
+.hermes-composer:focus-within {
+  border-color: var(--verdigris);
+  box-shadow: var(--focus), inset 0 1px #ffffff0a;
+  transform: none;
+}
+
+.hermes-composer textarea {
+  min-block-size: var(--control-min);
+  max-block-size: min(45vh, 34rem);
+  padding: var(--space-2) 0;
+  resize: vertical;
+  color: var(--parchment);
+  font-family: var(--font-code);
+  line-height: 1.55;
+  scrollbar-gutter: stable;
+}
+
+.hermes-composer textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--parchment-muted) 82%, transparent);
+}
+
+:where(.result, .code-output, .terminal-result, .agent-context-text, #workspace-file, #room-deliberation, #room-decision) {
+  min-block-size: 6rem;
+  max-block-size: min(72vh, 50rem);
+  overflow: auto;
+  resize: vertical;
+  scrollbar-gutter: stable both-edges;
+  border: 1px solid var(--rule);
+  border-radius: var(--space-3);
+  background: var(--ink);
+  color: var(--parchment-soft);
+  font-family: var(--font-code);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.terminal-workbench {
+  grid-template-columns: minmax(0, var(--phi)fr) minmax(17rem, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.terminal-stack,
+.terminal-rail {
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.terminal-toolbar,
+.terminal-command,
+.terminal-output {
+  background: var(--ink-soft);
+}
+
+.terminal-block-head {
+  min-block-size: 44px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--parchment-muted);
+  font-family: var(--font-code);
+  flex-wrap: wrap;
+}
+
+.terminal-block-head strong,
+.context,
+.connection-value,
+.aui-summary strong {
+  color: var(--verdigris);
+}
+
+.terminal-tab {
+  padding: var(--space-3) var(--space-4);
+}
+
+.terminal-tab.active {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--ink-high));
+  color: var(--parchment);
+}
+
+.metric {
+  min-width: 0;
+  border-color: var(--rule);
+  border-radius: var(--space-3);
+  background: var(--ink-soft);
+}
+
+.metric strong,
+.metric span,
+.row h4,
+.row p,
+.key-meta,
+.agent-info,
+.stage-meta,
+.connection-value,
+code,
+pre {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.room-workspace {
+  grid-template-columns: minmax(17rem, 1fr) minmax(0, var(--phi)fr);
+  gap: var(--space-5);
+}
+
+.key-grid.key-shuffle-deck {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: var(--space-4);
+}
+
+.grid.tarot-shuffle-deck {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-4);
+}
+
+.key-shuffle-deck .shuffle-card {
+  --shuffle-tilt: 0deg;
+  transform: none;
+}
+
+.key-shuffle-deck .shuffle-card:hover,
+.key-shuffle-deck .shuffle-card:focus-within {
+  transform: translateY(-2px);
+}
+
+.key-shuffle-deck .key-card {
+  gap: var(--space-3);
+}
+
+.key-shuffle-deck .key-art {
+  object-fit: contain;
+  background: var(--ink);
+}
+
+.key-shuffle-deck .key-meta,
+.key-shuffle-deck .key-actions {
+  position: static;
+  z-index: auto;
+}
+
+.key-actions {
+  align-items: center;
+  padding-top: var(--space-3);
+}
+
+.agent-card-face {
+  min-block-size: var(--control-min);
+}
+
+.card-art,
+.key-art,
+.emblem img {
+  max-width: 100%;
+}
+
+.guide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+}
+
+.guide div {
+  border-color: var(--rule);
+  border-radius: var(--space-3);
+  background: var(--ink-soft);
+}
+
+.dialog-head,
+.dialog-body,
+.dialog-foot,
+dialog {
+  background: var(--ink-raised);
+  color: var(--parchment);
+}
+
+.row,
+.deliberation-message,
+.forge-card,
+.integration {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 960px) {
+  .terminal-workbench,
+  .room-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .terminal-rail {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  main {
+    padding: var(--space-4);
+  }
+
+  .top,
+  .panel-head,
+  .terminal-block-head {
+    align-items: stretch;
+  }
+
+  .top > .actions,
+  .panel-head > .actions,
+  .output-options,
+  .composer-foot .actions,
+  .row-actions,
+  .key-actions {
+    width: 100%;
+  }
+
+  .terminal-rail,
+  .grid.tarot-shuffle-deck,
+  .key-grid.key-shuffle-deck,
+  .integration-grid,
+  .connection-grid,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .button,
+  .select,
+  .terminal-tab {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .button,
+  .panel,
+  .terminal-block,
+  .shuffle-card,
+  .agent-face-button,
+  .agent-face-spark,
+  .agent-icon-stream {
+    animation: none !important;
+    transition: none !important;
+  }
+}

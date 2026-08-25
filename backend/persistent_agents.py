@@ -81,6 +81,13 @@ class OrchestratorRoomAction(StrictModel):
     prompt: str = Field(min_length=1, max_length=12000)
     run: bool = False
 
+    @field_validator("card_ids")
+    @classmethod
+    def card_ids_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("card_ids must be unique")
+        return value
+
     @field_validator("mode")
     @classmethod
     def mode_valid(cls, value: str) -> str:
@@ -94,6 +101,13 @@ class OrchestratorForumAction(StrictModel):
     prompt: str = Field(min_length=1, max_length=12000)
     room_names: list[str] = Field(min_length=2, max_length=20)
     run: bool = False
+
+    @field_validator("room_names")
+    @classmethod
+    def room_names_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("room_names must be unique")
+        return value
 
 
 class OrchestratorPlan(StrictModel):
