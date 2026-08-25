@@ -70,22 +70,29 @@ class HarnessStore:
                 CREATE INDEX IF NOT EXISTS idx_harness_tasks_state ON harness_tasks(state, priority, created_at);
                 """
             )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(harness_tasks)")}
+            if "provider" not in columns:
+                connection.execute("ALTER TABLE harness_tasks ADD COLUMN provider TEXT NOT NULL DEFAULT 'codex'")
+            if "model" not in columns:
+                connection.execute("ALTER TABLE harness_tasks ADD COLUMN model TEXT")
             connection.execute(
                 "UPDATE harness_tasks SET state='queued', updated_at=? "
                 "WHERE state IN ('planning','running','verifying','repairing')",
                 (utc_now(),),
             )
 
-    def create_task(self, objective: str, workspace: Path, source: str, priority: int, max_attempts: int) -> dict[str, Any]:
+    def create_task(self, objective: str, workspace: Path, source: str, priority: int, max_attempts: int,
+                    provider: str = "codex", model: str | None = None) -> dict[str, Any]:
         task_id = uuid.uuid4().hex
         now = utc_now()
         with self._connection() as connection:
             connection.execute(
-                "INSERT INTO harness_tasks(id,objective,workspace,state,source,priority,max_attempts,created_at,updated_at) "
-                "VALUES(?,?,?,?,?,?,?,?,?)",
-                (task_id, objective, str(workspace), "queued", source, priority, max_attempts, now, now),
+                "INSERT INTO harness_tasks(id,objective,workspace,state,source,priority,max_attempts,created_at,updated_at,provider,model) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (task_id, objective, str(workspace), "queued", source, priority, max_attempts, now, now, provider, model),
             )
-        self.add_event(task_id, "task.created", {"objective": objective, "workspace": str(workspace), "source": source})
+        self.add_event(task_id, "task.created", {"objective": objective, "workspace": str(workspace),
+                                                  "source": source, "provider": provider, "model": model})
         return self.get_task(task_id)
 
     def get_task(self, task_id: str) -> dict[str, Any]:
@@ -190,6 +197,9 @@ class HarnessStore:
         return [dict(row) | {"active": bool(row["active"])} for row in rows]
 
 
+from backend.autonomy import ProviderRegistry
+
+
 Runner = Callable[[dict[str, Any], threading.Event, Callable[[str, dict[str, Any]], None]], str]
 
 
@@ -198,7 +208,8 @@ class AgentHarnessRuntime:
 
     def __init__(self, database: Path, runner: Runner | None = None, max_workers: int = 2):
         self.store = HarnessStore(database)
-        self.runner = runner or self._run_codex
+        self.providers = ProviderRegistry()
+        self.runner = runner or self.providers.run
         self.max_workers = max(1, max_workers)
         self._lock = threading.Lock()
         self._threads: dict[str, threading.Thread] = {}
@@ -207,10 +218,14 @@ class AgentHarnessRuntime:
         self.resume_queued()
 
     def submit(self, objective: str, workspace: Path, source: str = "local", priority: int = 50,
-               max_attempts: int = 3) -> dict[str, Any]:
+               max_attempts: int = 3, provider: str = "codex", model: str | None = None) -> dict[str, Any]:
         workspace = workspace.resolve()
         workspace.mkdir(parents=True, exist_ok=True)
-        task = self.store.create_task(objective, workspace, source, priority, max(1, min(max_attempts, 10)))
+        supported = {item["id"] for item in self.providers.discover()}
+        if provider not in supported:
+            raise ValueError(f"unsupported provider: {provider}")
+        task = self.store.create_task(objective, workspace, source, priority, max(1, min(max_attempts, 10)),
+                                      provider, model)
         self._start(task["id"])
         return task
 
@@ -257,8 +272,10 @@ class AgentHarnessRuntime:
                 return
             state = "running" if attempt == 1 else "repairing"
             self.store.transition(task_id, state, attempt=attempt)
-            action_id = self.store.start_action(task_id, "codex.unrestricted", {
+            provider = str(task.get("provider") or "codex")
+            action_id = self.store.start_action(task_id, f"{provider}.unrestricted", {
                 "objective": task["objective"], "workspace": task["workspace"], "attempt": attempt,
+                "provider": provider, "model": task.get("model"),
             })
             try:
                 result = self.runner(task | {"attempt": attempt}, cancellation,
@@ -344,4 +361,5 @@ class AgentHarnessRuntime:
         with self._lock:
             active = sum(thread.is_alive() for thread in self._threads.values())
         return {"status": "ready", "mode": "unrestricted", "authority": "administrator",
-                "active_tasks": active, "max_workers": self.max_workers, "database": str(self.store.path)}
+                "active_tasks": active, "max_workers": self.max_workers, "database": str(self.store.path),
+                "provider_default": "codex", "providers": self.providers.capabilities()}

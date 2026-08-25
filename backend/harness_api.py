@@ -31,6 +31,8 @@ class TaskCreate(BaseModel):
     workspace: str | None = None
     priority: int = Field(default=50, ge=0, le=100)
     max_attempts: int = Field(default=3, ge=1, le=10)
+    provider: str = Field(default="codex", pattern="^(codex|ollama|openai-compatible)$")
+    model: str | None = Field(default=None, max_length=256)
 
 
 def _authorize(request: Request, authorization: Annotated[str | None, Header()] = None) -> str:
@@ -70,7 +72,8 @@ def create_harness_task(payload: TaskCreate, request: Request,
                         authorization: Annotated[str | None, Header()] = None):
     source = _authorize(request, authorization)
     workspace = Path(payload.workspace).expanduser() if payload.workspace else Path.cwd()
-    return runtime.submit(payload.objective.strip(), workspace, source, payload.priority, payload.max_attempts)
+    return runtime.submit(payload.objective.strip(), workspace, source, payload.priority, payload.max_attempts,
+                          payload.provider, payload.model)
 
 
 @router.get("/tasks")
