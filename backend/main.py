@@ -409,16 +409,29 @@ def valid_deck_field(field: str, value: object) -> bool:
     return False
 
 
+def normalize_selected_deck(state: dict) -> None:
+    settings = normalize_user_settings(state.get("settings", {}))
+    enabled_ids = {deck.get("id") for deck in state.get("decks", []) if deck.get("enabled", True)}
+    if settings.get("selected_deck") != "auto" and settings.get("selected_deck") not in enabled_ids:
+        settings["selected_deck"] = "auto"
+    state["settings"] = settings
+
+
 ROUTE_OUTPUT_STRING_LIMIT = 100_000
 ROUTE_OUTPUT_LIST_LIMIT = 1_000
 ROUTE_OUTPUT_DICT_LIMIT = 1_000
 ROUTE_OUTPUT_DEPTH_LIMIT = 20
+ROUTE_OUTPUT_TOTAL_LIMIT = 2_000_000
 
 
-def route_result_public(value: object, depth: int = 0) -> object:
+def route_result_public(value: object, depth: int = 0, budget: Optional[list[int]] = None) -> object:
     """Redact route output with explicit bounded-container limits."""
+    if budget is None:
+        budget = [ROUTE_OUTPUT_TOTAL_LIMIT]
     if depth >= ROUTE_OUTPUT_DEPTH_LIMIT:
         return "[OUTPUT TRUNCATED: nesting limit]"
+    if budget[0] <= 0:
+        return "[OUTPUT TRUNCATED: aggregate limit]"
     if isinstance(value, dict):
         output = {}
         truncated = False
@@ -427,33 +440,49 @@ def route_result_public(value: object, depth: int = 0) -> object:
                 truncated = True
                 break
             if not is_secret_key(key):
-                output[str(key)] = route_result_public(child, depth + 1)
+                key_text = str(key)[:512]
+                budget[0] = max(0, budget[0] - len(key_text) - 4)
+                output[key_text] = route_result_public(child, depth + 1, budget)
+                if budget[0] <= 0:
+                    truncated = True
+                    break
         if truncated:
             output["_output_truncated"] = True
         return output
     if isinstance(value, list):
-        output = [route_result_public(child, depth + 1) for child in value[:ROUTE_OUTPUT_LIST_LIMIT]]
-        if len(value) > ROUTE_OUTPUT_LIST_LIMIT:
+        output = []
+        for child in value[:ROUTE_OUTPUT_LIST_LIMIT]:
+            output.append(route_result_public(child, depth + 1, budget))
+            if budget[0] <= 0:
+                break
+        if len(value) > ROUTE_OUTPUT_LIST_LIMIT or len(output) < len(value):
             output.append({"_output_truncated": True})
         return output
     if isinstance(value, str):
-        if len(value) > ROUTE_OUTPUT_STRING_LIMIT:
+        safe = redact_text(value, max(len(value), ROUTE_OUTPUT_STRING_LIMIT), parse_json=False)
+        if len(safe) > ROUTE_OUTPUT_STRING_LIMIT:
             marker = " [OUTPUT TRUNCATED: string limit]"
-            budget = ROUTE_OUTPUT_STRING_LIMIT - len(marker)
-            return redact_text(value[:budget], budget, parse_json=False) + marker
+            limit = min(ROUTE_OUTPUT_STRING_LIMIT - len(marker), max(0, budget[0] - len(marker)))
+            output = safe[:limit] + marker
+            budget[0] = max(0, budget[0] - len(output))
+            return output
         stripped = value.strip()
         if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
             try:
                 parsed = json.loads(stripped)
-                serialized = json.dumps(route_result_public(parsed, depth + 1), ensure_ascii=False, separators=(",", ":"))
+                serialized = json.dumps(route_result_public(parsed, depth + 1, budget), ensure_ascii=False, separators=(",", ":"))
                 if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT:
                     marker = " [OUTPUT TRUNCATED: serialized JSON limit]"
-                    budget = ROUTE_OUTPUT_STRING_LIMIT - len(marker)
-                    return redact_text(serialized[:budget], budget, parse_json=False) + marker
+                    limit = min(ROUTE_OUTPUT_STRING_LIMIT - len(marker), max(0, budget[0] - len(marker)))
+                    output = redact_text(serialized[:limit], limit, parse_json=False) + marker
+                    budget[0] = max(0, budget[0] - len(output))
+                    return output
+                budget[0] = max(0, budget[0] - len(serialized))
                 return serialized
-            except (TypeError, ValueError, json.JSONDecodeError):
+            except (TypeError, ValueError, json.JSONDecodeError, RecursionError):
                 pass
-        return redact_text(value, ROUTE_OUTPUT_STRING_LIMIT, parse_json=False)
+        budget[0] = max(0, budget[0] - len(safe))
+        return safe
     return value
 
 
@@ -541,6 +570,7 @@ def normalize_state(state: dict) -> dict:
         merged_decks.append(deck)
     merged_decks.extend(item for item in existing_decks.values() if valid_custom_deck(item))
     state["decks"] = merged_decks
+    normalize_selected_deck(state)
     # Codex is the first-class default. Preserve an explicit persisted selection,
     # while migrating legacy implicit local-Ollama defaults to Codex.
     if not state.get("aggregation_explicit"):
@@ -1999,8 +2029,9 @@ async def update_settings(update: SettingsUpdate):
     for field, value in values.items():
         settings[field] = value
     state["settings"] = settings
+    normalize_selected_deck(state)
     save_state(state)
-    return settings
+    return state["settings"]
 
 
 @app.get("/api/settings/auto-deliberation")
@@ -2034,6 +2065,7 @@ async def import_settings(payload: SettingsImport):
     current = get_settings(state)
     current.update(imported)
     state["settings"] = normalize_user_settings(current)
+    normalize_selected_deck(state)
     save_state(state)
     return state["settings"]
 
@@ -3362,6 +3394,7 @@ async def update_deck(deck_id: str, update: DeckUpdate):
     for deck in state.get("decks", []):
         if deck["id"] == deck_id:
             deck.update(changes)
+            normalize_selected_deck(state)
             save_state(state)
             return deck_public(deck)
     raise HTTPException(status_code=404, detail="Deck not found")

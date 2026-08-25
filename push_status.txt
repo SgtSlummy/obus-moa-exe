@@ -1,28 +1,33 @@
-# Push Status Report - 2026-08-24 19:04 UTC (cron cycle)
+# Push Status Report - 2026-08-25 00:38 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: afc8437 feat: wire heritage workbench CSS/JS into AUI, add layout persistence test
-  ✅ Branch: master -> origin/master (up to date)
-  Previous push this cycle: c0f9011 (feat: forum_round_public redaction, unique validator, AUI measurement coverage)
+  ✅ Committed: 1a1b4d8 fix: tighten AUI event slicing, share secret-safety redaction in receipts, validate selected_deck
+  ✅ Pushed: 168f1ec -> origin/master (1a1b4d8)
+  Previous push this cycle: 168f1ec (chore: refresh status report and AUI wiring)
   All changes include:
-    M backend/main.py — AUI wiring
-    M backend/static/aui/heritage-workbench.css — stylesheet
-    M backend/static/aui/layout.js — layout persistence
-    M backend/static/index.html — AUI module wiring
-    ?? tests/test_aui_layout_persistence.py — new test
-  Working tree: clean
+    M backend/main.py — AUI event slicing, selected_deck validation, route result public wiring in receipts
+    M backend/aui_events.py — bounded snapshot slicing
+    M backend/run_receipts.py — shared secret-safety redaction via is_secret_key/shared_redact_text
+  Working tree: clean (untracked: warp/)
 
 Submodules:
   🔶 Understand-Anything: 2 commits ahead (d07c457, 99e62b7) — push blocked 403 (no Egonex-AI permission, expected)
-  🔶 third_party/warpdotdev-warp: clean, up to date with upstream warpdotdev — no push needed
+  🔶 third_party/warpdotdev-warp: detached at e054075, upstream warpdotdev — no push needed
   🔶 warp: behind upstream nvidia/warp main — push blocked 403 (expected)
 
 Network:
-  ✅ github.com reachable (HTTP 200)
-  ✅ Push succeeded (main repo, 2 commits this cycle)
+  ✅ github.com reachable
+  ✅ Push succeeded (main repo)
   ❌ Push blocked: Understand-Anything (403), warp (403) — permission, not network
 
 Active processes:
-  - 2x python (background Hermes processes)
-  - 1x OBus executable (dist-aui-loop21/OBus)
-  - No background job processes (process manager empty)
+  - 42x python.exe (background Hermes + bridge processes)
+  - 9x OBus.exe (various instances)
+  - 9x node.exe (AUI/web processes)
+  - 1x node_repl.exe
+  - No managed background job processes
+
+Timing:
+  - Job ID: 893c7df0ef71
+  - Run: 2026-08-25 00:38:37 PDT
+  - Schedule: every 10m

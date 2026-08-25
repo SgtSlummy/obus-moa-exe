@@ -20,6 +20,7 @@ _FIELD_PATTERN = re.compile(
 )
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
+    (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*"), "[PRIVATE KEY REDACTED]"),
     (re.compile(r"(?i)\b(?:bearer|basic|token)\s+[A-Za-z0-9._~+/=-]+"), "[AUTHORIZATION REDACTED]"),
     (re.compile(r"\b[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\.[A-Za-z0-9_-]{1,}\b"), "[TOKEN REDACTED]"),
     (_FIELD_PATTERN, "[REDACTED FIELD]"),
@@ -76,6 +77,6 @@ def redact_value(value: Any, key: str | None = None) -> Any:
 
 def safe_route_id(value: object) -> str:
     raw = str(value or "")
-    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _SECRET_PATTERNS[2][0].search(raw) and not _SECRET_PATTERNS[5][0].search(raw):
+    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _SECRET_PATTERNS[2][0].search(raw) and not _SECRET_PATTERNS[6][0].search(raw):
         return raw
     return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
