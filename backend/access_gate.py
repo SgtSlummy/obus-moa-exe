@@ -13,6 +13,10 @@ from pathlib import Path
 _ACCESS_LOCK = threading.RLock()
 _SESSIONS: dict[str, float] = {}
 _SESSION_SECONDS = 12 * 60 * 60
+_FAILED_ATTEMPTS = 0
+_BLOCKED_UNTIL = 0.0
+_MAX_FAILED_ATTEMPTS = 5
+_BACKOFF_SECONDS = 15.0
 
 
 def config_path() -> Path | None:
@@ -62,6 +66,11 @@ def status() -> dict:
 
 
 def verify_password(password: str) -> bool:
+    global _FAILED_ATTEMPTS, _BLOCKED_UNTIL
+    now = time.time()
+    with _ACCESS_LOCK:
+        if now < _BLOCKED_UNTIL:
+            return False
     config = load_config()
     if not config or not status()["machine_bound"]:
         return False
@@ -72,7 +81,17 @@ def verify_password(password: str) -> bool:
     except (KeyError, TypeError, ValueError):
         return False
     actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
-    return secrets.compare_digest(actual, expected)
+    valid = secrets.compare_digest(actual, expected)
+    with _ACCESS_LOCK:
+        if valid:
+            _FAILED_ATTEMPTS = 0
+            _BLOCKED_UNTIL = 0.0
+        else:
+            _FAILED_ATTEMPTS += 1
+            if _FAILED_ATTEMPTS >= _MAX_FAILED_ATTEMPTS:
+                _BLOCKED_UNTIL = time.time() + _BACKOFF_SECONDS
+                _FAILED_ATTEMPTS = 0
+    return valid
 
 
 def create_session() -> str:

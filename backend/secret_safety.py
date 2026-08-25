@@ -9,11 +9,11 @@ SECRET_KEYS = {
     "api_key", "apikey", "x_api_key", "token", "access_token", "refresh_token",
     "password", "secret", "private_key", "credential", "authorization",
     "auth", "basic_auth", "auth_token", "pem", "certificate", "client_secret",
-    "session_token", "id_token", "secret_key", "privatekey", "credentials",
-}
+    "session_token", "sessiontoken", "id_token", "idtoken", "secret_key", "privatekey", "credentials",
+    "clientsecret", "refreshtoken", "accesstoken",}
 
 _FIELD_PATTERN = re.compile(
-    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|password|secret)["']?)\s*[:=]\s*["']?[^"'\s,}\]]+'''
+    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|password|secret)["']?)\s*[:=]\s*["']?[^"'\s,}\]]+'''
 )
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
@@ -28,7 +28,8 @@ _ROUTE_SENSITIVE_LABEL = re.compile(r"(?i)(?:api[_-]?key|password|secret|access[
 
 
 def normalized_key(key: object) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", str(key or "").casefold()).strip("_")
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", str(key or ""))
+    return re.sub(r"[^a-z0-9]+", "_", value.casefold()).strip("_")
 
 
 def is_secret_key(key: object) -> bool:

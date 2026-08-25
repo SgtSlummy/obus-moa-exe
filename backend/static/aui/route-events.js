@@ -3,7 +3,8 @@
 (function installObusRouteEvents(root) {
   const OBusRouteEvents = {
     create({url = "/api/route/events/stream", pollUrl = "/api/route/events", eventTypes = [], onEvent, onError, pollIntervalMs = 1200} = {}) {
-      const allowed = new Set(eventTypes);
+      const effectiveTypes = eventTypes.length ? eventTypes : ["route.started", "route.plan_ready", "route.local_started", "route.local_complete", "route.complete", "route.failed", "route.cancelled"];
+      const allowed = new Set(effectiveTypes);
       let lastEventId = "";
       const startPolling = (initialSince = lastEventId) => {
         let closed = false;
@@ -33,8 +34,7 @@
           if (typeof onEvent === "function") onEvent(payload, event);
           lastEventId = payload.id || event.lastEventId || lastEventId;
         };
-        if (eventTypes.length) eventTypes.forEach((type) => source.addEventListener(type, handle));
-        else source.addEventListener("message", handle);
+        effectiveTypes.forEach((type) => source.addEventListener(type, handle));
         let fallback = null;
         source.onerror = (event) => {
           if (!fallback) { source.close(); fallback = startPolling(lastEventId); }

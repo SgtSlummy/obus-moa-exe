@@ -73,7 +73,8 @@
     const status = normalizedStatus(meta);
     const key = keyFor(meta, index);
     const label = meta.role || meta.name || "Agent";
-    return `<button type="button" class="kawaii-face agent-face-button agent-face-${status}" data-agent-face data-agent-visual-key="${esc(key)}" aria-label="Inspect ${esc(label)} working context" title="Click to inspect ${esc(label)} · right-click for quick info"><span class="agent-face-glyph" aria-hidden="true">${esc(faceFor(meta, index))}</span><span class="agent-face-spark" aria-hidden="true">${esc(iconStream(status, index))}</span></button>`;
+    const compactClass = meta.compact ? " agent-card-face" : "";
+    return `<button type="button" class="kawaii-face agent-face-button agent-face-${status}${compactClass}" data-agent-face data-agent-visual-key="${esc(key)}" aria-label="Inspect ${esc(label)} working context" title="Click to inspect ${esc(label)} · right-click for quick info"><span class="agent-face-glyph" aria-hidden="true">${esc(faceFor(meta, index))}</span><span class="agent-face-spark" aria-hidden="true">${esc(iconStream(status, index))}</span></button>`;
   };
   const contextWindowMarkup = (meta = {}, index = 0) => {
     const status = normalizedStatus(meta);

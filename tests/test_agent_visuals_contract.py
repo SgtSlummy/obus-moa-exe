@@ -59,6 +59,25 @@ class AgentVisualsContractTests(unittest.TestCase):
         self.assertIn('class="key-figure"', providers)
         self.assertLess(providers.index('class="key-figure"'), providers.index('class="key-meta"'))
 
+    def test_shuffle_layout_wins_the_inline_cascade_and_bounds_motion(self):
+        client = TestClient(backend.app)
+        html = client.get('/').text
+        css = client.get('/static/aui/deck-workspace.css').text
+        providers = client.get('/static/aui/providers.js').text
+        visuals = client.get('/static/aui/agent-visuals.js').text
+        visual_css = client.get('/static/aui/agent-visuals.css').text
+
+        self.assertIn('.grid.tarot-shuffle-deck', css)
+        self.assertIn('.key-grid.key-shuffle-deck', css)
+        mobile = css.split('@media (max-width: 720px)', 1)[1].split('@media', 1)[0]
+        self.assertIn('animation: none', mobile)
+        self.assertIn('min(calc(var(--shuffle-index, 0) * 28ms), 308ms)', css)
+        self.assertIn('compact:true', html)
+        self.assertIn('meta.compact', visuals)
+        compact_face = visual_css.split('.agent-card-face {', 1)[1].split('}', 1)[0]
+        self.assertIn('width: auto', compact_face)
+        self.assertIn('min-height: 30px', compact_face)
+
 
 if __name__ == '__main__':
     unittest.main()

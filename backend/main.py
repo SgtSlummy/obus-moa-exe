@@ -788,7 +788,7 @@ def save_memory(items: list) -> None:
 
 def store_memory(text: str, tags: list[str], source: str) -> dict:
     """Redact, bound, deduplicate, and atomically store one durable memory."""
-    clean_text = sanitize_auth_output(str(text)).strip()[:8000]
+    clean_text = redact_text(str(text)).strip()[:8000]
     if not clean_text:
         raise ValueError("memory text is required")
     clean_tags = []
@@ -821,7 +821,7 @@ def remember_route_exchange(prompt: str, answer: str, *, engine: str) -> Optiona
 
 
 def bounded_memory_results(results: list[dict], character_budget: int = 3200, limit: int = 5) -> list[dict]:
-    """Return compact RAG evidence under a strict total text budget."""
+    """Return compact, redacted RAG evidence under a strict total text budget."""
     bounded = []
     remaining = max(0, int(character_budget))
     for raw in results:
@@ -1760,7 +1760,7 @@ async def warmup_nvidia_warp(payload: dict = Body(default_factory=dict)):
 
 @app.get("/api/memory")
 async def list_local_memory():
-    items = get_memory()
+    items = bounded_memory_results(get_memory(), character_budget=16000, limit=100)
     return {
         "items": items,
         "chunks": len(items),
@@ -1773,7 +1773,7 @@ async def create_local_memory(request: MemoryCreate):
     if len(request.text) > 8000:
         raise HTTPException(status_code=400, detail="memory text exceeds 8000 characters")
     try:
-        return store_memory(request.text, request.tags, "manual")
+        return redact_value(store_memory(request.text, request.tags, "manual"))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1794,7 +1794,8 @@ async def search_memory_hub(query: str, limit: int = 20):
     """Search local OBus, Hermes, MemPalace, Tarot RAG, and available Mem0 text."""
     if not query.strip():
         raise HTTPException(status_code=400, detail="query is required")
-    return {"query": query, "results": get_memory_hub().search(query, limit=min(max(1, limit), 50))}
+    safe_query = redact_text(query, 500)
+    return {"query": safe_query, "results": bounded_memory_results(get_memory_hub().search(safe_query, limit=min(max(1, limit), 50)), character_budget=8000, limit=50)}
 
 
 @app.put("/api/settings")
@@ -3907,6 +3908,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
 @app.post("/api/route/run")
 async def run_route(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
+    request.prompt = redact_text(request.prompt)[:4000]
     route_started = time.perf_counter()
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     register_route_cancel(route_id)
