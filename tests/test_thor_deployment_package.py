@@ -14,6 +14,8 @@ class ThorDeploymentPackageTests(unittest.TestCase):
             "Test-Loki-Route.ps1",
             "thor-loki-state.json",
             "README.md",
+            "Enable-OBus-Thor-Portal.ps1",
+            "Invoke-OBus-Portal.ps1",
         }
         self.assertEqual({path.name for path in self.package_dir.iterdir()}, required)
 
