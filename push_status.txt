@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 20:38 PDT (cron cycle)
+# Push Status Report - 2026-08-25 20:50 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 20:38 PDT
+**Run Time:** 2026-08-25 20:50 PDT
 
 ---
 
@@ -10,53 +10,23 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `b8826fd` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports` |
-| warp submodule (SgtSlummy) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found) |
+| obus-moa-exe (SgtSlummy) | `6dd1e0e` | master | ✅ **Up to date** — pushed in prior cycle, `origin/master` matches HEAD |
+| warp submodule (SgtSlummy/nvidia) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — 403, not a collaborator on warpdotdev/warp |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
 
-**Main repo:** `b8826fd` pushed to origin/master this cycle. 1 commit pushed.
+**Main repo:** `6dd1e0e` already pushed in prior cycle. `origin/master` and local HEAD are in sync. No new commits this cycle.
 
 ---
 
-## Recent Commit Chain (obus-moa-exe, all pushed)
+## Submodules (obus-moa-exe)
 
-```
-b8826fd (HEAD, origin/master) chore: refresh status and task reports
-998aecf                        test: cover tray voice controls and restore warp pointer
-e08d116                        feat: add local-first voice API with transcript routing and tests
-902bd6b                        security: protect peer identities with DPAPI
-6b6a141                        feat: add transactional harness recovery
-1bc81aa                        fix: declare peer signing dependency
-```
-
-All commits pushed to origin/master.
-
----
-
-## Warp Submodule — This Cycle
-
-| Item | Detail |
-|------|--------|
-| Current HEAD | `405e468` — `chore: update warp submodule cron status reports` |
-| Prior commit | `fee1347` — same purpose (from prior cycle) |
-| Upstream (nvidia/warp main) | behind by some commits |
-| SgtSlummy/warp fork | **Does not exist** — push fails with "Repository not found" |
-| Superproject pointer (in `b8826fd`) | `998aecf` — clean now (prior cycle recorded `fee1347`, this cycle didn't advance it) |
-
-The superproject is **clean** — no new submodule advancement was recorded this cycle. The `405e468` worktree commit from prior cycles persists locally but is not referenced by the superproject.
-
----
-
-## Understand-Anything Submodule — This Cycle
-
-| Item | Detail |
-|------|--------|
-| Current HEAD | `99e62b7` — `Sync Understand-Anything submodule changes for deploy` |
-| Prior commits | `d07c457`, `3294482` (merge PR #637) |
-| Remote | `Egonex-AI/Understand-Anything` — SgtSlummy not a collaborator (403) |
-| Status | 2 commits ahead of last push, cannot push |
+| Submodule | Status |
+|-----------|--------|
+| warp | `405e468` (working tree) — local-only, push blocked (fork missing / not collaborator). 3 local commits preserved. Superproject pointer `405e468` matches working tree. |
+| Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403) |
+| third_party/warpdotdev-warp | `21f413b` — detached HEAD, clean, tracking upstream warpdotdev |
 
 ---
 
@@ -64,28 +34,28 @@ The superproject is **clean** — no new submodule advancement was recorded this
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: **clean** — superproject points to `998aecf`, no dirty submodule
-- Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 3 committed-but-unpushable changes (`405e468`, `fee1347`, `e98ac07`)
-- `.gitmodules` tracks `warp` at `https://github.com/nvidia/warp.git` (fetch+push); SgtSlummy fork mapped to `sgtfork` remote
+- Tracked files: **clean** — no dirty files, no new commits
+- Untracked: `warp/` (excluded by .gitignore)
+
+---
+
+## Network
+
+- github.com: reachable (HTTPS 200)
+- All push blocks are permission/fork-existence, not network
 
 ---
 
 ## Active Jobs / Processes
 
-- **OBus executable:** `dist-aui-loop21/OBus` (PID 29263) — running
-- **Hermes python process:** PID 7939 — running
-- **No background job processes** in process manager
+- **OBus executable:** multiple instances running (PIDs: 8836, 11752, 14168, 18292, 19368, 22432, 26240, 26432)
+- **Python processes:** several active (Hermes agent, Ollama, dev tools)
+- **Other active tools:** gortex.exe (2 instances), node.exe (multiple), codex.exe (2 instances), llama-server.exe, chrome.exe (multiple), pinchtab, mempalace-mcp, cua-driver
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ Pushed this cycle. `b8826fd` (chore: refresh status and task reports) now on origin/master.
-
-2. **Warp submodule:** New local commit `405e468` from prior cycles persists. Superproject clean this cycle (no new submodule pointer recorded). Push to SgtSlummy/warp blocked — fork does not exist. Push to nvidia/warp not possible (not a collaborator). Local commits preserved.
-
-3. **third_party/warpdotdev-warp:** Clean, tracking upstream warpdotdev. Push blocked 403 (not collaborator). No action needed.
-
-4. **Understand-Anything:** 2 commits ahead, push blocked 403 (expected). Local work preserved.
-
-5. **Network:** github.com reachable (HTTPS 200). Push blocks are permission/fork-existence, not network.
+1. **Main repo:** ✅ Clean. `6dd1e0e` pushed in prior cycle. `origin/master` in sync. No new work this cycle.
+2. **Submodules:** All push blocks persistent and expected — no new action possible.
+3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
