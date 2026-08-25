@@ -53,7 +53,8 @@ class RouteEventHub:
         cursor = since
         while True:
             if cursor and not self.contains_id(cursor, route_id):
-                yield "event: route.cursor_reset\ndata: {\"reset\":true}\n\n"
+                reset_id = f"reset-{uuid.uuid4().hex[:16]}"
+                yield f"id: {reset_id}\nevent: route.cursor_reset\ndata: {{\"id\":\"{reset_id}\",\"type\":\"route.cursor_reset\",\"reset\":true}}\n\n"
                 cursor = None
             events = self.snapshot(route_id=route_id, since=cursor, limit=100)
             if events:

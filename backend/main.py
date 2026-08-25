@@ -470,7 +470,7 @@ def route_result_public(value: object, depth: int = 0, budget: Optional[list[int
         if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
             try:
                 parsed = json.loads(stripped)
-                serialized = json.dumps(route_result_public(parsed, depth + 1, budget), ensure_ascii=False, separators=(",", ":"))
+                serialized = json.dumps(route_result_public(parsed, depth + 1, [ROUTE_OUTPUT_STRING_LIMIT]), ensure_ascii=False, separators=(",", ":"))
                 if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT:
                     marker = " [OUTPUT TRUNCATED: serialized JSON limit]"
                     limit = min(ROUTE_OUTPUT_STRING_LIMIT - len(marker), max(0, budget[0] - len(marker)))
@@ -1174,6 +1174,37 @@ CODEX_DEVICE_URL = "https://auth.openai.com/codex/device"
 MAX_PROVIDER_RESPONSE_BYTES = 4_000_000
 
 
+def read_bounded_json_response(response, limit: int = MAX_PROVIDER_RESPONSE_BYTES) -> dict:
+    try:
+        raw = response.read(limit + 1)
+    except TypeError:
+        raw = response.read()
+    if len(raw) > limit:
+        raise RuntimeError("Provider response exceeded the bounded response limit")
+    value = json.loads(raw.decode("utf-8")) if raw else {}
+    if not isinstance(value, dict):
+        raise ValueError("Provider response must be a JSON object")
+    return value
+
+
+def run_bounded_subprocess(command: list[str], timeout: int | float, limit: int = MAX_PROVIDER_RESPONSE_BYTES):
+    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        process = subprocess.Popen(command, stdout=stdout_file, stderr=stderr_file, **silent_process_kwargs())
+        try:
+            return_code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            raise
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read(limit + 1)
+        stderr = stderr_file.read(limit + 1)
+    if len(stdout) > limit or len(stderr) > limit:
+        raise RuntimeError("Local subprocess output exceeded the bounded response limit")
+    return subprocess.CompletedProcess(command, return_code, stdout.decode("utf-8", "replace"), stderr.decode("utf-8", "replace"))
+
+
 def parse_codex_device_output(value: str) -> dict:
     clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
     url_match = re.search(r"https://auth\.openai\.com/codex/device(?:\?[^\s]*)?", clean)
@@ -1409,14 +1440,14 @@ def run_forge_install(job_id: str, project_id: str) -> None:
         if project["integration"] == "python_library":
             venv = DATA_DIR / "forge" / ".venv"
             if not (venv / "Scripts" / "python.exe").is_file():
-                create = subprocess.run([uv, "venv", str(venv)], capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace", **silent_process_kwargs())
+                create = run_bounded_subprocess([uv, "venv", str(venv)], timeout=180)
                 if create.returncode != 0:
                     raise RuntimeError(sanitize_auth_output((create.stdout or "") + (create.stderr or "")))
             command = [uv, *plan[1:]]
         else:
             command = [uv, *plan[1:]]
         FORGE_INSTALL_JOBS[job_id]["status"] = "running"
-        result = subprocess.run(command, capture_output=True, text=True, timeout=900, encoding="utf-8", errors="replace", **silent_process_kwargs())
+        result = run_bounded_subprocess(command, timeout=900)
         output = sanitize_auth_output((result.stdout or "") + (result.stderr or ""))
         FORGE_INSTALL_JOBS[job_id].update(status="complete" if result.returncode == 0 else "error", output=output, return_code=result.returncode)
     except Exception as exc:
@@ -1425,8 +1456,8 @@ def run_forge_install(job_id: str, project_id: str) -> None:
 
 def get_ollama_status() -> dict:
     try:
-        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=2) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        with _NO_REDIRECT_OPENER.open(urllib.request.Request(f"{OLLAMA_URL}/api/tags", method="GET"), timeout=2) as response:
+            payload = read_bounded_json_response(response)
         if not isinstance(payload, dict):
             raise ValueError("invalid tags response")
         models = [item.get("name", "") for item in payload.get("models", [])]
@@ -1438,8 +1469,8 @@ def get_ollama_status() -> dict:
         vram_bytes = {}
         running_models = []
         try:
-            with urllib.request.urlopen(f"{OLLAMA_URL}/api/ps", timeout=2) as response:
-                running = json.loads(response.read().decode("utf-8"))
+            with _NO_REDIRECT_OPENER.open(urllib.request.Request(f"{OLLAMA_URL}/api/ps", method="GET"), timeout=2) as response:
+                running = read_bounded_json_response(response)
             if isinstance(running, dict):
                 for item in running.get("models", []):
                     name = item.get("name", "")
@@ -1447,14 +1478,14 @@ def get_ollama_status() -> dict:
                         running_models.append(name)
                         runtime_contexts[name] = int(item.get("context_length") or 0)
                         vram_bytes[name] = int(item.get("size_vram") or 0)
-        except (OSError, urllib.error.URLError, ValueError, TypeError):
+        except (OSError, urllib.error.URLError, ValueError, TypeError, RuntimeError):
             pass
         return {
             "connected": True, "models": models, "model_contexts": contexts,
             "runtime_contexts": runtime_contexts, "running_models": running_models,
             "vram_bytes": vram_bytes, "url": OLLAMA_URL,
         }
-    except (OSError, urllib.error.URLError, ValueError, TypeError) as exc:
+    except (OSError, urllib.error.URLError, ValueError, TypeError, RuntimeError) as exc:
         return {
             "connected": False, "models": [], "model_contexts": {},
             "runtime_contexts": {}, "running_models": [], "vram_bytes": {},
@@ -1503,10 +1534,10 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
         )
         try:
             with urllib.request.urlopen(request, timeout=300) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                payload = read_bounded_json_response(response)
             if not isinstance(payload, dict):
                 raise ValueError("invalid response")
-        except (OSError, urllib.error.URLError, ValueError, TypeError, UnicodeDecodeError) as exc:
+        except (OSError, urllib.error.URLError, ValueError, TypeError, UnicodeDecodeError, RuntimeError) as exc:
             reason = "invalid response" if isinstance(exc, (ValueError, TypeError, UnicodeDecodeError)) else type(exc).__name__
             with GPU_WARM_LOCK:
                 GPU_WARM_STATE.update(status="error", error=reason)
@@ -3022,8 +3053,8 @@ def primary_orchestrator_complete(*, objective: str, state: dict, max_agents: in
         data=json.dumps({"model": local_key.get("model", "gpt-oss:20b"), "prompt": prompt, "stream": False, "format": "json"}).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST",
     )
-    with urllib.request.urlopen(request, timeout=240) as response:
-        return str(json.load(response).get("response", ""))
+    with _NO_REDIRECT_OPENER.open(request, timeout=240) as response:
+        return str(read_bounded_json_response(response).get("response", ""))
 
 
 PRIMARY_ORCHESTRATOR_COMPLETE = primary_orchestrator_complete
@@ -4004,7 +4035,7 @@ def generate_with_moa_router(prompt: str, model: str, plan: dict) -> tuple[str, 
     if command is None:
         raise RuntimeError("Local MoA router is not installed")
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=profile["timeout_seconds"], encoding="utf-8", errors="replace", **silent_process_kwargs())
+        result = run_bounded_subprocess(command, timeout=profile["timeout_seconds"])
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError(f"Local MoA router failed to start: {exc}") from exc
     if result.returncode != 0:
