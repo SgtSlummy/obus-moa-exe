@@ -65,9 +65,17 @@ def normalize_user_settings(settings: dict[str, Any] | None) -> dict[str, Any]:
         normalized["gpu_backend"] = DEFAULT_USER_SETTINGS["gpu_backend"]
     if normalized["workspace_root"] is not None and not isinstance(normalized["workspace_root"], str):
         normalized["workspace_root"] = None
-    if not 800 <= int(normalized["rag_character_budget"] or 0) <= 8000:
+    try:
+        rag_budget = int(normalized["rag_character_budget"] or 0)
+    except (TypeError, ValueError):
+        rag_budget = 0
+    if not 800 <= rag_budget <= 8000:
         normalized["rag_character_budget"] = DEFAULT_USER_SETTINGS["rag_character_budget"]
-    if not 1 <= int(normalized["max_parallel_agents"] or 0) <= 20:
+    try:
+        max_parallel = int(normalized["max_parallel_agents"] or 0)
+    except (TypeError, ValueError):
+        max_parallel = 0
+    if not 1 <= max_parallel <= 20:
         normalized["max_parallel_agents"] = DEFAULT_USER_SETTINGS["max_parallel_agents"]
     for field in ("rag_enabled", "auto_memory", "warp_preprocess_enabled", "harness_enabled", "output_autoscroll"):
         if not isinstance(normalized[field], bool):
@@ -90,10 +98,15 @@ def validate_import_payload(payload: Any) -> dict[str, Any]:
     if "settings_schema_version" in payload and payload["settings_schema_version"] != 1:
         raise ValueError("unsupported settings_schema_version")
     candidate = normalize_user_settings(payload)
-    if "rag_character_budget" in payload and not 800 <= int(payload["rag_character_budget"]) <= 8000:
-        raise ValueError("rag_character_budget must be 800-8000")
-    if "max_parallel_agents" in payload and not 1 <= int(payload["max_parallel_agents"]) <= 20:
-        raise ValueError("max_parallel_agents must be 1-20")
+    try:
+        if "rag_character_budget" in payload and not 800 <= int(payload["rag_character_budget"]) <= 8000:
+            raise ValueError("rag_character_budget must be 800-8000")
+        if "max_parallel_agents" in payload and not 1 <= int(payload["max_parallel_agents"]) <= 20:
+            raise ValueError("max_parallel_agents must be 1-20")
+    except (TypeError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc).startswith(("rag_character_budget", "max_parallel_agents")):
+            raise
+        raise ValueError("numeric settings must be valid integers") from exc
     if "workspace_surface" in payload and payload["workspace_surface"] not in WORKSPACE_SURFACES:
         raise ValueError("workspace_surface must be terminal, operator, or ade")
     if "routing_policy" in payload and payload["routing_policy"] not in ROUTING_POLICIES:

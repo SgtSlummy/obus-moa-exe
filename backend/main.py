@@ -369,8 +369,22 @@ def card_public(card: dict) -> dict:
     return redact_value({field: card[field] for field in CARD_PUBLIC_FIELDS if field in card})
 
 
+RUNTIME_EVENT_PUBLIC_FIELDS = {"id", "kind", "message", "agent_id", "created_at"}
+
+
+def runtime_event_public(event: dict) -> dict:
+    return redact_value({field: event[field] for field in RUNTIME_EVENT_PUBLIC_FIELDS if field in event})
+
+
+DECK_PUBLIC_FIELDS = {"id", "name", "symbol", "description", "style", "best_for", "image_pack", "enabled", "priority"}
+
+
+def deck_public(deck: dict) -> dict:
+    return redact_value({field: deck[field] for field in DECK_PUBLIC_FIELDS if field in deck})
+
+
 def normalize_state(state: dict) -> dict:
-    state = copy.deepcopy(state or {})
+    state = copy.deepcopy(state) if isinstance(state, dict) else {}
     raw_keys = state.get("keys", [])
     raw_cards = state.get("cards", [])
     state["keys"] = [item for item in raw_keys if isinstance(item, dict) and item.get("id")] if isinstance(raw_keys, list) else []
@@ -443,6 +457,16 @@ def normalize_state(state: dict) -> dict:
         merged_cards.append(value)
     merged_cards.extend(card for card in existing_cards.values() if all(card.get(field) for field in ("name", "persona", "image")))
     state["cards"] = merged_cards
+    raw_decks = state.get("decks", [])
+    existing_decks = {item.get("id"): item for item in raw_decks if isinstance(item, dict) and item.get("id")} if isinstance(raw_decks, list) else {}
+    merged_decks = []
+    for template in ALL_DECKS:
+        deck = copy.deepcopy(template)
+        previous = existing_decks.pop(template["id"], {})
+        deck.update({field: previous[field] for field in DECK_PUBLIC_FIELDS if field in previous})
+        merged_decks.append(deck)
+    merged_decks.extend(item for item in existing_decks.values() if item.get("name"))
+    state["decks"] = merged_decks
     # Codex is the first-class default. Preserve an explicit persisted selection,
     # while migrating legacy implicit local-Ollama defaults to Codex.
     if not state.get("aggregation_explicit"):
@@ -456,12 +480,13 @@ def normalize_state(state: dict) -> dict:
     state.setdefault("forum_threads", [])
     state.setdefault("persistent_agents", [])
     state.setdefault("runtime_events", [])
-    state.setdefault("runtime_settings", {
-        "max_agents": 30,
-        "max_parallel": 8,
-        "primary_key_id": "key-codex-oauth",
-        "auto_deliberation": AUTO_DELIBERATION_STARTUP,
-    })
+    if not isinstance(state.get("runtime_settings"), dict):
+        state["runtime_settings"] = {
+            "max_agents": 30,
+            "max_parallel": 8,
+            "primary_key_id": "key-codex-oauth",
+            "auto_deliberation": AUTO_DELIBERATION_STARTUP,
+        }
     state["runtime_settings"].setdefault("auto_deliberation", AUTO_DELIBERATION_STARTUP)
     state.setdefault("machine_setup", {
         "role": None,
@@ -490,6 +515,7 @@ def normalize_state(state: dict) -> dict:
         state["persistent_agents"] = []
     if not isinstance(state["runtime_events"], list):
         state["runtime_events"] = []
+    state["runtime_events"] = [runtime_event_public(item) for item in state["runtime_events"] if isinstance(item, dict)][-200:]
     if not isinstance(state["runtime_settings"], dict):
         state["runtime_settings"] = {
             "max_agents": 30,
@@ -1047,11 +1073,14 @@ def probe_key_live(key: dict) -> dict:
     provider = str(key.get("provider", "")).lower()
     if provider == "ollama":
         status = get_ollama_status()
+        model_name = str(key.get("model") or "")
+        models = {str(item) for item in (status.get("models") or [])}
+        model_ready = model_name in models
         return {
-            "success": bool(status.get("connected")),
-            "status_code": 200 if status.get("connected") else None,
-            "reason": None if status.get("connected") else "runtime_offline",
-            "message": "Ollama runtime and model catalog are reachable" if status.get("connected") else "Ollama runtime is offline",
+            "success": bool(status.get("connected") and model_ready),
+            "status_code": 200 if status.get("connected") and model_ready else None,
+            "reason": None if status.get("connected") and model_ready else ("model_missing" if status.get("connected") else "runtime_offline"),
+            "message": "Ollama runtime and configured model are reachable" if status.get("connected") and model_ready else (f"Ollama model {model_name or 'unknown'} is not installed" if status.get("connected") else "Ollama runtime is offline"),
         }
     if provider == "codex":
         command = codex_command("login", "status")
@@ -1526,7 +1555,9 @@ def provider_statuses(state: Optional[dict] = None) -> list:
             configured = bool(key.get("verified"))
         else:
             configured = bool(key.get("env_var") and os.getenv(key["env_var"]))
-        connection_ok = ollama["connected"] if key.get("provider") == "ollama" else bool(key.get("verified") and configured)
+        model_name = str(key.get("model") or "")
+        model_ready = model_name in {str(item) for item in (ollama.get("models") or [])}
+        connection_ok = (bool(ollama["connected"]) and model_ready) if key.get("provider") == "ollama" else bool(key.get("verified") and configured)
         connected = bool(connection_ok and key.get("state", "staged") == "ready")
         context_tokens = int(key.get("max_context_tokens") or 131072)
         detected_context = (
@@ -1737,7 +1768,7 @@ async def dashboard():
         "warm_runtime": get_gpu_warm_status(),
         "providers": provider_statuses(state),
         "cards": [card_public(card) for card in state.get("cards", DEFAULT_CARDS) if isinstance(card, dict)],
-        "decks": [d for d in ALL_DECKS if d.get("enabled", True)],
+        "decks": [deck_public(d) for d in state.get("decks", ALL_DECKS) if d.get("enabled", True)],
         "settings": settings,
         "usage": get_usage_summary(context_window),
         "quantum_inference": quantum_inference,
@@ -2835,7 +2866,8 @@ def persistent_agent_complete(**kwargs) -> str:
     provider = str(key.get("provider", "")).lower()
     if provider == "ollama":
         plan = {"selected_deck": {"name": "Persistent Agent"}, "agents": {"dynamic_assignments": [{"agent_title": kwargs["agent"].get("name", "Agent")}]}}
-        return generate_with_ollama(prompt, key.get("model", "gpt-oss:20b"), plan)
+        answer, _usage = generate_with_ollama(prompt, key.get("model", "gpt-oss:20b"), plan)
+        return answer
     if provider == "codex":
         return execute_codex_prompt(codex_command, key, prompt, DATA_DIR / "agent_workspaces" / kwargs["agent"]["id"])
     return execute_remote_provider(key, prompt)
@@ -3221,7 +3253,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
 
 @app.get("/api/runtime/events")
 async def runtime_events():
-    return load_state().get("runtime_events", [])[-200:]
+    return [runtime_event_public(event) for event in load_state().get("runtime_events", []) if isinstance(event, dict)][-200:]
 
 
 # ==================== DECK ENDPOINTS ====================
@@ -3229,16 +3261,17 @@ async def runtime_events():
 @app.get("/api/decks")
 async def get_decks():
     """Get all decks"""
-    return [d for d in ALL_DECKS if d.get("enabled", True)]
+    state = load_state()
+    return [deck_public(d) for d in state.get("decks", ALL_DECKS) if d.get("enabled", True)]
 
 
 @app.get("/api/decks/{deck_id}")
 async def get_deck(deck_id: str):
     """Get a specific deck"""
-    deck = next((d for d in ALL_DECKS if d["id"] == deck_id), None)
+    deck = next((d for d in load_state().get("decks", ALL_DECKS) if d["id"] == deck_id), None)
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found")
-    return deck
+    return deck_public(deck)
 
 
 @app.put("/api/decks/{deck_id}")
@@ -3247,8 +3280,12 @@ async def update_deck(deck_id: str, update: DeckUpdate):
     changes = update.model_dump(exclude_none=True)
     for deck in ALL_DECKS:
         if deck["id"] == deck_id:
-            deck.update(changes)
-            return redact_value({key: deck[key] for key in {"id", "name", "symbol", "description", "style", "best_for", "image_pack", "enabled", "priority"} if key in deck})
+            state = load_state()
+            persisted = next((item for item in state.get("decks", []) if item["id"] == deck_id), copy.deepcopy(deck))
+            persisted.update(changes)
+            state["decks"] = [persisted if item["id"] == deck_id else item for item in state.get("decks", [])]
+            save_state(state)
+            return deck_public(persisted)
     raise HTTPException(status_code=404, detail="Deck not found")
 
 
@@ -3274,15 +3311,19 @@ async def get_cards():
 async def create_card(card: dict = Body(...)):
     """Create a new tarot card"""
     state = load_state()
+    assigned_key_id = card.get("key_id")
+    if assigned_key_id and not any(key.get("id") == assigned_key_id for key in state.get("keys", [])):
+        raise HTTPException(status_code=404, detail="Key not found")
+    new_card_id = "card-custom-" + uuid.uuid4().hex[:12]
     new_card = {
-        "id": f"card-{len(state['cards']) + 1}",
+        "id": new_card_id,
         "name": card.get("name", "New Card"),
         "symbol": card.get("symbol", "🔮"),
         "persona": card.get("persona", "Agent"),
-        "image": f"/static/tarot/{card.get('id', 'new')}.svg",
+        "image": f"/static/tarot/{new_card_id}.svg",
         "reversed": False,
         "active": False,
-        "assigned_key_id": card.get("key_id"),
+        "assigned_key_id": assigned_key_id,
         "capabilities": card.get("capabilities", []),
         "can_aggregate": card.get("can_aggregate", False),
         "decks": card.get("decks", [])
@@ -4065,7 +4106,6 @@ async def _run_route_impl(request: RouteRequest):
     request.prompt = redact_text(request.prompt)[:4000]
     route_started = time.perf_counter()
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
-    register_route_cancel(route_id)
     ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
     try:
         plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
@@ -4298,7 +4338,7 @@ def route_terminal_emitted(route_id: str) -> bool:
 async def run_route(request: RouteRequest):
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     request.route_id = route_id
-    route_owned = route_id not in ROUTE_CANCEL_EVENTS
+    register_route_cancel(route_id)
     try:
         return await asyncio.wait_for(_run_route_impl(request), timeout=ROUTE_MAX_SECONDS)
     except HTTPException as exc:
@@ -4311,8 +4351,7 @@ async def run_route(request: RouteRequest):
         clear_route_cancel(route_id)
         raise HTTPException(status_code=503, detail="Route execution failed.") from exc
     finally:
-        if route_owned:
-            clear_route_cancel(route_id)
+        clear_route_cancel(route_id)
 
 
 @app.post("/api/execute")
