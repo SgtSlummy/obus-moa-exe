@@ -21,6 +21,10 @@ MAX_AGENT_STEPS = 8
 MAX_AGENT_HISTORY = 50
 MAX_PARALLEL_AGENT_RUNS = 8
 
+def normalized_room_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(value).casefold()).strip("-") or "room"
+
+
 CAPABILITY_TERMS = {
     "coding": {"code", "coding", "implement", "python", "javascript", "rust", "debug", "fix"},
     "research": {"research", "investigate", "find", "sources", "compare"},
@@ -105,8 +109,9 @@ class OrchestratorForumAction(StrictModel):
     @field_validator("room_names")
     @classmethod
     def room_names_unique(cls, value: list[str]) -> list[str]:
-        if len(value) != len(set(value)):
-            raise ValueError("room_names must be unique")
+        normalized = [normalized_room_name(item) for item in value]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("room_names must be unique after normalization")
         return value
 
 
@@ -117,7 +122,7 @@ class OrchestratorPlan(StrictModel):
 
     @model_validator(mode="after")
     def room_names_unique(self):
-        normalized = [re.sub(r"[^a-z0-9]+", "-", room.name.casefold()).strip("-") for room in self.rooms]
+        normalized = [normalized_room_name(room.name) for room in self.rooms]
         if len(normalized) != len(set(normalized)):
             raise ValueError("orchestrator room names must be unique")
         return self

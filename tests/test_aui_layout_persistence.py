@@ -8,6 +8,8 @@ import backend.main as backend
 class AUILayoutPersistenceTests(unittest.TestCase):
     def test_run_splitter_and_layout_presets_are_semantic_and_visible(self):
         html = TestClient(backend.app).get("/").text
+        self.assertNotIn("repeat(3,minmax(0,1fr);", html)
+        self.assertIn("repeat(3,minmax(0,1fr));", html)
         for control_id in (
             "run-workbench-splitter",
             "layout-preset-select",
@@ -39,6 +41,8 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "obus-aui-preset",
             "localStorage?.removeItem",
             "obus-layout-preset",
+            "61.803398875",
+            'event.key === "Home") next = MIN_SPLIT',
         ):
             self.assertIn(marker, layout.text)
         for marker in (
@@ -47,12 +51,17 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "--splitter-size",
             ".pane-splitter",
             "cursor: col-resize",
+            "--splitter-size: 40px",
+            ".aui-action > span",
+            ".guide div",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]
         self.assertIn("display: grid", workbench_rule)
         self.assertIn("minmax(0, var(--run-primary-fr))", workbench_rule)
         self.assertIn("${ratio.toFixed(4)}fr", layout.text)
+        self.assertIn(".key-actions a.button", heritage.text)
+        self.assertNotIn("var(--phi)fr", heritage.text)
         for forbidden in ("prompt", "output", "provider", "api_key", "bearer"):
             self.assertNotIn(f'obus-aui-{forbidden}', layout.text.lower())
 

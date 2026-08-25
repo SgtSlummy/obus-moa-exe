@@ -1534,12 +1534,16 @@ async def aui_manifest(surface: Optional[str] = None):
 @app.get("/api/route/events")
 async def route_events(route_id: Optional[str] = None, limit: int = 50, since: Optional[str] = None):
     """Return bounded, secret-free route lifecycle events for polling clients."""
+    if since and not ROUTE_EVENTS.contains_id(since):
+        return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return ROUTE_EVENTS.snapshot(route_id=safe_route_id(route_id) if route_id else None, limit=limit, since=since)
 
 
 @app.get("/api/route/events/stream")
 async def route_event_stream(route_id: Optional[str] = None, since: Optional[str] = None):
     """Stream bounded route lifecycle events over a local-only SSE connection."""
+    if since and not ROUTE_EVENTS.contains_id(since):
+        return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return StreamingResponse(
         ROUTE_EVENTS.stream(route_id=safe_route_id(route_id) if route_id else None, since=since),
         media_type="text/event-stream",
@@ -3630,7 +3634,14 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
 @app.post("/api/route/plan")
 async def plan_route_post(request: RouteRequest):
     """POST contract used by the desktop UI."""
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
+    route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
+    ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
+    try:
+        plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
+    except Exception as exc:
+        ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "planning", "reason": type(exc).__name__})
+        raise
+    ROUTE_EVENTS.publish(route_id, "route.plan_ready", {"deck": plan.get("selected_deck", {}).get("name")})
     return plan
 
 
@@ -3924,9 +3935,12 @@ app.router.add_event_handler("startup", start_tentacle_worms)
 def register_route_cancel(route_id: str) -> threading.Event:
     with ROUTE_CANCEL_LOCK:
         if len(ROUTE_CANCEL_EVENTS) >= 512:
-            for stale_id in list(ROUTE_CANCEL_EVENTS)[:64]:
-                ROUTE_CANCEL_EVENTS.pop(stale_id, None)
-        return ROUTE_CANCEL_EVENTS.setdefault(route_id, threading.Event())
+            raise HTTPException(status_code=503, detail="Route capacity is temporarily full")
+        if route_id in ROUTE_CANCEL_EVENTS:
+            raise HTTPException(status_code=409, detail="Route ID is already active")
+        event = threading.Event()
+        ROUTE_CANCEL_EVENTS[route_id] = event
+        return event
 
 
 def route_cancel_requested(route_id: str) -> bool:
@@ -3935,10 +3949,18 @@ def route_cancel_requested(route_id: str) -> bool:
         return bool(event and event.is_set())
 
 
+def clear_route_cancel(route_id: str) -> None:
+    with ROUTE_CANCEL_LOCK:
+        ROUTE_CANCEL_EVENTS.pop(route_id, None)
+
+
 @app.post("/api/route/{route_id}/cancel")
 async def cancel_route(route_id: str):
     route_id = safe_route_id(route_id)
-    event = register_route_cancel(route_id)
+    with ROUTE_CANCEL_LOCK:
+        event = ROUTE_CANCEL_EVENTS.get(route_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Active route not found")
     event.set()
     ROUTE_EVENTS.publish(route_id, "route.cancel_requested", {"status": "cancel_requested"})
     return {"route_id": route_id, "status": "cancel_requested"}
@@ -3972,7 +3994,12 @@ async def run_route(request: RouteRequest):
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     register_route_cancel(route_id)
     ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
-    plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
+    try:
+        plan = await plan_route(request.prompt, request.deck_mode, request.performance_profile, bool(request.rag_enabled), request.routing_policy)
+    except Exception as exc:
+        ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "planning", "reason": type(exc).__name__})
+        clear_route_cancel(route_id)
+        raise
     ROUTE_EVENTS.publish(route_id, "route.plan_ready", {"deck": plan.get("selected_deck", {}).get("name"), "specialists": len(plan.get("agents", {}).get("dynamic_assignments", []))})
     route_deliberation: Optional[dict] = None
     runtime_state = load_state()
@@ -3990,6 +4017,7 @@ async def run_route(request: RouteRequest):
             result["deliberation"] = copy.deepcopy(route_deliberation)
         result["route_id"] = route_id
         ROUTE_EVENTS.publish(route_id, event_type, {"status": result.get("status"), "engine": result.get("engine"), "aggregate": (result.get("aggregate") or {}).get("status")})
+        clear_route_cancel(route_id)
         return result
 
     def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled") -> dict:
@@ -4066,9 +4094,10 @@ async def run_route(request: RouteRequest):
         ROUTE_EVENTS.publish(route_id, "route.local_complete", {"engine": local_engine, "stages": len(local_trace)})
         if route_cancel_requested(route_id):
             return cancelled_result("local", local_answer, local_trace, local_engine)
-    except RuntimeError as exc:
+    except Exception as exc:
         ROUTE_EVENTS.publish(route_id, "route.failed", {"phase": "local", "error": type(exc).__name__})
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        clear_route_cancel(route_id)
+        raise HTTPException(status_code=503, detail="Local route execution failed.") from exc
 
     aggregate_calls = 0
     aggregate_seconds = 0.0
@@ -4138,7 +4167,7 @@ async def run_route(request: RouteRequest):
     aggregate_started = time.perf_counter()
     try:
         final_answer = await asyncio.to_thread(AGGREGATE_WITH_KEY, aggregate_key, request.prompt, local_answer, plan)
-    except RuntimeError as exc:
+    except Exception as exc:
         aggregate_seconds = time.perf_counter() - aggregate_started
         usage = finish_usage(local_engine)
         remembered = remember_route_exchange(request.prompt, local_answer, engine=local_engine)

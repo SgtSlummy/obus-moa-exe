@@ -28,9 +28,9 @@
   --font-code: "Cascadia Mono", Consolas, ui-monospace, monospace;
   --control-min: 40px;
   --reading-measure: 76ch;
-  --run-primary-fr: var(--phi);
-  --run-secondary-fr: 1;
-  --splitter-size: 13px;
+  --run-primary-fr: 1.618fr;
+  --run-secondary-fr: 1fr;
+  --splitter-size: 40px;
 
   /* Compatibility aliases for the existing shell. */
   --bg: var(--ink);
@@ -313,7 +313,7 @@ textarea::placeholder {
 
 .terminal-workbench {
   display: grid;
-  grid-template-columns: minmax(0, var(--run-primary-fr)fr) var(--splitter-size) minmax(17rem, var(--run-secondary-fr)fr);
+  grid-template-columns: minmax(0, var(--run-primary-fr)) var(--splitter-size) minmax(17rem, var(--run-secondary-fr));
   gap: var(--space-3);
   align-items: start;
 }
@@ -407,8 +407,54 @@ pre {
 }
 
 .room-workspace {
-  grid-template-columns: minmax(17rem, 1fr) minmax(0, var(--phi)fr);
+  grid-template-columns: minmax(0, 1.618fr) minmax(17rem, 1fr);
   gap: var(--space-5);
+}
+
+.aui-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.aui-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-4);
+  background: var(--ink-soft);
+}
+
+.aui-action > span {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.aui-action strong,
+.aui-action small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.aui-action kbd {
+  align-self: start;
+  white-space: nowrap;
+}
+
+.guide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.guide div {
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr);
+  column-gap: var(--space-2);
+  align-items: start;
+}
+
+.guide strong {
+  margin: 0;
 }
 
 .key-grid.key-shuffle-deck {
@@ -450,6 +496,12 @@ pre {
 .key-actions {
   align-items: center;
   padding-top: var(--space-3);
+}
+
+.key-actions a.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-min);
 }
 
 .agent-card-face {

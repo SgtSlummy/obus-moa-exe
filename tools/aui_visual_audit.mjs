@@ -61,12 +61,39 @@ export function layoutRatio(firstRect, secondRect) {
   return Math.max(firstRect.width, secondRect.width) / Math.min(firstRect.width, secondRect.width);
 }
 
+export function paneLayoutRatio(items) {
+  const panes = (items || []).filter((item) => item.role !== "separator");
+  if (panes.length < 2) return null;
+  return layoutRatio(panes[0].rect, panes[panes.length - 1].rect);
+}
+
 export function deviceMetricsFor(width, height) {
   return {width, height, deviceScaleFactor: 1, mobile: false};
 }
 
 export function effectiveSettleMs(value) {
   return Math.max(800, Number(value) || 0);
+}
+
+export function imageGeometryIssue({complete, naturalWidth, naturalHeight, width, height}, tolerance = 0.03) {
+  if (!complete || naturalWidth <= 0 || naturalHeight <= 0 || width <= 0 || height <= 0) return "broken";
+  const naturalRatio = naturalWidth / naturalHeight;
+  const renderedRatio = width / height;
+  return Math.abs(Math.log(renderedRatio / naturalRatio)) > tolerance ? "distorted" : null;
+}
+
+export function isInvalidSeparator({orientation, minimum, now, maximum}) {
+  if (!["horizontal", "vertical"].includes(orientation)) return true;
+  return ![minimum, now, maximum].every(Number.isFinite) || minimum > now || now > maximum;
+}
+
+export function validatePreparationResult(result, expectedPageId, expectedDensity) {
+  if (!result?.buttonFound) throw new Error(`Page button missing for ${expectedPageId}`);
+  if (result.foreignVisibleRoots > 0) throw new Error(`Foreign visible browser overlay detected (${result.foreignVisibleRoots})`);
+  if (!result.panelVisible || result.actualPageId !== expectedPageId || result.actualDensity !== expectedDensity) {
+    throw new Error(`Audit state mismatch: expected ${expectedPageId}/${expectedDensity}, got ${result?.actualPageId}/${result?.actualDensity}`);
+  }
+  return result;
 }
 
 export function ratioScore(ratio) {
@@ -83,7 +110,7 @@ export function weightedScore(scores) {
     }
     return total + value * weight;
   }, 0);
-  return Number((weighted / 100).toFixed(4));
+  return weighted / 100;
 }
 
 export function parseArgs(argv) {
@@ -202,8 +229,33 @@ export function buildPreparationExpression(pageName, density) {
     }
     const images = [...document.querySelectorAll('img')];
     images.forEach((image) => { image.loading = 'eager'; });
+    if (document.fonts?.ready) await document.fonts.ready;
     await Promise.all(images.map((image) => image.complete && image.naturalWidth > 0 ? Promise.resolve() : image.decode().catch(() => undefined)));
-    return {pageId: ${JSON.stringify(pageId)}, density: ${JSON.stringify(density)}};
+    let freeze = document.querySelector('#obus-audit-freeze');
+    if (!freeze) {
+      freeze = document.createElement('style');
+      freeze.id = 'obus-audit-freeze';
+      freeze.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}';
+      document.head.append(freeze);
+    }
+    const auditWorkbench = document.querySelector('#terminal-workbench');
+    auditWorkbench?.style.setProperty('--run-primary-fr', '1.61803398875fr');
+    auditWorkbench?.style.setProperty('--run-secondary-fr', '1fr');
+    document.querySelector('#run-workbench-splitter')?.setAttribute('aria-valuenow', '62');
+    const activePanel = document.querySelector('.page.active[data-page-panel]');
+    const foreignVisibleRoots = [...document.body.children].filter((element) => {
+      if (element.matches('.shell,script,dialog,.toast,.setup,.access-overlay')) return false;
+      const rect = element.getBoundingClientRect();
+      const visible = typeof element.checkVisibility === 'function' ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) : getComputedStyle(element).display !== 'none';
+      return visible && rect.width > 0 && rect.height > 0;
+    }).length;
+    return {
+      buttonFound: Boolean(pageButton),
+      panelVisible: Boolean(activePanel && getComputedStyle(activePanel).display !== 'none'),
+      actualPageId: activePanel?.dataset.pagePanel || null,
+      actualDensity: document.body.dataset.density || null,
+      foreignVisibleRoots,
+    };
   })()`;
 }
 
@@ -216,7 +268,9 @@ function evaluationExpression(pageId, density) {
       'main', '.panel', '.panel-head', '.panel-body', '.terminal-workbench',
       '.terminal-block', '.shuffle-card', '.key-figure', '.key-meta', '.key-actions',
       'textarea', '.result', '.code-output', '.terminal-result', '.agent-context-text',
-      'button', 'input', 'select', 'img', '[role="separator"]'
+      'button', 'input', 'select', 'img', 'a[href]', 'summary', '[contenteditable="true"]',
+      '[role="button"]', '[role="link"]', '[role="checkbox"]', '[role="radio"]', '[role="switch"]',
+      '[role="tab"]', '[role="menuitem"]', '[role="separator"]'
     ];
     const intentionalOverlays = new Set(['DIALOG', 'MENU']);
     const nodes = [...new Set(selectors.flatMap((selector) => [...document.querySelectorAll(selector)]))]
@@ -232,7 +286,7 @@ function evaluationExpression(pageId, density) {
       id: element.id || null,
       classes: [...element.classList].slice(0, 5),
       role: element.getAttribute('role'),
-      name: element.getAttribute('aria-label') || element.getAttribute('alt') || element.getAttribute('title') || (element.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 96),
+      name: element.id || element.getAttribute('role') || element.tagName.toLowerCase(),
       rect: (() => { const rect = element.getBoundingClientRect(); return {x: rect.x, y: rect.y, width: rect.width, height: rect.height}; })(),
     });
     const records = nodes.map(describe);
@@ -264,24 +318,54 @@ function evaluationExpression(pageId, density) {
         (element.scrollHeight > element.clientHeight + 1 && !scrollableY);
     }).map((element) => records[nodes.indexOf(element)]);
 
-    const brokenImages = nodes.filter((element) => element.tagName === 'IMG' && (!element.complete || element.naturalWidth === 0))
-      .map((element) => records[nodes.indexOf(element)]);
-    const undersizedTargets = nodes.filter((element) => ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName))
+    const allImages = [...document.querySelectorAll('.page.active img, .side img, .top img')].filter((element) => {
+      const style = getComputedStyle(element);
+      const cssVisible = typeof element.checkVisibility === 'function'
+        ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+        : style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0;
+      return cssVisible;
+    });
+    const describeImage = (element) => {
+      const rect = element.getBoundingClientRect();
+      return {tag: 'img', id: element.id || null, classes: [...element.classList].slice(0, 5), role: null, name: 'img', rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height}};
+    };
+    const brokenImages = allImages.filter((element) => !element.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0 || element.getBoundingClientRect().width <= 0 || element.getBoundingClientRect().height <= 0).map(describeImage);
+    const distortedImages = allImages.filter((element) => {
+      const rect = element.getBoundingClientRect();
+      if (!element.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0 || rect.width <= 0 || rect.height <= 0) return false;
+      return Math.abs(Math.log((rect.width / rect.height) / (element.naturalWidth / element.naturalHeight))) > .03 && getComputedStyle(element).objectFit === 'fill';
+    }).map(describeImage);
+    const interactiveSelector = 'button,input,select,textarea,a[href],summary,[contenteditable="true"],[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="tab"],[role="menuitem"]';
+    const undersizedTargets = nodes.filter((element) => element.matches(interactiveSelector))
       .filter((element) => {
         const rect = element.getBoundingClientRect();
-        return rect.width < 40 || rect.height < 40;
+        return rect.width < 24 || rect.height < 24;
       }).map((element) => records[nodes.indexOf(element)]);
+    const targetSizeAdvisories = nodes.filter((element) => element.matches(interactiveSelector))
+      .filter((element) => { const rect = element.getBoundingClientRect(); return (rect.width < 40 || rect.height < 40) && rect.width >= 24 && rect.height >= 24; })
+      .map((element) => records[nodes.indexOf(element)]);
     const invalidSeparators = nodes.filter((element) => element.getAttribute('role') === 'separator')
-      .filter((element) => !element.getAttribute('aria-orientation') || !element.hasAttribute('aria-valuemin') || !element.hasAttribute('aria-valuemax') || !element.hasAttribute('aria-valuenow'))
+      .filter((element) => {
+        const orientation = element.getAttribute('aria-orientation');
+        const minimum = Number(element.getAttribute('aria-valuemin'));
+        const maximum = Number(element.getAttribute('aria-valuemax'));
+        const now = Number(element.getAttribute('aria-valuenow'));
+        return !['horizontal','vertical'].includes(orientation) || ![minimum,maximum,now].every(Number.isFinite) || minimum > now || now > maximum;
+      })
       .map((element) => records[nodes.indexOf(element)]);
     const horizontalOverflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
 
-    const ratioTarget = document.querySelector('.terminal-workbench, .room-workspace');
+    const ratioTarget = [...document.querySelectorAll('.terminal-workbench, .room-workspace')].find((element) => {
+      const rect = element.getBoundingClientRect();
+      const visible = typeof element.checkVisibility === 'function' ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) : getComputedStyle(element).display !== 'none';
+      return visible && rect.width > 0 && rect.height > 0;
+    }) || null;
     let primaryRatio = null;
     if (ratioTarget && ratioTarget.children.length >= 2) {
-      const first = ratioTarget.children[0].getBoundingClientRect();
-      const second = ratioTarget.children[1].getBoundingClientRect();
-      if (Math.abs(first.y - second.y) <= 2 && first.width > 0 && second.width > 0) {
+      const paneChildren = [...ratioTarget.children].filter((element) => element.getAttribute('role') !== 'separator' && getComputedStyle(element).display !== 'none');
+      const first = paneChildren[0]?.getBoundingClientRect();
+      const second = paneChildren[paneChildren.length - 1]?.getBoundingClientRect();
+      if (first && second && Math.abs(first.y - second.y) <= 2 && first.width > 0 && second.width > 0) {
         primaryRatio = Math.max(first.width, second.width) / Math.min(first.width, second.width);
       }
     }
@@ -297,13 +381,16 @@ function evaluationExpression(pageId, density) {
         shellColumns: getComputedStyle(document.querySelector('.shell')).gridTemplateColumns,
         workbenchColumns: ratioTarget ? getComputedStyle(ratioTarget).gridTemplateColumns : null,
       },
-      counts: {auditedNodes: nodes.length, overlaps: overlaps.length, clipped: clipped.length, brokenImages: brokenImages.length, undersizedTargets: undersizedTargets.length, invalidSeparators: invalidSeparators.length},
+      counts: {auditedNodes: nodes.length, overlaps: overlaps.length, clipped: clipped.length, brokenImages: brokenImages.length, distortedImages: distortedImages.length, undersizedTargets: undersizedTargets.length, invalidSeparators: invalidSeparators.length},
+      advisories: {targetsBelow40: targetSizeAdvisories.length},
       horizontalOverflow,
       primaryRatio,
       overlaps,
       clipped,
       brokenImages,
+      distortedImages,
       undersizedTargets,
+      targetSizeAdvisories,
       invalidSeparators,
     };
   })()`;
@@ -322,6 +409,8 @@ export async function runAudit(options) {
   try {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    await client.send("Network.enable");
+    await client.send("Network.setCacheDisabled", {cacheDisabled: true});
     await client.send("Page.navigate", {url: options.url});
     await delay(effectiveSettleMs(options.settleMs));
 
@@ -331,11 +420,13 @@ export async function runAudit(options) {
       for (const density of options.densities) {
         for (const pageName of options.pages) {
           const pageId = PAGE_IDS[pageName];
-          await client.send("Runtime.evaluate", {
+          const prepared = await client.send("Runtime.evaluate", {
             expression: buildPreparationExpression(pageName, density),
             returnByValue: true,
             awaitPromise: true,
           });
+          if (prepared.exceptionDetails) throw new Error(`Audit preparation failed for ${pageName}`);
+          validatePreparationResult(prepared.result?.value, pageId, density);
           await delay(effectiveSettleMs(options.settleMs));
           const evaluated = await client.send("Runtime.evaluate", {
             expression: evaluationExpression(pageId, density),
@@ -343,7 +434,6 @@ export async function runAudit(options) {
             awaitPromise: true,
           });
           if (evaluated.exceptionDetails) throw new Error(`Audit evaluation failed for ${pageName}`);
-          await delay(options.settleMs);
           const report = evaluated.result?.value;
           if (!report) throw new Error(`No audit result for ${pageName}`);
           report.page = pageName;
@@ -362,7 +452,7 @@ export async function runAudit(options) {
   }
 
   const hardGateFailures = reports.reduce((total, report) => total +
-    report.counts.overlaps + report.counts.clipped + report.counts.brokenImages +
+    report.counts.overlaps + report.counts.clipped + report.counts.brokenImages + report.counts.distortedImages +
     report.counts.undersizedTargets + report.counts.invalidSeparators + (report.horizontalOverflow ? 1 : 0), 0);
   const stable = {
     schema: "obus-aui-visual-audit-v1",

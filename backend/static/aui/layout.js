@@ -1,11 +1,11 @@
 "use strict";
 
 (function installObusAuiLayout(root) {
-  const DEFAULT_SPLIT = 62;
+  const DEFAULT_SPLIT = 61.803398875;
   const MIN_SPLIT = 45;
   const MAX_SPLIT = 75;
   const PRESETS = {
-    focus: {split: 62, density: "comfortable", sidebarCollapsed: false},
+    focus: {split: 61.803398875, density: "comfortable", sidebarCollapsed: false},
     review: {split: 55, density: "comfortable", sidebarCollapsed: false},
     deck: {split: 62, density: "compact", sidebarCollapsed: false},
     studio: {split: 50, density: "spacious", sidebarCollapsed: false},
@@ -29,8 +29,8 @@
       const setSplit = (value, {persist = true} = {}) => {
         prefs.runSplit = clamp(Number(value) || DEFAULT_SPLIT, MIN_SPLIT, MAX_SPLIT);
         const ratio = prefs.runSplit / (100 - prefs.runSplit);
-        runWorkbench?.style.setProperty("--run-primary-fr", ratio.toFixed(4));
-        runWorkbench?.style.setProperty("--run-secondary-fr", "1");
+        runWorkbench?.style.setProperty("--run-primary-fr", `${ratio.toFixed(4)}fr`);
+        runWorkbench?.style.setProperty("--run-secondary-fr", "1fr");
         runSplitter?.setAttribute("aria-valuenow", String(Math.round(prefs.runSplit)));
         if (persist) root.localStorage?.setItem("obus-aui-split-run", String(prefs.runSplit));
       };
@@ -94,7 +94,7 @@
           let next = null;
           if (event.key === "ArrowLeft") next = prefs.runSplit - step;
           else if (event.key === "ArrowRight") next = prefs.runSplit + step;
-          else if (event.key === "Home") next = DEFAULT_SPLIT;
+          else if (event.key === "Home") next = MIN_SPLIT;
           else if (event.key === "End") next = MAX_SPLIT;
           if (next === null) return;
           event.preventDefault();

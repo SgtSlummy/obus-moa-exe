@@ -17,6 +17,7 @@
             const headers = {};
             try { const token = root.sessionStorage?.getItem("obus-access-token"); if (token) headers["X-OBus-Access"] = token; } catch (_) {}
             const response = await root.fetch(`${pollUrl}${since ? `${separator}since=${encodeURIComponent(since)}` : ""}`, {headers});
+            if (response.status === 410) { since = ""; return; }
             if (!response.ok) throw new Error(`route event polling failed (${response.status})`);
             const events = await response.json();
             events.forEach((payload) => { since = payload.id || since; if (!allowed.size || allowed.has(payload.type)) { if (typeof onEvent === "function") onEvent(payload, {type: payload.type}); } });

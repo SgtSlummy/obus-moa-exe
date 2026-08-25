@@ -1,28 +1,28 @@
-# Push Status Report - 2026-08-24 18:44 UTC (cron cycle)
+# Push Status Report - 2026-08-24 19:04 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: c0f9011 feat: add forum_round_public redaction, unique validator for orchestrator card_ids/room_names, AUI measurement coverage
+  ✅ Pushed: afc8437 feat: wire heritage workbench CSS/JS into AUI, add layout persistence test
   ✅ Branch: master -> origin/master (up to date)
+  Previous push this cycle: c0f9011 (feat: forum_round_public redaction, unique validator, AUI measurement coverage)
   All changes include:
-    M backend/persistent_agents.py — forum_round_public redaction + unique validator
-    M backend/static/aui/heritage-workbench.css — new stylesheet
-    M backend/static/aui/route-events.js — event handler fixes
+    M backend/main.py — AUI wiring
+    M backend/static/aui/heritage-workbench.css — stylesheet
+    M backend/static/aui/layout.js — layout persistence
     M backend/static/index.html — AUI module wiring
-    M tests/test_aui_modules_contract.py — new contract test coverage
-    M tools/aui_visual_audit.mjs — visual audit tooling
-    M tools/aui_visual_audit.test.mjs — audit test suite
+    ?? tests/test_aui_layout_persistence.py — new test
   Working tree: clean
 
 Submodules:
   🔶 Understand-Anything: 2 commits ahead (d07c457, 99e62b7) — push blocked 403 (no Egonex-AI permission, expected)
-  🔶 third_party/warpdotdev-warp: clean, up to date with upstream warpdotdev
+  🔶 third_party/warpdotdev-warp: clean, up to date with upstream warpdotdev — no push needed
   🔶 warp: behind upstream nvidia/warp main — push blocked 403 (expected)
 
 Network:
   ✅ github.com reachable (HTTP 200)
-  ✅ Push succeeded (main repo)
+  ✅ Push succeeded (main repo, 2 commits this cycle)
   ❌ Push blocked: Understand-Anything (403), warp (403) — permission, not network
 
 Active processes:
   - 2x python (background Hermes processes)
   - 1x OBus executable (dist-aui-loop21/OBus)
+  - No background job processes (process manager empty)

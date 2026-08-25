@@ -45,9 +45,11 @@ def load_config() -> dict | None:
         return None
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        return value if isinstance(value, dict) else None
+        if not isinstance(value, dict) or not value:
+            return {"_invalid": True}
+        return value
     except (OSError, ValueError):
-        return None
+        return {"_invalid": True}
 
 
 def status() -> dict:

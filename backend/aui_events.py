@@ -32,16 +32,20 @@ class RouteEventHub:
             self._condition.notify_all()
         return deepcopy(event)
 
+    def contains_id(self, event_id: str) -> bool:
+        with self._condition:
+            return any(event["id"] == event_id for event in self._events)
+
     def snapshot(self, route_id: str | None = None, limit: int = 50, since: str | None = None) -> list[dict[str, Any]]:
         with self._condition:
             events = list(self._events)
+        if since:
+            cursor_index = next((index for index, event in enumerate(events) if event["id"] == since), None)
+            if cursor_index is None:
+                return []
+            events = events[cursor_index + 1 :]
         if route_id:
             events = [event for event in events if event["route_id"] == route_id]
-        if since:
-            for index, event in enumerate(events):
-                if event["id"] == since:
-                    events = events[index + 1 :]
-                    break
         return deepcopy(events[-max(1, min(int(limit), 100)) :])
 
     def stream(self, route_id: str | None = None, since: str | None = None, heartbeat_seconds: float = 10.0) -> Iterator[str]:
