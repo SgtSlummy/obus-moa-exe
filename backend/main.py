@@ -388,12 +388,25 @@ def deck_public(deck: dict) -> dict:
 def valid_custom_deck(deck: object) -> bool:
     return (
         isinstance(deck, dict)
-        and all(isinstance(deck.get(field), str) and deck.get(field).strip() for field in ("id", "name", "symbol", "style"))
-        and isinstance(deck.get("best_for"), list)
-        and all(isinstance(item, str) for item in deck["best_for"])
-        and isinstance(deck.get("enabled"), bool)
-        and isinstance(deck.get("priority"), int)
+        and all(valid_deck_field(field, deck.get(field)) for field in ("id", "name", "symbol", "style", "best_for", "enabled", "priority"))
+        and all(valid_deck_field(field, deck.get(field)) for field in ("description", "image_pack") if field in deck)
     )
+
+
+def valid_deck_field(field: str, value: object) -> bool:
+    if field in {"id", "name", "symbol", "style"}:
+        return isinstance(value, str) and bool(value.strip()) and len(value) <= (240 if field in {"id", "name"} else 2000)
+    if field == "description":
+        return isinstance(value, str) and len(value) <= 4000
+    if field == "image_pack":
+        return isinstance(value, str) and len(value) <= 500
+    if field == "best_for":
+        return isinstance(value, list) and len(value) <= 32 and all(isinstance(item, str) and len(item) <= 120 for item in value)
+    if field == "enabled":
+        return isinstance(value, bool)
+    if field == "priority":
+        return isinstance(value, int) and not isinstance(value, bool) and -100 <= value <= 100
+    return False
 
 
 ROUTE_OUTPUT_STRING_LIMIT = 100_000
@@ -418,11 +431,16 @@ def route_result_public(value: object, depth: int = 0) -> object:
             output.append({"_output_truncated": True})
         return output
     if isinstance(value, str):
+        if len(value) > ROUTE_OUTPUT_STRING_LIMIT:
+            return redact_text(value[:ROUTE_OUTPUT_STRING_LIMIT], ROUTE_OUTPUT_STRING_LIMIT, parse_json=False) + " [OUTPUT TRUNCATED: string limit]"
         stripped = value.strip()
         if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
             try:
                 parsed = json.loads(stripped)
-                return json.dumps(route_result_public(parsed, depth + 1), ensure_ascii=False, separators=(",", ":"))[:ROUTE_OUTPUT_STRING_LIMIT]
+                serialized = json.dumps(route_result_public(parsed, depth + 1), ensure_ascii=False, separators=(",", ":"))
+                if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT:
+                    return redact_text(serialized[:ROUTE_OUTPUT_STRING_LIMIT], ROUTE_OUTPUT_STRING_LIMIT, parse_json=False) + " [OUTPUT TRUNCATED: serialized JSON limit]"
+                return serialized
             except (TypeError, ValueError, json.JSONDecodeError):
                 pass
         return redact_text(value, ROUTE_OUTPUT_STRING_LIMIT, parse_json=False)
@@ -509,7 +527,7 @@ def normalize_state(state: dict) -> dict:
     for template in ALL_DECKS:
         deck = copy.deepcopy(template)
         previous = existing_decks.pop(template["id"], {})
-        deck.update({field: previous[field] for field in DECK_PUBLIC_FIELDS if field in previous})
+        deck.update({field: previous[field] for field in DECK_PUBLIC_FIELDS if field in previous and valid_deck_field(field, previous[field])})
         merged_decks.append(deck)
     merged_decks.extend(item for item in existing_decks.values() if valid_custom_deck(item))
     state["decks"] = merged_decks
@@ -617,12 +635,12 @@ def save_state(state: dict):
 
 class DeckUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = None
-    description: Optional[str] = None
-    style: Optional[str] = None
-    best_for: Optional[List[str]] = None
+    name: Optional[str] = Field(default=None, max_length=240)
+    description: Optional[str] = Field(default=None, max_length=4000)
+    style: Optional[str] = Field(default=None, max_length=2000)
+    best_for: Optional[List[str]] = Field(default=None, max_length=32)
     enabled: Optional[bool] = None
-    priority: Optional[int] = None
+    priority: Optional[int] = Field(default=None, strict=True, ge=-100, le=100)
 
 
 class CardUpdate(BaseModel):
@@ -3324,6 +3342,8 @@ async def get_deck(deck_id: str):
 async def update_deck(deck_id: str, update: DeckUpdate):
     """Update only documented deck configuration fields."""
     changes = update.model_dump(exclude_none=True)
+    if any(not valid_deck_field(field, value) for field, value in changes.items()):
+        raise HTTPException(status_code=422, detail="Deck fields failed validation")
     state = load_state()
     for deck in state.get("decks", []):
         if deck["id"] == deck_id:

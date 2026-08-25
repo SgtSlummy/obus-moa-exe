@@ -36,7 +36,13 @@ def normalized_key(key: object) -> str:
 
 
 def is_secret_key(key: object) -> bool:
-    return normalized_key(key) in SECRET_KEYS
+    normalized = normalized_key(key)
+    if normalized in SECRET_KEYS:
+        return True
+    return (
+        normalized.startswith(("api_key_", "access_token_", "refresh_token_", "private_key_", "password_", "token_", "secret_", "credential_", "authorization_", "auth_"))
+        or normalized.endswith(("_api_key", "_token", "_secret", "_credential", "_password", "_private_key", "_authorization", "_auth_header"))
+    )
 
 
 def redact_text(value: Any, limit: int = 4000, *, parse_json: bool = True) -> str:

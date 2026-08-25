@@ -1,53 +1,80 @@
-# Cron Job: [bot:default] Continue
+# Status Report - 2026-08-25 00:15 UTC (cron cycle)
 
-**Job ID:** 893c7df0ef71
-**Run Time:** 2026-08-24 19:04 UTC (Pacific Daylight: 12:04)
-**Schedule:** every 10m
+**Job ID:** 893c7df0ef71  
+**Schedule:** every 10m  
+**Last Run:** 2026-08-24 23:00 UTC (previous cycle)
 
-## Summary
+---
 
-### Repositories — Pushed This Cycle
+## Repositories — Pushed This Cycle
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `afc8437` | master | ✅ Pushed — `feat: wire heritage workbench CSS/JS into AUI, add layout persistence test` (5 files, +212/-9) |
-| obus-moa-exe (SgtSlummy) | `c0f9011` | master | ✅ Pushed earlier this cycle — `feat: add forum_round_public redaction, unique validator for orchestrator card_ids/room_names, AUI measurement coverage` (7 files, +107/-8) |
+| obus-moa-exe (SgtSlummy) | `6194424` | master | ✅ Pushed — `feat: bounded route output redaction, valid_custom_deck validator, select_deck hardening` (2 files, +46/-16) |
 
-**Total: 2 commits pushed to master this cycle.**
+**Total: 1 commit pushed to master this cycle.**
 
-### Repositories — Already Up to Date (No Changes)
+---
+
+## Repositories — Already Up to Date (No Changes)
 
 | Repo | Branch | Notes |
 |------|--------|-------|
 | third_party/warpdotdev-warp (SgtSlummy) | master | Clean, up to date with upstream warpdotdev; no push needed |
 
-### Repositories — Push Blocked (Expected, No Action Needed)
+---
+
+## Repositories — Push Blocked (Expected, No Action Needed)
 
 | Repo | Remote | Block Reason |
 |------|--------|-------------|
 | Understand-Anything (SgtSlummy) | upstream Egonex-AI/Understand-Anything | 403 — not a collaborator on upstream; expected |
 | warp (SgtSlummy) | upstream nvidia/warp | 403 — not a collaborator on upstream; expected |
 
-### Submodules (obus-moa-exe)
+---
+
+## Submodules (obus-moa-exe)
 
 | Submodule | Status |
 |-----------|--------|
-| Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403, no Egonex-AI permission) |
-| warp | `-64c6cac` — behind upstream nvidia/warp main; push blocked (403, expected) |
-| third_party/warpdotdev-warp | `378b74f` — clean, tracking upstream warpdotdev; no push needed |
+| Understand-Anything | `-99e62b7` — 2 commits ahead of origin/main, push blocked (403, no Egonex-AI permission) |
+| warp | `-64c6cac` — up to date with origin/main; upstream nvidia/warp main ahead by ~125 commits; push blocked (403, expected) |
+| third_party/warpdotdev-warp | `e054075` — 2 commits ahead of previous `378b74f`; no SgtSlummy fork configured; push not attempted |
 
-### Working Directory
+---
 
-`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean (tracked files committed; only untracked build artifacts remain).
+## Working Directory
 
-### Network
+`/c/Users/Hermes/Documents/obus-moa-exe` — working tree clean (tracked files committed; only untracked build artifacts and status files remain).
+
+**Local diffs committed this cycle:** backend/main.py (+46/-16), backend/secret_safety.py (+2/-2).
+
+**Untracked artifacts:** build-aui-loop11–56, build-remediation*, build-warp-review, dist*, scripts/, data/, tmp/.
+
+---
+
+## Network
 
 - github.com: reachable (HTTPS 200)
-- Push to SgtSlummy/* remotes: successful this cycle (2 commits)
-- Push blocked: Understand-Anything (403), warp (403) — upstream permission, not network
+- Push to SgtSlummy/* remotes: successful this cycle (1 commit)
+- Push blocked: Understand-Anything (403), warp (403), warpdotdev-warp (no SgtSlummy fork) — upstream/fork configuration, not network
 
-### Active Jobs / Processes
+---
 
-- **Background processes:** 2x python (Hermes agents), 1x OBus executable (dist-aui-loop21/OBus)
-- **Process manager (background jobs):** empty — no active timed jobs
+## Active Jobs / Processes
+
+- **Background processes:** none detected (pgrep obus and python returned empty — OBus executable from previous cycle not running)
+- **Process manager:** empty — no active timed jobs
 - **No pending build/deploy tasks**
+
+---
+
+## OBus Tarot Router Status
+
+(get_status not called this cycle — next run will report)
+
+---
+
+## Summary
+
+1 commit pushed to obus-moa-exe master this cycle (route output redaction hardening). No active processes. Understand-Anything and warp submodule push blocks unchanged (expected). Warpdotdev-warp submodule has new upstream commits since last cycle but no SgtSlummy fork to push to.
