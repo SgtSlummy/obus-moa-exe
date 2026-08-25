@@ -1,0 +1,170 @@
+:root {
+  --tarot-art-scale: .75;
+  --key-art-scale: .75;
+  --shuffle-grid-dot: #a98cff12;
+  --shuffle-card-edge: #39415f;
+}
+
+/* A restrained card-table workspace: ComfyUI-like density without hiding controls. */
+.shuffle-deck {
+  isolation: isolate;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #252d47;
+  border-radius: 14px;
+  background-color: #080b15;
+  background-image: radial-gradient(circle, var(--shuffle-grid-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.tarot-shuffle-deck {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px 12px;
+}
+
+.key-shuffle-deck {
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 14px 12px;
+}
+
+.shuffle-card {
+  --shuffle-tilt: 0deg;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  transform: rotate(var(--shuffle-tilt));
+  transform-origin: 50% 88%;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  animation: card-shuffle-deal .42s cubic-bezier(.2, .78, .25, 1) both;
+  animation-delay: calc(var(--shuffle-index, 0) * 28ms);
+}
+
+.shuffle-card:nth-child(5n + 1) { --shuffle-tilt: -.9deg; }
+.shuffle-card:nth-child(5n + 2) { --shuffle-tilt: .55deg; }
+.shuffle-card:nth-child(5n + 3) { --shuffle-tilt: -.35deg; }
+.shuffle-card:nth-child(5n + 4) { --shuffle-tilt: .85deg; }
+
+.shuffle-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 3px -3px -3px 3px;
+  border: 1px solid var(--shuffle-card-edge);
+  border-radius: inherit;
+  background: #070a13;
+  opacity: .62;
+  pointer-events: none;
+}
+
+.shuffle-card:hover,
+.shuffle-card:focus-within {
+  z-index: 3;
+  transform: translateY(-7px) rotate(0deg) scale(1.015);
+  border-color: var(--gold);
+  box-shadow: 0 18px 36px #000a, 0 0 0 1px #f5c45135;
+}
+
+.card-figure,
+.key-figure {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.tarot-shuffle-deck .agent-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-self: start;
+}
+
+.tarot-shuffle-deck .card-figure {
+  padding: 12px 8px 0;
+}
+
+.tarot-shuffle-deck .card-art {
+  width: calc(100% * var(--tarot-art-scale));
+  max-width: 190px;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  border: 1px solid #3b4363;
+  border-radius: 11px;
+  box-shadow: 0 8px 20px #0008;
+}
+
+.tarot-shuffle-deck .agent-info {
+  align-self: stretch;
+}
+
+.key-shuffle-deck .key-card {
+  grid-template-areas: "art" "meta" "actions";
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+}
+
+.key-shuffle-deck .key-figure {
+  grid-area: art;
+  min-height: calc(88px * var(--key-art-scale));
+}
+
+.key-shuffle-deck .key-art {
+  width: calc(88px * var(--key-art-scale));
+  height: calc(88px * var(--key-art-scale));
+  object-fit: cover;
+  display: block;
+}
+
+.key-shuffle-deck .key-meta {
+  grid-area: meta;
+  min-width: 0;
+  text-align: left;
+}
+
+.key-shuffle-deck .key-actions {
+  grid-area: actions;
+  grid-column: auto;
+  align-self: end;
+  padding-top: 2px;
+  border-top: 1px solid #252d47;
+}
+
+@keyframes card-shuffle-deal {
+  from {
+    opacity: 0;
+    transform: translate3d(-24px, 14px, 0) rotate(-5deg) scale(.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--shuffle-tilt));
+  }
+}
+
+@media (max-width: 720px) {
+  .shuffle-deck {
+    padding: 8px;
+    background-size: 16px 16px;
+  }
+
+  .tarot-shuffle-deck,
+  .key-shuffle-deck {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .shuffle-card,
+  .shuffle-card:hover,
+  .shuffle-card:focus-within {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shuffle-card,
+  .shuffle-card:hover,
+  .shuffle-card:focus-within {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+}
