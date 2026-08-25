@@ -12,6 +12,7 @@ from typing import Any
 from backend.secret_safety import is_secret_key, redact_text as shared_redact_text
 
 RETENTION_LIMIT = 500
+MAX_RECEIPT_FILE_BYTES = 8_000_000
 _SECRET_ASSIGNMENT_KEYS = {"api_key", "token", "password", "secret", "private_key", "access_token", "refresh_token"}
 _CREDENTIAL_VALUE = re.compile(r"(?i)\b(api[_-]?key|token|password|secret|private[_ -]?key)\s*[:=]\s*[^\s,;]+")
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
@@ -102,7 +103,13 @@ def load_receipts(path: str | os.PathLike[str]) -> list[dict[str, Any]]:
     if not target.exists():
         return []
     try:
-        value = json.loads(target.read_text(encoding="utf-8"))
+        if not target.is_file() or target.stat().st_size > MAX_RECEIPT_FILE_BYTES:
+            return []
+        with target.open("rb") as handle:
+            raw = handle.read(MAX_RECEIPT_FILE_BYTES + 1)
+        if len(raw) > MAX_RECEIPT_FILE_BYTES:
+            return []
+        value = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return []
     return value if isinstance(value, list) else []

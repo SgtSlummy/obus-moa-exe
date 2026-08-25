@@ -12,8 +12,9 @@ MAX_SUBPROCESS_OUTPUT_BYTES = 4_000_000
 def terminate_process_tree(process: subprocess.Popen) -> None:
     if os.name == "nt" and process.pid:
         try:
-            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            return
+            result = subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            if result.returncode == 0:
+                return
         except (OSError, subprocess.SubprocessError):
             pass
     try:
@@ -86,7 +87,10 @@ def run_bounded_subprocess(
     except subprocess.TimeoutExpired as exc:
         timeout_error = exc
         terminate_process_tree(process)
-        process.wait()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
         return_code = process.returncode
     finally:
         for thread in threads:

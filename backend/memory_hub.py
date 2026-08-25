@@ -264,14 +264,18 @@ class MemoryHub:
                 columns = {row[1] for row in connection.execute("pragma table_info(messages)")}
                 if "content" in columns:
                     matched = 0
-                    rows = connection.execute("select rowid, content from messages").fetchall()
-                    for row_id, content in rows:
+                    scanned = 0
+                    cursor = connection.execute("select rowid, content from messages limit ?", (min(2000, max(100, source_limit * 100)),))
+                    for row_id, content in cursor:
+                        scanned += 1
                         text = str(content or "")
                         if self._contains(text, query):
                             results.append({"source": "mem0", "id": row_id, "text": text})
                             matched += 1
                             if matched >= source_limit:
                                 break
+                        if scanned >= min(2000, max(100, source_limit * 100)):
+                            break
                 connection.close()
             except (OSError, sqlite3.Error):
                 pass

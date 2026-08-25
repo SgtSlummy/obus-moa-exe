@@ -1883,10 +1883,11 @@ async def route_events(route_id: Optional[str] = None, limit: int = 50, since: O
 
 
 @app.get("/api/route/events/stream")
-async def route_event_stream(route_id: Optional[str] = None, since: Optional[str] = None):
+async def route_event_stream(request: Request, route_id: Optional[str] = None, since: Optional[str] = None):
     """Stream bounded route lifecycle events over a local-only SSE connection."""
     if not route_id:
         raise HTTPException(status_code=400, detail="route_id is required")
+    since = since or request.headers.get("last-event-id")
     if since and not ROUTE_EVENTS.contains_id(since, safe_route_id(route_id)):
         return JSONResponse(status_code=410, content={"error": "cursor_expired", "reset": True})
     return StreamingResponse(
