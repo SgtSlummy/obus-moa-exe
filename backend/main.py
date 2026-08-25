@@ -359,8 +359,22 @@ def key_public(key: dict) -> dict:
     return redact_value({field: key[field] for field in KEY_PUBLIC_FIELDS if field in key})
 
 
+CARD_PUBLIC_FIELDS = {
+    "id", "name", "symbol", "persona", "agent_type", "capabilities", "decks", "description", "style", "image", "art_style", "tool_ids", "arcana", "suit", "number",
+    "assigned_key_id", "assignment_mode", "reversed", "active", "key_name", "key_symbol",
+}
+
+
+def card_public(card: dict) -> dict:
+    return redact_value({field: card[field] for field in CARD_PUBLIC_FIELDS if field in card})
+
+
 def normalize_state(state: dict) -> dict:
     state = copy.deepcopy(state or {})
+    raw_keys = state.get("keys", [])
+    raw_cards = state.get("cards", [])
+    state["keys"] = [item for item in raw_keys if isinstance(item, dict) and item.get("id")] if isinstance(raw_keys, list) else []
+    state["cards"] = [item for item in raw_cards if isinstance(item, dict) and item.get("id")] if isinstance(raw_cards, list) else []
     existing_keys = {item.get("id"): item for item in state.get("keys", [])}
     merged_keys = []
     for template in DEFAULT_KEYS:
@@ -379,6 +393,10 @@ def normalize_state(state: dict) -> dict:
             value["model"] = "gpt-5.6-luna"
             value["provider"] = "codex"
             value["can_aggregate"] = True
+        env_name = value.get("env_var")
+        if env_name and not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,127}", str(env_name)):
+            value["env_var"] = None
+            value.update(state="staged", verified=False, approved=False, active=False)
         value = {field: value[field] for field in KEY_PUBLIC_FIELDS if field in value}
         try:
             value["base_url"] = _validated_provider_base_url(str(value.get("provider") or "custom"), value.get("base_url"))
@@ -392,6 +410,10 @@ def normalize_state(state: dict) -> dict:
         custom.setdefault("state", "staged")
         custom.setdefault("open_model", False)
         custom.setdefault("sigil", f"/static/art/keys/{custom['id']}.svg")
+        env_name = custom.get("env_var")
+        if env_name and not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,127}", str(env_name)):
+            custom["env_var"] = None
+            custom.update(state="staged", verified=False, approved=False, active=False)
         custom = {field: custom[field] for field in KEY_PUBLIC_FIELDS if field in custom}
         try:
             custom["base_url"] = _validated_provider_base_url(str(custom.get("provider") or "custom"), custom.get("base_url"))
@@ -1597,18 +1619,23 @@ async def unlock_access(payload: dict = Body(...)):
 @app.get("/api/provider/connection")
 async def provider_connection():
     """Return manual OpenAI-compatible connection data without credential values."""
-    bridge_connection = OBUS_PROVIDER_BASE_URL.removesuffix("/v1") + "/connection"
+    safe_base_url = "http://127.0.0.1:11434/v1"
+    try:
+        safe_base_url = _validated_provider_base_url("ollama", OBUS_PROVIDER_BASE_URL)
+    except RuntimeError:
+        pass
+    bridge_connection = safe_base_url.removesuffix("/v1") + "/connection"
     reachable = False
     try:
-        with urllib.request.urlopen(bridge_connection, timeout=2) as response:
+        with _NO_REDIRECT_OPENER.open(urllib.request.Request(bridge_connection, method="GET"), timeout=2) as response:
             reachable = response.status == 200
-    except (OSError, urllib.error.URLError):
+    except (OSError, urllib.error.URLError, RuntimeError):
         pass
     return {
         "provider": "obus", "display_name": "OBus", "model": "OBus",
-        "base_url": OBUS_PROVIDER_BASE_URL,
-        "models_url": f"{OBUS_PROVIDER_BASE_URL}/models",
-        "chat_completions_url": f"{OBUS_PROVIDER_BASE_URL}/chat/completions",
+        "base_url": safe_base_url,
+        "models_url": f"{safe_base_url}/models",
+        "chat_completions_url": f"{safe_base_url}/chat/completions",
         "api_key_env": OBUS_PROVIDER_KEY_ENV,
         "api_key_required": bool(os.getenv(OBUS_PROVIDER_KEY_ENV)),
         "bind_scope": "loopback-only", "reachable": reachable,
@@ -1692,7 +1719,7 @@ async def dashboard():
         "nvidia_warp": nvidia_warp_runtime.status(settings.get("gpu_backend", os.environ.get("OBUS_WARP_DEVICE"))),
         "warm_runtime": get_gpu_warm_status(),
         "providers": provider_statuses(state),
-        "cards": state.get("cards", DEFAULT_CARDS),
+        "cards": [card_public(card) for card in state.get("cards", DEFAULT_CARDS) if isinstance(card, dict)],
         "decks": [d for d in ALL_DECKS if d.get("enabled", True)],
         "settings": settings,
         "usage": get_usage_summary(context_window),
@@ -3222,7 +3249,7 @@ async def get_cards():
         card["key_name"] = key["name"] if key else "Unassigned"
         card["key_symbol"] = key["symbol"] if key else ""
     
-    return cards
+    return [card_public(card) for card in cards]
 
 
 @app.post("/api/cards")
@@ -3244,7 +3271,7 @@ async def create_card(card: dict = Body(...)):
     }
     state["cards"].append(new_card)
     save_state(state)
-    return new_card
+    return card_public(new_card)
 
 
 @app.put("/api/cards/{card_id}")
@@ -3276,7 +3303,7 @@ async def update_card(card_id: str, update: CardUpdate = Body(...)):
     if update.can_aggregate is not None: card["can_aggregate"] = update.can_aggregate
     
     save_state(state)
-    return card
+    return card_public(card)
 
 
 # ==================== KEY ENDPOINTS ====================
@@ -4044,10 +4071,11 @@ async def _run_route_impl(request: RouteRequest):
     def finalize_result(result: dict, event_type: str = "route.complete") -> dict:
         if route_deliberation:
             result["deliberation"] = copy.deepcopy(route_deliberation)
-        result["route_id"] = route_id
-        ROUTE_EVENTS.publish(route_id, event_type, {"status": result.get("status"), "engine": result.get("engine"), "aggregate": (result.get("aggregate") or {}).get("status")})
+        public_result = redact_value(result)
+        public_result["route_id"] = route_id
+        ROUTE_EVENTS.publish(route_id, event_type, {"status": public_result.get("status"), "engine": public_result.get("engine"), "aggregate": (public_result.get("aggregate") or {}).get("status")})
         clear_route_cancel(route_id)
-        return result
+        return public_result
 
     def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled", aggregate_manifest: Optional[dict] = None, remote_executed: bool = False) -> dict:
         final = local_answer or f"Route cancellation acknowledged during {stage}; no further stages were executed."
@@ -4295,7 +4323,7 @@ async def get_assignments():
         if key:
             info["key"] = key
     
-    return groups
+    return {key_id: {**info, "keys": [card_public(card) for card in info["keys"]], **({"key": key_public(info["key"])} if info.get("key") else {})} for key_id, info in groups.items()}
 
 
 # Python's Windows MIME registry can omit WebP; register it before StaticFiles.
