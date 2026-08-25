@@ -1,23 +1,18 @@
-Push Status Report - 2026-08-24 21:40 UTC (cron cycle)
+# Push Status Report - 2026-08-24 17:02 UTC (cron cycle)
 
 Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: 0fd8c78 chore: sync AUI subsystem — rooms.js, providers.js, scripts, workspace context, test coverage, and status reports
+  ✅ Pushed: fd35065 fix: harden secret redaction, fix route-events empty listener, add shuffle-deck contract test
+  ✅ Pushed: 06fa8fd feat: add deck-workspace.css for shuffle-deck card layouts
   ✅ Branch: master -> origin/master (up to date)
-  All 14 modified files in commit:
-    M backend/aui.py — label change: "Deliberate a plan" → "Preview a plan"
-    M backend/main.py — 52 line changes
-    M backend/static/aui/plan.js — 22 line changes
-    M backend/static/aui/rooms.js — 4 line changes
-    M backend/static/aui/route-events.js — 42 line changes
-    M backend/static/index.html — 60 line changes
-    M data/hermes-batch-results/container-gpu.{err,out}.txt — 796/22286 bytes
-    M data/hermes-batch-results/integration-tests.{err,out}.txt — 796/22250 bytes
-    M data/hermes-batch-results/summary.json — 8 line changes
-    M push_status.txt — 35 line changes
-    M tests/test_deliberate.py — 4 line changes
-    M tests/test_runtime.py — 4 line changes
-  ✅ LFS: 295 MB (AUI loop10/11/12/13/14/15 .pkg artifacts from prior builds)
-  ✅ Local diff: clean tracked files
+  All changes include:
+    M backend/main.py — secret redaction wiring
+    M backend/secret_safety.py — improved field-pattern regex
+    M backend/static/aui/route-events.js — empty eventTypes fix
+    M backend/static/aui/providers.js — shuffle-card/key-figure/shuffle-index
+    M backend/static/index.html — deck-workspace.css wired
+    A backend/static/aui/deck-workspace.css — new 170-line stylesheet
+    M tests/test_agent_visuals_contract.py — new contract test
+  ✅ Tests: 4/4 AUI contract tests pass (0.11s)
 
 Submodules:
   🔶 warp: Up to date with upstream nvidia/warp main. Push blocked - 403 (upstream, expected)
@@ -25,28 +20,16 @@ Submodules:
 
 Network:
   ✅ github.com reachable (HTTP 200)
-  ✅ Push succeeded: "Everything up-to-date"
+  ✅ Push succeeded
 
 Build artifacts (untracked, not pushed):
   📁 dist/OBus.exe — 139.8MB
-  📁 dist-aui-loop10/OBus.exe — 70.6MB
-  📁 dist/OBus-Thor-Setup.exe — 139.9MB
-  📁 dist/OBus-Loki-Partner-Setup.exe — 139.9MB
-  📁 dist/OBus-Thor-Loki-Deployment.zip — 132.9M
-  📁 build-aui-loop11/OBus.pkg — 67.1M (warning: >50MB recommended, already on LFS)
-  📁 build-aui-loop12/OBus.pkg — 67.1M (warning: >50MB recommended, already on LFS)
-  📁 build-aui-loop13/OBus.pkg — 67.1M (warning: >50MB recommended, already on LFS)
-  📁 build-aui-loop14/OBus.pkg — 67.1M (warning: >50MB recommended, already on LFS)
-  📁 build-aui-loop15/OBus.pkg — 67.1M (warning: >50MB recommended, already on LFS)
-
-Excluded by pre-receive (>100MB LFS limit, remain local):
-  - build-remediation/OBus.pkg (140.3M)
-  - build-remediation-final/OBus.pkg (140.3M)
-  - build-remediation-final2/OBus.pkg (140.3M)
-  - build-warp-review/OBus.pkg (140.3M)
-
-Tests:
-  ✅ Full suite: 179 passed in 89.58s
+  📁 dist-aui-agent-visuals/OBus.exe
+  📁 dist-aui-agent-visuals-v2/OBus.exe
+  📁 build-aui-agent-visuals/OBus.pkg
+  📁 build-aui-agent-visuals-v2/OBus.pkg
+  📁 build-aui-loop23/, build-aui-loop24/ (new loops)
 
 Active processes:
-  - 2x python (.venv/Scripts/python) — background Hermes processes
+  - 2x python (background Hermes processes)
+  - 1x OBus executable (dist-aui-loop21/OBus)
