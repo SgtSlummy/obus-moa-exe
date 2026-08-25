@@ -5,6 +5,7 @@ build-debug/
 dist-debug/
 *.spec
 build-aui-agent-visuals-v2/
+.hermes/package-*/
 dist-aui-loop*/
 dist-remediation/
 dist-warp-review/

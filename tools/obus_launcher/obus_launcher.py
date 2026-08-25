@@ -134,6 +134,20 @@ def launch_dashboard() -> int:
 
 def serve_backend() -> None:
     """Run the packaged FastAPI app as the launcher child process."""
+    if sys.stdout is None or sys.stderr is None:
+        try:
+            log_dir = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Obus" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            windowed_stream = (log_dir / "launcher.log").open(
+                "a", encoding="utf-8", buffering=1
+            )
+        except OSError:
+            windowed_stream = open(os.devnull, "a", encoding="utf-8", buffering=1)
+        if sys.stdout is None:
+            sys.stdout = windowed_stream
+        if sys.stderr is None:
+            sys.stderr = windowed_stream
+
     if not getattr(sys, "frozen", False):
         repo_root = Path(__file__).resolve().parents[2]
         if str(repo_root) not in sys.path:

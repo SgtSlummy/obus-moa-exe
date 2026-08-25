@@ -1,26 +1,3 @@
-Build Status Report - 2026-08-24
-===================================
+Build status is produced by the GitHub Actions workflow in .github/workflows/ci.yml.
 
-Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Pushed: fc2a063 fix: wire rooms.js into AUI index and add contract assertion
-  ✅ Branch: master -> origin/master (up to date)
-  ✅ Local diff: clean tracked files
-
-Submodules:
-  🔶 warp: Up to date with upstream nvidia/warp main. Push blocked - 403 (upstream repo, expected)
-  ❌ Understand-Anything: 2 commits ahead (OBus integration scaffolding). Push blocked - 403 (no permission to Egonex-AI/Understand-Anything)
-
-AUI Subsystem:
-  - backend/static/aui/rooms.js — new, wired into index.html
-  - backend/static/aui/providers.js — present (untracked)
-  - backend/scripts/ — present (untracked)
-  - 13 AUI contract test files
-  - docs/obus-aui.md, docs/obus-aui-research.md
-  - build-aui-loop11/OBus/OBus.pkg (67.1M, untracked)
-  - build-aui-loop12/OBus/OBus.pkg (67.1M, untracked)
-  - build-aui-loop13/OBus/OBus.pkg (untracked)
-
-Exclusions (>100MB LFS limit):
-  - build-remediation/OBus/OBus.pkg (140.3M)
-  - build-warp-review/OBus/OBus.pkg (140.2M)
-  - build-remediation-final/ and dist-remediation-final/ (untracked)
+For authoritative release gates, artifact verification, deployment, shutdown, and rollback procedures, see docs/release.md. Do not record transient branch state, local paths, untracked artifacts, or access failures in this tracked file.
