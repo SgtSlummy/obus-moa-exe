@@ -3,7 +3,8 @@
 (function installObusRouteEvents(root) {
   const OBusRouteEvents = {
     create({url = "/api/route/events/stream", pollUrl = "/api/route/events", eventTypes = [], onEvent, onError, pollIntervalMs = 1200} = {}) {
-      const effectiveTypes = eventTypes.length ? eventTypes : ["route.started", "route.plan_ready", "route.local_started", "route.local_complete", "route.cancel_requested", "route.deliberation_started", "route.deliberation_complete", "route.deliberation_failed", "route.complete", "route.failed", "route.cancelled"];
+      const knownTypes = ["route.started", "route.plan_ready", "route.local_started", "route.local_complete", "route.cancel_requested", "route.deliberation_started", "route.deliberation_complete", "route.deliberation_failed", "route.complete", "route.failed", "route.cancelled", "route.cursor_reset"];
+      const effectiveTypes = eventTypes.length ? eventTypes : knownTypes;
       const allowed = new Set(effectiveTypes);
       let lastEventId = "";
       const startPolling = (initialSince = lastEventId) => {
@@ -35,10 +36,10 @@
         const handle = (event) => {
           let payload = {};
           try { payload = JSON.parse(event.data || "{}"); } catch (_) { payload = {type: event.type, payload: {}}; }
-          if (typeof onEvent === "function") onEvent(payload, event);
+          if ((!allowed.size || allowed.has(payload.type)) && typeof onEvent === "function") onEvent(payload, event);
           lastEventId = payload.id || event.lastEventId || lastEventId;
         };
-        effectiveTypes.forEach((type) => source.addEventListener(type, handle));
+        knownTypes.forEach((type) => source.addEventListener(type, handle));
         let fallback = null;
         source.onerror = (event) => {
           if (!fallback) { source.close(); fallback = startPolling(lastEventId); }

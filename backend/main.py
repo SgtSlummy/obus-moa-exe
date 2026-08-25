@@ -3869,6 +3869,7 @@ async def plan_route_post(request: RouteRequest):
         ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "planning", "reason": type(exc).__name__})
         raise
     ROUTE_EVENTS.publish(route_id, "route.plan_ready", {"deck": plan.get("selected_deck", {}).get("name")})
+    plan["route_id"] = route_id
     return plan
 
 

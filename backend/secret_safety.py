@@ -16,7 +16,7 @@ SECRET_KEYS = {
 }
 
 _FIELD_PATTERN = re.compile(
-    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,}\]]+)'''
+    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\]]+)'''
 )
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
@@ -29,6 +29,7 @@ _SECRET_PATTERNS = (
 )
 _SAFE_ROUTE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
 _ROUTE_SENSITIVE_LABEL = re.compile(r"(?i)(?:api[_-]?key|password|secret|access[_-]?token|session[_-]?token|client[_-]?secret|private[_-]?key)[:=]")
+_JWT_SHAPE = re.compile(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b")
 
 
 def normalized_key(key: object) -> str:
@@ -77,6 +78,6 @@ def redact_value(value: Any, key: str | None = None) -> Any:
 
 def safe_route_id(value: object) -> str:
     raw = str(value or "")
-    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _SECRET_PATTERNS[2][0].search(raw) and not _SECRET_PATTERNS[6][0].search(raw):
+    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _JWT_SHAPE.search(raw) and not re.search(r"(?i)\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_)[A-Za-z0-9_-]{8,}\b", raw):
         return raw
     return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
