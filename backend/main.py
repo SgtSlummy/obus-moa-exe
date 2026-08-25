@@ -816,7 +816,7 @@ def remember_route_exchange(prompt: str, answer: str, *, engine: str) -> Optiona
     """Automatically retain a compact completed exchange when enabled."""
     if not get_settings().get("auto_memory", True):
         return None
-    text = f"User request:\n{str(prompt).strip()[:3000]}\n\nOBus answer:\n{str(answer).strip()[:4500]}"
+    text = f"User request:\n{redact_text(str(prompt), 3000)}\n\nOBus answer:\n{redact_text(str(answer), 4500)}"
     return store_memory(text, ["conversation", "auto", engine], "auto-route")
 
 
@@ -825,7 +825,9 @@ def bounded_memory_results(results: list[dict], character_budget: int = 3200, li
     bounded = []
     remaining = max(0, int(character_budget))
     for raw in results:
-        if len(bounded) >= max(1, int(limit)) or remaining <= 0 or not isinstance(raw, dict):
+        if not isinstance(raw, dict):
+            continue
+        if len(bounded) >= max(1, int(limit)) or remaining <= 0:
             break
         safe = redact_value(raw)
         text = str(safe.get("text", "")).strip() if isinstance(safe, dict) else redact_text(raw.get("text", ""))
@@ -2218,6 +2220,20 @@ def room_public(room: dict) -> dict:
     value = copy.deepcopy(room)
     value.pop("get_chymeria_card_id", None)
     value.pop("private_messages", None)
+    return redact_value(value)
+
+
+def forum_public(thread: dict) -> dict:
+    value = copy.deepcopy(thread)
+    value.pop("private_messages", None)
+    return redact_value(value)
+
+
+def room_message_public(message: dict) -> dict:
+    allowed = {"id", "room_id", "visibility", "author_type", "author_id", "phase", "body", "created_at"}
+    value = redact_value({key: message.get(key) for key in allowed if key in message})
+    if isinstance(value, dict) and "body" in value:
+        value["body"] = redact_text(value["body"], 1200)
     return value
 
 
@@ -2366,7 +2382,7 @@ async def get_room_messages(room_id: str):
     state = load_state()
     if not any(room["id"] == room_id for room in state["rooms"]):
         raise HTTPException(status_code=404, detail="Room not found")
-    return [message for message in state["room_messages"] if message.get("room_id") == room_id]
+    return [room_message_public(message) for message in state["room_messages"] if message.get("room_id") == room_id]
 
 
 @app.post("/api/rooms/{room_id}/run")
@@ -2381,15 +2397,16 @@ async def run_room(room_id: str, request: RoomRunRequest):
             raise HTTPException(status_code=404, detail="Room not found")
         if room.get("status") == "archived":
             raise HTTPException(status_code=400, detail="Archived rooms cannot run")
+        safe_prompt = redact_text(request.prompt)[:4000]
         room.update(status="running", current_phase="starting", progress_count=0,
-                    last_prompt=request.prompt, run_started_at=datetime.now(timezone.utc).isoformat())
+                    last_prompt=safe_prompt, run_started_at=datetime.now(timezone.utc).isoformat())
         state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
         save_state(state)
-        room_prompt = request.prompt
-        rag_results = get_memory_hub().search(request.prompt, limit=4) if request.rag_enabled else []
+        room_prompt = safe_prompt
+        rag_results = bounded_memory_results(get_memory_hub().search(safe_prompt, limit=4), character_budget=2400, limit=4) if request.rag_enabled else []
         if rag_results:
             context = "\n".join(f"- {item.get('source')}: {item.get('text', '')}" for item in rag_results)
-            room_prompt = f"{request.prompt}\n\nRelevant local memory context:\n{context}"
+            room_prompt = f"{safe_prompt}\n\nRelevant local memory context:\n{context}"
 
         def persist_deliberation(message: dict) -> None:
             state["room_messages"].append(message)
@@ -2418,7 +2435,7 @@ async def run_room(room_id: str, request: RoomRunRequest):
         state["room_messages"] = [message for message in state["room_messages"] if message.get("room_id") != room_id]
         state["room_messages"].extend(result["private_messages"])
         save_state(state)
-        return {"room": room_public(room), "plan": result["plan"], "decision_packet": public_packet(result["decision_packet"]), "private_messages": result["private_messages"], "assignments": result["assignments"], "rag": {"enabled": request.rag_enabled, "sources": [item.get("source") for item in rag_results], "snippets": len(rag_results)}}
+        return {"room": room_public(room), "plan": result["plan"], "decision_packet": public_packet(result["decision_packet"]), "private_messages": [room_message_public(message) for message in result["private_messages"]], "assignments": result["assignments"], "rag": {"enabled": request.rag_enabled, "sources": [item.get("source") for item in rag_results], "snippets": len(rag_results)}}
     finally:
         lock.release()
 
@@ -2432,7 +2449,9 @@ async def create_forum_thread(request: ForumThreadCreate):
         raise HTTPException(status_code=400, detail=f"Unknown rooms: {', '.join(unknown)}")
     if any(rooms[room_id].get("status") == "archived" for room_id in request.room_ids):
         raise HTTPException(status_code=400, detail="Archived rooms cannot join a forum")
-    base_id = "forum-" + _room_slug(request.title)
+    safe_title = redact_text(request.title, 240)
+    safe_prompt = redact_text(request.prompt, 4000)
+    base_id = "forum-" + _room_slug(safe_title)
     thread_id = base_id
     suffix = 2
     existing = {thread["id"] for thread in state["forum_threads"]}
@@ -2440,15 +2459,15 @@ async def create_forum_thread(request: ForumThreadCreate):
         thread_id = f"{base_id}-{suffix}"
         suffix += 1
     now = datetime.now(timezone.utc).isoformat()
-    thread = {"id": thread_id, "title": request.title, "prompt": request.prompt, "room_ids": request.room_ids, "revision": 0, "messages": [], "status": "idle", "created_at": now, "updated_at": now}
+    thread = {"id": thread_id, "title": safe_title, "prompt": safe_prompt, "room_ids": request.room_ids, "revision": 0, "messages": [], "status": "idle", "created_at": now, "updated_at": now}
     state["forum_threads"].append(thread)
     save_state(state)
-    return thread
+    return forum_public(thread)
 
 
 @app.get("/api/forum/threads")
 async def list_forum_threads():
-    return load_state()["forum_threads"]
+    return [forum_public(thread) for thread in load_state()["forum_threads"]]
 
 
 @app.get("/api/forum/threads/{thread_id}")
@@ -2456,7 +2475,7 @@ async def get_forum_thread(thread_id: str):
     thread = next((item for item in load_state()["forum_threads"] if item["id"] == thread_id), None)
     if not thread:
         raise HTTPException(status_code=404, detail="Forum thread not found")
-    return thread
+    return forum_public(thread)
 
 
 @app.post("/api/forum/threads/{thread_id}/messages")
@@ -2470,7 +2489,9 @@ async def post_forum_message(thread_id: str, request: ForumMessageCreate):
         raise HTTPException(status_code=400, detail="Room is not a participant in this forum")
     if request.reply_to and not any(message.get("id") == request.reply_to for message in thread.get("messages", [])):
         raise HTTPException(status_code=400, detail="reply_to must reference a message in this forum thread")
-    message = append_question_message(thread, request.model_dump(), room)
+    message_data = request.model_dump()
+    message_data["body"] = redact_text(message_data.get("body", ""), 4000)
+    message = append_question_message(thread, message_data, room)
     save_state(state)
     return message
 
@@ -2557,10 +2578,11 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
     if require_auto_enabled and not state["runtime_settings"].get("auto_deliberation", False):
         raise HTTPException(status_code=400, detail="Auto deliberation is disabled")
 
-    card_sets = auto_deliberation_card_sets(state, request.prompt)
+    safe_prompt = redact_text(request.prompt)[:4000]
+    card_sets = auto_deliberation_card_sets(state, safe_prompt)
 
     room_ids = []
-    prompt_slug = _room_slug(request.prompt[:48])
+    prompt_slug = _room_slug(safe_prompt[:48])
     for index, cards in enumerate(card_sets, start=1):
         room = await create_room(RoomCreate(
             name=f"Auto deliberation {prompt_slug} {index}",
@@ -2570,8 +2592,8 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
         room_ids.append(room["id"])
 
     thread = await create_forum_thread(ForumThreadCreate(
-        title=f"Auto deliberation: {request.prompt[:120]}",
-        prompt=request.prompt,
+        title=f"Auto deliberation: {safe_prompt[:120]}",
+        prompt=safe_prompt,
         room_ids=room_ids,
     ))
     state = load_state()
@@ -2605,7 +2627,7 @@ async def execute_auto_deliberation(request: AutoDeliberationRequest, *, require
         "warp_preprocess_enabled": warp_enabled,
         "warp_preprocess": warp_manifest,
     }
-    append_prompt_message(thread_record, request.prompt, first_room)
+    append_prompt_message(thread_record, safe_prompt, first_room)
     save_state(state)
 
     result = await run_forum_round(thread["id"])
@@ -2975,16 +2997,18 @@ def _create_orchestrated_room(state: dict, action) -> dict:
     cards = {card["id"] for card in state["cards"]}
     if any(card_id not in cards for card_id in action.card_ids):
         raise ValueError(f"Orchestrator room {action.name} contains unknown cards")
-    base = "room-" + _room_slug(action.name)
+    safe_name = redact_text(action.name, 240)
+    safe_prompt = redact_text(action.prompt, 4000)
+    base = "room-" + _room_slug(safe_name)
     room_id = base
     suffix = 2
     existing = {room["id"] for room in state["rooms"]}
     while room_id in existing:
         room_id, suffix = f"{base}-{suffix}", suffix + 1
     now = _runtime_now()
-    room = {"id": room_id, "name": action.name, "card_ids": action.card_ids, "mode": action.mode,
+    room = {"id": room_id, "name": safe_name, "card_ids": action.card_ids, "mode": action.mode,
             "chymeria": choose_room_chymeria(action.card_ids, None, None, state), "status": "idle", "revision": 0,
-            "config_revision": 0, "created_at": now, "updated_at": now, "last_prompt": action.prompt}
+            "config_revision": 0, "created_at": now, "updated_at": now, "last_prompt": safe_prompt}
     state["rooms"].append(room)
     return room
 
@@ -2993,14 +3017,16 @@ def _create_orchestrated_forum(state: dict, action, room_names: dict[str, str]) 
     room_ids = [room_names[name] for name in action.room_names if name in room_names]
     if len(room_ids) < 2:
         raise ValueError(f"Forum {action.title} requires at least two created room names")
-    base = "forum-" + _room_slug(action.title)
+    safe_title = redact_text(action.title, 240)
+    safe_prompt = redact_text(action.prompt, 4000)
+    base = "forum-" + _room_slug(safe_title)
     thread_id = base
     suffix = 2
     existing = {thread["id"] for thread in state["forum_threads"]}
     while thread_id in existing:
         thread_id, suffix = f"{base}-{suffix}", suffix + 1
     now = _runtime_now()
-    thread = {"id": thread_id, "title": action.title, "prompt": action.prompt, "room_ids": room_ids,
+    thread = {"id": thread_id, "title": safe_title, "prompt": safe_prompt, "room_ids": room_ids,
               "messages": [], "revision": 0, "status": "idle", "created_at": now, "updated_at": now,
               "last_round_signature": None}
     state["forum_threads"].append(thread)
@@ -3043,7 +3069,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
         room_name_map[action.name] = room["id"]
         created_rooms.append(room)
         if action.run:
-            room_runs.append((room["id"], action.prompt))
+            room_runs.append((room["id"], room["last_prompt"]))
     created_forums = []
     forum_runs = []
     for action in plan.forums:
@@ -3061,7 +3087,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
     return {"plan": plan.model_dump(), "executed": True,
             "created_agents": [_persistent_agent_public(agent) for agent in created_agents],
             "created_rooms": [room_public(room) for room in created_rooms],
-            "created_forums": created_forums}
+            "created_forums": [forum_public(thread) for thread in created_forums]}
 
 
 @app.get("/api/runtime/events")

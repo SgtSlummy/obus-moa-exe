@@ -13,7 +13,7 @@ SECRET_KEYS = {
     "clientsecret", "refreshtoken", "accesstoken",}
 
 _FIELD_PATTERN = re.compile(
-    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|password|secret)["']?)\s*[:=]\s*["']?[^"'\s,}\]]+'''
+    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,}\]]+)'''
 )
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),

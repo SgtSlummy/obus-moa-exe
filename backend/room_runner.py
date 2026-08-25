@@ -100,6 +100,7 @@ def run_room_council(
     forum_packets: list[dict[str, Any]] | None = None,
     on_message: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
+    prompt = sanitize_public_text(prompt, 4000)
     cards_by_id = {card["id"]: card for card in state.get("cards", [])}
     cards = [cards_by_id[card_id] for card_id in room.get("card_ids", []) if card_id in cards_by_id]
     if not cards:
@@ -124,7 +125,7 @@ def run_room_council(
         emit({
             "id": "rm-" + hashlib.sha256(f"{room['id']}:{len(private_messages)}:{phase}".encode()).hexdigest()[:16],
             "room_id": room["id"], "visibility": "room", "author_type": "card" if card["id"] != chymeria_card_id else "chymeria",
-            "author_id": card["id"], "phase": phase, "body": parsed.get("position", ""), "created_at": _now(),
+            "author_id": card["id"], "phase": phase, "body": sanitize_public_text(parsed.get("position", ""), 1200), "created_at": _now(),
         })
         return json.dumps(parsed, ensure_ascii=False)
 
@@ -154,7 +155,7 @@ def run_room_council(
             emit({
                 "id": "rm-" + hashlib.sha256(f"{room['id']}:{len(private_messages)}:{phase}".encode()).hexdigest()[:16],
                 "room_id": room["id"], "visibility": "room", "author_type": "card" if card["id"] != chymeria_card_id else "chymeria",
-                "author_id": card["id"], "phase": phase, "body": parsed_output.get("position", ""), "created_at": _now(),
+                "author_id": card["id"], "phase": phase, "body": sanitize_public_text(parsed_output.get("position", ""), 1200), "created_at": _now(),
             })
             serialized.append(json.dumps(parsed_output, ensure_ascii=False))
         return serialized
@@ -166,7 +167,7 @@ def run_room_council(
             prompt=build_chymeria_prompt(room, "direct", prompt, [], forum_packets), forum_packets=forum_packets or [],
         )
         parsed = _parse_output(raw, "direct")
-        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:direct".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "direct", "body": parsed.get("position", ""), "created_at": _now()})
+        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:direct".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "direct", "body": sanitize_public_text(parsed.get("position", ""), 1200), "created_at": _now()})
     elif plan["mode"] == "collaborative":
         drafts = call_parallel("draft", cards, lambda card: build_card_prompt(room, card, "draft", prompt))
         improved = call_parallel("improve", cards, lambda card: build_card_prompt(room, card, "improve", prompt, drafts))
@@ -174,7 +175,7 @@ def run_room_council(
         chymeria = cards_by_id.get(chymeria_card_id, cards[0])
         raw = complete(room=room, card=chymeria, assignment=assignments[chymeria["id"]], phase="synthesize", prompt=build_chymeria_prompt(room, "synthesize", prompt, improved, forum_packets), forum_packets=forum_packets or [])
         parsed = _parse_output(raw, "synthesize")
-        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:synthesize:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "synthesize", "body": parsed.get("position", ""), "created_at": _now()})
+        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:synthesize:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "synthesize", "body": sanitize_public_text(parsed.get("position", ""), 1200), "created_at": _now()})
     else:
         drafts = call_parallel("draft", cards, lambda card: build_card_prompt(room, card, "draft", prompt))
         chymeria = cards_by_id.get(chymeria_card_id, cards[0])
@@ -183,7 +184,7 @@ def run_room_council(
             prompt=build_chymeria_prompt(room, "triage", prompt, drafts, forum_packets), forum_packets=forum_packets or [],
         )
         triage = _parse_output(triage_raw, "triage")
-        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:triage:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "triage", "body": triage.get("position", "Triage complete"), "created_at": _now()})
+        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:triage:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "triage", "body": sanitize_public_text(triage.get("position", "Triage complete"), 1200), "created_at": _now()})
         leader_id = triage.get("leader_id") if triage.get("leader_id") in {card["id"] for card in cards} else cards[0]["id"]
         leader_index = next(index for index, card in enumerate(cards) if card["id"] == leader_id)
         leader = drafts[leader_index]
@@ -192,7 +193,7 @@ def run_room_council(
         outputs = attacks or drafts
         raw = complete(room=room, card=chymeria, assignment=assignments[chymeria["id"]], phase="verdict", prompt=build_chymeria_prompt(room, "verdict", prompt, [leader] + attacks, forum_packets), forum_packets=forum_packets or [])
         parsed = _parse_output(raw, "verdict")
-        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:verdict:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "verdict", "body": parsed.get("position", ""), "created_at": _now()})
+        emit({"id": "rm-" + hashlib.sha256(f"{room['id']}:verdict:{len(private_messages)}".encode()).hexdigest()[:16], "room_id": room["id"], "visibility": "room", "author_type": "chymeria", "author_id": chymeria["id"], "phase": "verdict", "body": sanitize_public_text(parsed.get("position", ""), 1200), "created_at": _now()})
 
     revision = int(room.get("revision", 0)) + 1
     packet_data = {
