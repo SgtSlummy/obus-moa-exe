@@ -11,17 +11,35 @@
     studio: {split: 50, density: "spacious", sidebarCollapsed: false},
   };
   const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+  const createSafeStorage = () => {
+    let storage = null;
+    try { storage = root.localStorage; } catch { storage = null; }
+    return {
+      getItem(key) { try { return storage?.getItem(key) ?? null; } catch { return null; } },
+      setItem(key, value) { try { storage?.setItem(key, value); } catch {} },
+      removeItem(key) { try { storage?.removeItem(key); } catch {} },
+    };
+  };
 
   const OBusAuiLayout = {
     create({densitySelect, sidebarToggle, presetSelect, resetButton, runSplitter, runWorkbench, announce} = {}) {
-      const storedSplit = Number(root.localStorage?.getItem("obus-aui-split-run"));
+      const safeStorage = createSafeStorage();
+      const cleanup = [];
+      let splitterBound = false;
+      let observer = null;
+      const listen = (target, type, handler) => {
+        if (!target) return;
+        target.addEventListener(type, handler);
+        cleanup.push(() => target.removeEventListener(type, handler));
+      };
+      const storedSplit = Number(safeStorage.getItem("obus-aui-split-run"));
       if (!Number.isFinite(storedSplit) || storedSplit < MIN_SPLIT || storedSplit > MAX_SPLIT) {
-        root.localStorage?.removeItem("obus-aui-split-run");
+        safeStorage.removeItem("obus-aui-split-run");
       }
-      const storedPreset = root.localStorage?.getItem("obus-aui-preset");
+      const storedPreset = safeStorage.getItem("obus-aui-preset");
       const prefs = {
-        density: root.localStorage?.getItem("obus-aui-density") || "comfortable",
-        sidebarCollapsed: root.localStorage?.getItem("obus-aui-sidebar") === "true",
+        density: safeStorage.getItem("obus-aui-density") || "comfortable",
+        sidebarCollapsed: safeStorage.getItem("obus-aui-sidebar") === "true",
         preset: PRESETS[storedPreset] ? storedPreset : "focus",
         runSplit: Number.isFinite(storedSplit) && storedSplit >= MIN_SPLIT && storedSplit <= MAX_SPLIT ? storedSplit : DEFAULT_SPLIT,
       };
@@ -32,7 +50,7 @@
         runWorkbench?.style.setProperty("--run-primary-fr", `${ratio.toFixed(4)}fr`);
         runWorkbench?.style.setProperty("--run-secondary-fr", "1fr");
         runSplitter?.setAttribute("aria-valuenow", String(Math.round(prefs.runSplit)));
-        if (persist) root.localStorage?.setItem("obus-aui-split-run", String(prefs.runSplit));
+        if (persist) safeStorage.setItem("obus-aui-split-run", String(prefs.runSplit));
       };
       const apply = () => {
         const density = ["compact", "comfortable", "spacious"].includes(prefs.density) ? prefs.density : "comfortable";
@@ -57,16 +75,17 @@
         prefs.sidebarCollapsed = preset.sidebarCollapsed;
         setSplit(preset.split, {persist});
         if (persist) {
-          root.localStorage?.setItem("obus-aui-preset", prefs.preset);
-          root.localStorage?.setItem("obus-aui-density", prefs.density);
-          root.localStorage?.setItem("obus-aui-sidebar", String(prefs.sidebarCollapsed));
+          safeStorage.setItem("obus-aui-preset", prefs.preset);
+          safeStorage.setItem("obus-aui-density", prefs.density);
+          safeStorage.setItem("obus-aui-sidebar", String(prefs.sidebarCollapsed));
         }
         apply();
         if (emit && root.CustomEvent) root.dispatchEvent(new root.CustomEvent("obus-layout-preset", {detail: {preset: prefs.preset}}));
         notify(`Layout preset set to ${prefs.preset}`);
       };
       const bindResizablePane = () => {
-        if (!runSplitter || !runWorkbench) return;
+        if (!runSplitter || !runWorkbench || splitterBound) return;
+        splitterBound = true;
         let dragging = false;
         const updateFromPointer = (event) => {
           if (!dragging) return;
@@ -74,22 +93,19 @@
           if (!bounds.width) return;
           setSplit(((event.clientX - bounds.left) / bounds.width) * 100);
         };
-        runSplitter.addEventListener("pointerdown", (event) => {
+        const pointerDown = (event) => {
           if (event.button !== 0) return;
           dragging = true;
           runSplitter.setPointerCapture?.(event.pointerId);
           updateFromPointer(event);
-        });
-        runSplitter.addEventListener("pointermove", updateFromPointer);
+        };
         const stopDragging = (event) => {
           if (!dragging) return;
           dragging = false;
           runSplitter.releasePointerCapture?.(event.pointerId);
           notify(`Run workbench split set to ${Math.round(prefs.runSplit)} percent`);
         };
-        runSplitter.addEventListener("pointerup", stopDragging);
-        runSplitter.addEventListener("pointercancel", stopDragging);
-        runSplitter.addEventListener("keydown", (event) => {
+        const keyDown = (event) => {
           const step = event.shiftKey ? 5 : 1;
           let next = null;
           if (event.key === "ArrowLeft") next = prefs.runSplit - step;
@@ -100,24 +116,30 @@
           event.preventDefault();
           setSplit(next);
           notify(`Run workbench split set to ${Math.round(prefs.runSplit)} percent`);
-        });
+        };
+        listen(runSplitter, "pointerdown", pointerDown);
+        listen(runSplitter, "pointermove", updateFromPointer);
+        listen(runSplitter, "pointerup", stopDragging);
+        listen(runSplitter, "pointercancel", stopDragging);
+        listen(runSplitter, "lostpointercapture", stopDragging);
+        listen(runSplitter, "keydown", keyDown);
       };
-      densitySelect?.addEventListener("change", (event) => {
+      listen(densitySelect, "change", (event) => {
         prefs.density = event.target.value;
-        root.localStorage?.setItem("obus-aui-density", prefs.density);
+        safeStorage.setItem("obus-aui-density", prefs.density);
         apply();
         notify(`Density set to ${prefs.density}`);
       });
-      sidebarToggle?.addEventListener("click", () => {
+      listen(sidebarToggle, "click", () => {
         prefs.sidebarCollapsed = !prefs.sidebarCollapsed;
-        root.localStorage?.setItem("obus-aui-sidebar", String(prefs.sidebarCollapsed));
+        safeStorage.setItem("obus-aui-sidebar", String(prefs.sidebarCollapsed));
         apply();
         notify(prefs.sidebarCollapsed ? "Sidebar collapsed" : "Sidebar expanded");
       });
-      presetSelect?.addEventListener("change", (event) => applyPreset(event.target.value));
-      resetButton?.addEventListener("click", () => {
+      listen(presetSelect, "change", (event) => applyPreset(event.target.value));
+      listen(resetButton, "click", () => {
         for (const key of ["obus-aui-split-run", "obus-aui-preset", "obus-aui-density", "obus-aui-sidebar"]) {
-          root.localStorage?.removeItem(key);
+          safeStorage.removeItem(key);
         }
         prefs.density = "comfortable";
         prefs.sidebarCollapsed = false;
@@ -129,14 +151,19 @@
       bindResizablePane();
       apply();
       updateViewport(root.document.documentElement.clientWidth);
-      let observer = null;
       if (root.ResizeObserver) {
         observer = new root.ResizeObserver((entries) => updateViewport(entries[0]?.contentRect?.width || root.document.documentElement.clientWidth));
         observer.observe(root.document.documentElement);
       } else {
-        root.addEventListener("resize", () => updateViewport(root.document.documentElement.clientWidth));
+        listen(root, "resize", () => updateViewport(root.document.documentElement.clientWidth));
       }
-      return {apply, applyPreset, bindResizablePane, setSplit, updateViewport, observer};
+      const destroy = () => {
+        observer?.disconnect?.();
+        observer = null;
+        cleanup.splice(0).forEach((remove) => remove());
+        splitterBound = false;
+      };
+      return {apply, applyPreset, bindResizablePane, destroy, setSplit, updateViewport, observer};
     },
   };
   root.OBusAuiLayout = OBusAuiLayout;

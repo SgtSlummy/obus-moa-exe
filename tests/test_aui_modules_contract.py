@@ -67,7 +67,7 @@ class AUIModuleContractTests(unittest.TestCase):
             '--verdigris:',
             '--focus:',
             '--control-min: 40px',
-            'grid-template-columns: minmax(0, var(--phi)fr) minmax(17rem, 1fr)',
+            'grid-template-columns: minmax(0, 1.618fr) minmax(17rem, 1fr)',
             'resize: vertical',
         ):
             self.assertIn(marker, heritage.text)

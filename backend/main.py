@@ -3986,8 +3986,7 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
     )
 
 
-@app.post("/api/route/run")
-async def run_route(request: RouteRequest):
+async def _run_route_impl(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     request.prompt = redact_text(request.prompt)[:4000]
     route_started = time.perf_counter()
@@ -4207,6 +4206,25 @@ async def run_route(request: RouteRequest):
     }
     result["receipt"] = record_run_receipt(request.prompt, plan, result)
     return finalize_result(result)
+
+
+@app.post("/api/route/run")
+async def run_route(request: RouteRequest):
+    route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
+    request.route_id = route_id
+    try:
+        return await _run_route_impl(request)
+    except HTTPException as exc:
+        if exc.status_code != 409:
+            clear_route_cancel(route_id)
+        raise
+    except Exception as exc:
+        ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "route", "reason": type(exc).__name__})
+        clear_route_cancel(route_id)
+        raise HTTPException(status_code=503, detail="Route execution failed.") from exc
+    finally:
+        if route_id not in ROUTE_CANCEL_EVENTS:
+            clear_route_cancel(route_id)
 
 
 @app.post("/api/execute")

@@ -51,6 +51,9 @@ class RouteEventHub:
     def stream(self, route_id: str | None = None, since: str | None = None, heartbeat_seconds: float = 10.0) -> Iterator[str]:
         cursor = since
         while True:
+            if cursor and not self.contains_id(cursor):
+                yield "event: route.cursor_reset\ndata: {\"reset\":true}\n\n"
+                cursor = None
             events = self.snapshot(route_id=route_id, since=cursor, limit=100)
             if events:
                 for event in events:

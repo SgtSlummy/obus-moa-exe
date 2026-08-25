@@ -39,7 +39,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "End",
             "obus-aui-split-run",
             "obus-aui-preset",
-            "localStorage?.removeItem",
+            "safeStorage.removeItem",
             "obus-layout-preset",
             "61.803398875",
             'event.key === "Home") next = MIN_SPLIT',
