@@ -4045,14 +4045,15 @@ async def _run_route_impl(request: RouteRequest):
         clear_route_cancel(route_id)
         return result
 
-    def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled") -> dict:
+    def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled", aggregate_manifest: Optional[dict] = None, remote_executed: bool = False) -> dict:
         final = local_answer or f"Route cancellation acknowledged during {stage}; no further stages were executed."
+        scope_key = aggregate_manifest or OFFLINE_ROOM_KEY
         result = {
             "status": "cancelled", "engine": engine, "model": model,
             "selected_deck": plan["selected_deck"], "agents": plan["agents"],
             "stages": [stage], "local_result": local_answer, "final": final,
             "trace": local_trace or [{"stage": stage, "role": "OBus cancellation", "status": "cancelled", "output": final}],
-            "execution_scope": execution_scope_manifest(OFFLINE_ROOM_KEY, model, local_executed=bool(local_answer)),
+            "execution_scope": execution_scope_manifest(scope_key, model, local_executed=bool(local_answer), remote_executed=remote_executed),
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
         return finalize_result(result, "route.cancelled")
@@ -4188,6 +4189,8 @@ async def _run_route_impl(request: RouteRequest):
         }
         result["receipt"] = record_run_receipt(request.prompt, plan, result)
         return finalize_result(result)
+    if route_cancel_requested(route_id):
+        return cancelled_result("aggregate", local_answer, local_trace, local_engine, aggregate_manifest=aggregate_key, remote_executed=False)
     aggregate_calls = 1
     aggregate_started = time.perf_counter()
     try:
@@ -4210,7 +4213,7 @@ async def _run_route_impl(request: RouteRequest):
         return finalize_result(result)
     aggregate_seconds = time.perf_counter() - aggregate_started
     if route_cancel_requested(route_id):
-        return cancelled_result("aggregate", local_answer, local_trace, f"{local_engine}+luna-aggregate")
+        return cancelled_result("aggregate", local_answer, local_trace, f"{local_engine}+luna-aggregate", aggregate_manifest=aggregate_key, remote_executed=True)
     final_engine = f"{local_engine}+luna-aggregate"
     usage = finish_usage(final_engine)
     remembered = remember_route_exchange(request.prompt, final_answer, engine=final_engine)
@@ -4245,6 +4248,7 @@ def route_terminal_emitted(route_id: str) -> bool:
 async def run_route(request: RouteRequest):
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     request.route_id = route_id
+    route_owned = route_id not in ROUTE_CANCEL_EVENTS
     try:
         return await asyncio.wait_for(_run_route_impl(request), timeout=ROUTE_MAX_SECONDS)
     except HTTPException as exc:
@@ -4257,7 +4261,7 @@ async def run_route(request: RouteRequest):
         clear_route_cancel(route_id)
         raise HTTPException(status_code=503, detail="Route execution failed.") from exc
     finally:
-        if route_id not in ROUTE_CANCEL_EVENTS:
+        if route_owned:
             clear_route_cancel(route_id)
 
 
