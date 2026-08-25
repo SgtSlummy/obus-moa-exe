@@ -76,7 +76,8 @@ class AUIModuleContractTests(unittest.TestCase):
         phone = heritage.text.split('@media (max-width: 720px)', 1)[1].split('@media', 1)[0]
         self.assertIn('display: block', phone)
         self.assertIn('grid-template-columns: minmax(0, 1fr)', phone)
-        self.assertIn('overflow-x: auto', phone)
+        self.assertIn('overflow-x: visible', phone)
+        self.assertNotIn('overflow-x: auto', phone)
         self.assertIn('.top {\n    display: grid', phone)
         self.assertIn('.top > .actions > *', phone)
         self.assertIn('animation: none', heritage.text.split('.key-shuffle-deck .shuffle-card {', 1)[1].split('}', 1)[0])
