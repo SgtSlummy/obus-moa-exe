@@ -78,7 +78,7 @@ class LauncherContractTests(unittest.TestCase):
     @patch("obus_launcher.ensure_backend_running", return_value=True)
     def test_launch_opens_dashboard_after_readiness_checks(self, ensure, readiness, browser_open):
         readiness.return_value = {"dashboard_healthy": True, "ollama": {"connected": True}, "warmup": {"status": "warm"}, "memory": {"sources": []}}
-        self.assertEqual(obus_launcher.launch_dashboard(), 0)
+        self.assertEqual(obus_launcher.launch_dashboard(keep_alive=False), 0)
         ensure.assert_called_once_with()
         browser_open.assert_called_once_with("http://127.0.0.1:38173/")
 
@@ -86,7 +86,7 @@ class LauncherContractTests(unittest.TestCase):
     @patch("obus_launcher.show_error")
     @patch("obus_launcher.ensure_backend_running", return_value=False)
     def test_launch_does_not_open_browser_when_backend_cannot_start(self, ensure, show_error, browser_open):
-        self.assertEqual(obus_launcher.launch_dashboard(), 1)
+        self.assertEqual(obus_launcher.launch_dashboard(keep_alive=False), 1)
         ensure.assert_called_once_with()
         show_error.assert_called_once()
         browser_open.assert_not_called()

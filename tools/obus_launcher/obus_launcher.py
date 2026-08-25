@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -27,6 +28,9 @@ OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
 WARMUP_URL = f"http://{HOST}:{PORT}/api/warmup"
 MEMORY_STATUS_URL = f"http://{HOST}:{PORT}/api/integrations/memory"
 STARTUP_TIMEOUT_SECONDS = 45
+STARTUP_REGISTRY_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
+STARTUP_VALUE_NAME = "Obus"
+BACKEND_PROCESS: subprocess.Popen | None = None
 
 
 def _json_request(url: str, *, method: str = "GET", body: dict | None = None, timeout: int = 10) -> dict | None:
@@ -89,7 +93,8 @@ def ensure_backend_running() -> bool:
     if is_dashboard_healthy():
         return True
     try:
-        subprocess.Popen(
+        global BACKEND_PROCESS
+        BACKEND_PROCESS = subprocess.Popen(
             backend_command(),
             cwd=str(Path.cwd()),
             stdout=subprocess.DEVNULL,
@@ -125,15 +130,84 @@ def show_error(message: str) -> None:
         print(message, file=sys.stderr)
 
 
-def launch_dashboard() -> int:
-    """Start OBus, prove health, show the UI, then finish readiness warmup."""
+def startup_enabled() -> bool:
+    """Return whether this executable is registered for per-user Windows startup."""
+    if os.name != "nt":
+        return False
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_REGISTRY_PATH) as key:
+            command, _ = winreg.QueryValueEx(key, STARTUP_VALUE_NAME)
+        return str(Path(sys.executable).resolve()).casefold() in command.casefold()
+    except (FileNotFoundError, OSError):
+        return False
+
+
+def set_startup_enabled(enabled: bool) -> None:
+    """Enable or disable launch-at-login without requiring administrator access."""
+    if os.name != "nt":
+        raise OSError("Launch at login is supported only on Windows")
+    import winreg
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, STARTUP_REGISTRY_PATH) as key:
+        if enabled:
+            winreg.SetValueEx(key, STARTUP_VALUE_NAME, 0, winreg.REG_SZ, f'"{Path(sys.executable).resolve()}" --startup')
+        else:
+            try:
+                winreg.DeleteValue(key, STARTUP_VALUE_NAME)
+            except FileNotFoundError:
+                pass
+
+
+def stop_owned_backend() -> None:
+    """Stop only the backend process created by this launcher instance."""
+    if BACKEND_PROCESS is not None and BACKEND_PROCESS.poll() is None:
+        BACKEND_PROCESS.terminate()
+
+
+def run_system_tray() -> bool:
+    """Run OBus in the notification area until the user chooses Exit."""
+    try:
+        import pystray
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return False
+
+    image = Image.new("RGBA", (64, 64), "#17152a")
+    draw = ImageDraw.Draw(image)
+    draw.ellipse((8, 8, 56, 56), fill="#7657ff")
+    draw.text((22, 18), "O", fill="white")
+
+    def toggle_startup(icon, _item):
+        set_startup_enabled(not startup_enabled())
+        icon.update_menu()
+
+    def exit_obus(icon, _item):
+        stop_owned_backend()
+        icon.stop()
+
+    icon = pystray.Icon(
+        "Obus", image, "Obus — Codex agent runtime",
+        menu=pystray.Menu(
+            pystray.MenuItem("Open Obus", lambda _icon, _item: webbrowser.open(DASHBOARD_URL), default=True),
+            pystray.MenuItem("Start with Windows", toggle_startup, checked=lambda _item: startup_enabled()),
+            pystray.MenuItem("Exit", exit_obus),
+        ),
+    )
+    icon.run()
+    return True
+
+
+def launch_dashboard(*, show_browser: bool = True, keep_alive: bool = True) -> int:
+    """Start OBus, show the UI promptly, then remain available in the tray."""
     if not ensure_backend_running():
         show_error(f"OBus did not become healthy at {HEALTH_URL} within {STARTUP_TIMEOUT_SECONDS} seconds.")
         return 1
 
-    # Health is the launch gate. Noncritical warmup must not delay visible UI.
-    webbrowser.open(DASHBOARD_URL)
-    collect_readiness()
+    if show_browser:
+        webbrowser.open(DASHBOARD_URL)
+    threading.Thread(target=collect_readiness, name="obus-readiness", daemon=True).start()
+    if keep_alive:
+        run_system_tray()
     return 0
 
 
@@ -167,4 +241,4 @@ if __name__ == "__main__":
     if "--serve" in sys.argv:
         serve_backend()
     else:
-        raise SystemExit(launch_dashboard())
+        raise SystemExit(launch_dashboard(show_browser="--startup" not in sys.argv))
