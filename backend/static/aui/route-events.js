@@ -26,6 +26,9 @@
         poll();
         return fallback;
       };
+      let accessToken = "";
+      try { accessToken = root.sessionStorage?.getItem("obus-access-token") || ""; } catch (_) {}
+      if (accessToken) return startPolling();
       if (root.EventSource) {
         const source = new root.EventSource(url);
         const handle = (event) => {

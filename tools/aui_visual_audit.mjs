@@ -61,6 +61,10 @@ export function layoutRatio(firstRect, secondRect) {
   return Math.max(firstRect.width, secondRect.width) / Math.min(firstRect.width, secondRect.width);
 }
 
+export function deviceMetricsFor(width, height) {
+  return {width, height, deviceScaleFactor: 1, mobile: false};
+}
+
 export function ratioScore(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return 0;
   const logarithmicDistance = Math.abs(Math.log(ratio / GOLDEN_RATIO));
@@ -282,6 +286,13 @@ function evaluationExpression(pageId, density) {
       pageId,
       density,
       document: {clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth},
+      layoutState: {
+        phoneMedia: matchMedia('(max-width: 720px)').matches,
+        narrowMedia: matchMedia('(max-width: 960px)').matches,
+        shellDisplay: getComputedStyle(document.querySelector('.shell')).display,
+        shellColumns: getComputedStyle(document.querySelector('.shell')).gridTemplateColumns,
+        workbenchColumns: ratioTarget ? getComputedStyle(ratioTarget).gridTemplateColumns : null,
+      },
       counts: {auditedNodes: nodes.length, overlaps: overlaps.length, clipped: clipped.length, brokenImages: brokenImages.length, undersizedTargets: undersizedTargets.length, invalidSeparators: invalidSeparators.length},
       horizontalOverflow,
       primaryRatio,
@@ -311,12 +322,7 @@ export async function runAudit(options) {
     await delay(Math.max(800, options.settleMs));
 
     for (const width of options.viewports) {
-      await client.send("Emulation.setDeviceMetricsOverride", {
-        width,
-        height: options.height,
-        deviceScaleFactor: 1,
-        mobile: width <= 720,
-      });
+      await client.send("Emulation.setDeviceMetricsOverride", deviceMetricsFor(width, options.height));
       await delay(options.settleMs);
       for (const density of options.densities) {
         for (const pageName of options.pages) {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildPreparationExpression,
+  deviceMetricsFor,
   GOLDEN_RATIO,
   isRectInViewport,
   layoutRatio,
@@ -37,6 +38,16 @@ test("viewport filtering keeps partial elements and rejects offscreen lazy asset
   assert.equal(isRectInViewport({x: 10, y: 890, width: 20, height: 20}, 1024, 900), true);
   assert.equal(isRectInViewport({x: 10, y: 901, width: 20, height: 20}, 1024, 900), false);
   assert.equal(isRectInViewport({x: -25, y: 20, width: 20, height: 20}, 1024, 900), false);
+});
+
+
+test("desktop AUI viewport audit does not emulate a mobile browser", () => {
+  assert.deepEqual(deviceMetricsFor(390, 900), {
+    width: 390,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 });
 
 

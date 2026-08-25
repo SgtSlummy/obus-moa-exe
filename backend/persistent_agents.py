@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from backend.process_utils import silent_process_kwargs
 
 MAX_PERSISTENT_AGENTS = 30
@@ -114,6 +114,13 @@ class OrchestratorPlan(StrictModel):
     agents: list[OrchestratorAgentAction] = Field(default_factory=list, max_length=MAX_PERSISTENT_AGENTS)
     rooms: list[OrchestratorRoomAction] = Field(default_factory=list, max_length=20)
     forums: list[OrchestratorForumAction] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def room_names_unique(self):
+        normalized = [re.sub(r"[^a-z0-9]+", "-", room.name.casefold()).strip("-") for room in self.rooms]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("orchestrator room names must be unique")
+        return self
 
 
 def derive_task_capabilities(prompt: str) -> set[str]:

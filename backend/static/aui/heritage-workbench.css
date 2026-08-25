@@ -389,6 +389,7 @@ pre {
 
 .key-shuffle-deck .shuffle-card {
   --shuffle-tilt: 0deg;
+  animation: none;
   transform: none;
 }
 
@@ -467,13 +468,76 @@ dialog {
 }
 
 @media (max-width: 720px) {
+  .shell {
+    display: block;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .side {
+    position: sticky;
+    z-index: 8;
+    top: 0;
+    width: 100%;
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .brand {
+    display: none;
+  }
+
+  .nav {
+    display: flex;
+    grid-template-columns: none;
+    gap: var(--space-2);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .nav button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding-inline: var(--space-4);
+    font-size: .75rem;
+    text-align: center;
+  }
+
   main {
+    width: 100%;
     padding: var(--space-4);
+  }
+
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .top > .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top > .actions > * {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .top .status,
+  .top .toggle {
+    justify-content: center;
+    white-space: normal;
   }
 
   .top,
   .panel-head,
   .terminal-block-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
   }
 
@@ -487,6 +551,7 @@ dialog {
   }
 
   .terminal-rail,
+  .grid,
   .grid.tarot-shuffle-deck,
   .key-grid.key-shuffle-deck,
   .integration-grid,
