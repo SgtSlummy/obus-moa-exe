@@ -1,8 +1,10 @@
 Task: Continue OBus push. Status:
-- Main repo (obus-moa-exe): pushed `4a2b782` (chore: update push status and status report for this cycle) to origin/master. Up to date.
-- Warp submodule: 2 local commits (fee1347, e98ac07) carrying cron status reports. Push to SgtSlummy/warp failed (fork does not exist). Superproject pointer in 4a2b782 matches working tree (fee1347) — clean now.
-- Understand-Anything: 2 commits ahead, push blocked 403 (expected).
-- Tarot-Router (occultbus): clean, up to date.
-- Local diff: tracked files clean. Untracked: warp/ (excluded by .gitignore).
-- Network: github.com reachable (HTTP 200). Main repo push succeeded. Submodule push blocks are fork-existence/permission, not network.
+- Main repo (obus-moa-exe): up to date. No new commits since last push (4a2b782 still current). Nothing to push.
+- Warp submodule (nvidia/warp tracked, SgtSlummy fork mapped to sgtfork): NEW local commit 405e468 added this cycle (chore: update warp submodule cron status reports). Superproject not yet updated — warp shows as dirty. SgtSlummy/warp fork does not exist; push blocked "Repository not found". nvidia/warp push also blocked (not collaborator). 3 local commits preserved (405e468, fee1347, e98ac07).
+- third_party/warpdotdev-warp: clean, tracking upstream warpdotdev. Push blocked 403 (not collaborator). No action needed.
+- Understand-Anything: 2 commits ahead (99e62b7, d07c457). Push blocked 403 (not collaborator on Egonex-AI/Understand-Anything). Local work preserved.
+- Tarot-Router (occultbus): clean, up to date. No changes.
+- Local diff: tracked files dirty — warp submodule has new commit 405e468 not yet recorded in superproject. Untracked: warp/ (excluded by .gitignore).
+- Network: github.com reachable (HTTP 200). Push blocks are permission/fork-existence, not network.
 - Active processes: OBus.exe (PID 29263), python (PID 7939). No background jobs.
+- New this cycle: warp submodule got commit 405e468. Superproject needs update to record it, but push remains blocked by missing fork.

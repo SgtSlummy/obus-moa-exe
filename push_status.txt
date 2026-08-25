@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 19:55 PDT (cron cycle)
+# Push Status Report - 2026-08-25 20:06 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 19:55 PDT
+**Run Time:** 2026-08-25 20:06 PDT
 
 ---
 
@@ -10,14 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `4a2b782` | master | ✅ **Pushed** — `chore: update push status and status report for this cycle` |
-| warp submodule (SgtSlummy) | `fee1347` | main | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found) |
-| third_party/warpdotdev-warp | `21f413b` | detached | ✅ Clean — tracks upstream warpdotdev/warp; no push needed |
+| obus-moa-exe (SgtSlummy) | `4a2b782` | master | ✅ **Up to date** — already pushed last cycle; nothing new |
+| warp submodule (SgtSlummy) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found) |
+| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — 403, not a collaborator on warpdotdev/warp |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
-| ComfyUI | — | master | ℹ️ 1 commit behind upstream comfyanonymous/ComfyUI — not our repo |
 
-**Main repo:** Pushed `4a2b782` to origin/master. Prior cycle's push (`9470a23`) is now 1 commit behind.
+**Main repo:** No new commits. `4a2b782` already pushed to origin/master in prior cycle. Up to date.
 
 ---
 
@@ -27,17 +26,12 @@
 4a2b782 (HEAD, origin/master) chore: update push status and status report for this cycle
 9470a23                        chore: preserve existing warp submodule pointer
 fd54ca3                        fix: start paired Loki build in portal serve mode
-0f1423e                        feat: build private Thor Loki paired distribution
+0f14234                        feat: build private Thor Loki paired distribution
 e3841a9                        chore: update warp submodule pointer to latest status reports
 dd88b1b                        chore: update push status and status report for this cycle
-c814752                        test: include Thor portal deployment scripts
-89881e9                        feat: expose secure local LLM portal for Thor
-3ec96eb                        fix: initialize windowed launcher logging streams
-61b0ec6                        test: release Windows state handles before cleanup
-d505e5e                        fix: keep startup registry typing cross-platform
 ```
 
-All commits pushed to origin/master.
+All commits pushed to origin/master. No new local commits in this cycle.
 
 ---
 
@@ -45,14 +39,24 @@ All commits pushed to origin/master.
 
 | Item | Detail |
 |------|--------|
-| Current HEAD | `fee1347` — `chore: update warp submodule cron status reports` |
-| Prior commit | `e98ac07` — same purpose (from prior cycle) |
-| Upstream (nvidia/warp main) | `64c6cacd6` — behind by 2 commits |
-| SgtSlummy/warp fork | **Does not exist** — push failed with "Repository not found" |
-| Superproject pointer (in `9470a23`) | `e98ac07` — but working tree has `fee1347` (unstaged, now staged in `4a2b782`) |
-| Superproject pointer (in `4a2b782`) | `fee1347` — updated to match working tree |
+| Current HEAD | `405e468` — `chore: update warp submodule cron status reports` |
+| Prior commit | `fee1347` — same purpose (from prior cycle) |
+| Upstream (nvidia/warp main) | `64c6cacd6` — behind by some commits |
+| SgtSlummy/warp fork | **Does not exist** — push fails with "Repository not found" |
+| Superproject pointer (in `4a2b782`) | `fee1347` — but working tree has `405e468` (dirty) |
 
-The superproject `warp` is now clean in `4a2b782` because the working tree pointer (`fee1347`) matches what's recorded in HEAD. However, `fee1347` still cannot be pushed to SgtSlummy/warp because the fork doesn't exist.
+The superproject `warp` is **dirty** — a new commit `405e468` was created locally but the superproject hasn't been updated to point to it. This commit carries cron status reports. The fork still doesn't exist so it cannot be pushed.
+
+---
+
+## Understand-Anything Submodule — This Cycle
+
+| Item | Detail |
+|------|--------|
+| Current HEAD | `99e62b7` — `Sync Understand-Anything submodule changes for deploy` |
+| Prior commits | `d07c457`, `3294482` (merge PR #637) |
+| Remote | `Egonex-AI/Understand-Anything` — SgtSlummy not a collaborator (403) |
+| Status | 2 commits ahead of last push, cannot push |
 
 ---
 
@@ -60,9 +64,9 @@ The superproject `warp` is now clean in `4a2b782` because the working tree point
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: clean (on `4a2b782`)
-- Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 2 committed-but-unpushable changes (`fee1347`, `e98ac07`)
-- `.gitmodules` tracks `warp` at `https://github.com/SgtSlummy/warp.git` (fetch+push)
+- Tracked files: **dirty** — submodule `warp` has new commit `405e468` not yet recorded in superproject
+- Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 3 committed-but-unpushable changes (`405e468`, `fee1347`, `e98ac07`)
+- `.gitmodules` tracks `warp` at `https://github.com/nvidia/warp.git` (fetch+push); SgtSlummy fork mapped to `sgtfork` remote
 
 ---
 
@@ -76,12 +80,12 @@ The superproject `warp` is now clean in `4a2b782` because the working tree point
 
 ## Summary
 
-1. **Main repo pushed** — `4a2b782` (chore: update push status) is now on origin/master. Prior cycle's `9470a23` is 1 commit behind.
+1. **Main repo:** Up to date. `4a2b782` pushed in prior cycle. No new work to push.
 
-2. **Warp submodule:** 2 local commits (`fee1347`, `e98ac07`) carrying cron status reports. The superproject pointer in `4a2b782` matches the working tree (`fee1347`), so `warp` shows clean in the superproject. But `fee1347` cannot be pushed to SgtSlummy/warp — the fork does not exist.
+2. **Warp submodule:** New local commit `405e468` added this cycle. Superproject not yet updated. Push to SgtSlummy/warp blocked — fork does not exist. Push to nvidia/warp not possible (not a collaborator). Local commits preserved.
 
-3. **Understand-Anything:** 2 commits ahead, push blocked 403 (expected).
+3. **third_party/warpdotdev-warp:** Clean, tracking upstream warpdotdev. Push blocked 403 (not collaborator). No action needed.
 
-4. **Tarot-Router (occultbus):** clean, up to date.
+4. **Understand-Anything:** 2 commits ahead, push blocked 403 (expected). Local work preserved.
 
-5. **Network:** github.com reachable (HTTPS 200). Main repo push succeeded. Submodule push blocks are fork-existence/permission, not network.
+5. **Network:** github.com reachable (HTTPS 200). Push blocks are permission/fork-existence, not network.
