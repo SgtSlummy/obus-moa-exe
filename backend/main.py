@@ -3973,6 +3973,9 @@ async def route_status(route_id: str):
     return {"route_id": route_id, "cancel_requested": route_cancel_requested(route_id), "events": events, "latest": events[-1] if events else None}
 
 
+ROUTE_MAX_SECONDS = 15 * 60
+
+
 def generate_offline_answer(prompt: str, plan: dict) -> str:
     """Keep routing usable without pretending that a model answered the task."""
     assignments = plan["agents"].get("dynamic_assignments", [])
@@ -4208,18 +4211,24 @@ async def _run_route_impl(request: RouteRequest):
     return finalize_result(result)
 
 
+def route_terminal_emitted(route_id: str) -> bool:
+    events = ROUTE_EVENTS.snapshot(route_id=route_id, limit=10)
+    return any(event.get("type") in {"route.complete", "route.failed", "route.cancelled"} for event in events)
+
+
 @app.post("/api/route/run")
 async def run_route(request: RouteRequest):
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     request.route_id = route_id
     try:
-        return await _run_route_impl(request)
+        return await asyncio.wait_for(_run_route_impl(request), timeout=ROUTE_MAX_SECONDS)
     except HTTPException as exc:
         if exc.status_code != 409:
             clear_route_cancel(route_id)
         raise
     except Exception as exc:
-        ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "route", "reason": type(exc).__name__})
+        if not route_terminal_emitted(route_id):
+            ROUTE_EVENTS.publish(route_id, "route.failed", {"status": "failed", "stage": "route", "reason": type(exc).__name__})
         clear_route_cancel(route_id)
         raise HTTPException(status_code=503, detail="Route execution failed.") from exc
     finally:

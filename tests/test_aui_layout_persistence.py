@@ -14,6 +14,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "run-workbench-splitter",
             "layout-preset-select",
             "layout-reset",
+            "mobile-nav-drawer",
+            "mobile-control-drawer",
+            "mobile-current-page",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn('role="separator"', html)
@@ -62,6 +65,11 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn("${ratio.toFixed(4)}fr", layout.text)
         self.assertIn(".key-actions a.button", heritage.text)
         self.assertNotIn("var(--phi)fr", heritage.text)
+        phone = heritage.text.split("@media (max-width: 720px)", 1)[1].split("@media", 1)[0]
+        self.assertIn(".mobile-drawer-summary", phone)
+        self.assertIn(".mobile-control-drawer:not([open]) > .actions", phone)
+        self.assertIn(".mobile-nav-drawer:not([open]) > .nav", phone)
+        self.assertNotIn("overflow-x: auto", phone)
         for forbidden in ("prompt", "output", "provider", "api_key", "bearer"):
             self.assertNotIn(f'obus-aui-{forbidden}', layout.text.lower())
 

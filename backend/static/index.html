@@ -38,6 +38,8 @@
 <div class="shell" id="aui-layout">
   <aside class="side">
     <div class="brand"><div class="emblem"><img src="/static/art/emblems/obus-emblem-icon.svg" alt="OBus Magician's Key emblem"></div><div><h1>OBus MOA</h1><small>Router + Keys</small></div></div>
+    <details class="mobile-nav-drawer" id="mobile-nav-drawer">
+      <summary class="mobile-drawer-summary">Navigate <span id="mobile-current-page">Run</span></summary>
     <nav class="nav" id="workspace-nav" aria-label="OBus workspace navigation">
       <button class="active" data-page="dashboard" data-surface-min="terminal">⌁ Run</button>
       <button data-page="plan" data-surface-min="terminal">⌘ Plan</button>
@@ -54,11 +56,14 @@
       <button data-page="hardening" data-surface-min="ade">∿ Safety</button>
       <button data-page="settings" data-surface-min="terminal">⚙ Setup</button>
     </nav>
+    </details>
   </aside>
 
   <main id="aui-main" aria-label="OBus application workspace">
     <header class="top">
       <div class="title"><h2 id="page-title">Command center</h2><p>Dynamic Tarot personas paired with secret-safe Solomon’s Keys.</p></div>
+      <details class="mobile-control-drawer" id="mobile-control-drawer">
+        <summary class="mobile-drawer-summary">Workspace controls</summary>
       <div class="actions">
         <button class="button layout-control" id="sidebar-toggle" type="button" aria-pressed="false" aria-label="Toggle sidebar">☰</button>
         <label class="field layout-control" style="display:flex;align-items:center;gap:6px"><span class="hint">Density</span><select class="select" id="density-select" aria-label="Workspace density"><option value="compact">Compact</option><option value="comfortable" selected>Comfortable</option><option value="spacious">Spacious</option></select></label>
@@ -70,6 +75,7 @@
         <label class="toggle" title="Persist RAG setting"><input id="rag-toggle" type="checkbox"><span class="track"></span>RAG</label>
         <button class="button" id="refresh-btn">Refresh</button>
       </div>
+      </details>
     </header>
 
     <section class="page active" data-page-panel="dashboard" data-surface-min="terminal">
@@ -370,7 +376,7 @@ function agentFaceMarkup(meta={},index=0){return window.OBusAgentVisuals?.faceBu
 function toast(message,error=false){const el=$('#toast');el.textContent=message;el.className='toast show'+(error?' error':'');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className='toast',3200);}
 async function api(path,options={}){const response=await fetch(path,{headers:{'Content-Type':'application/json',...(state.accessToken?{'X-OBus-Access':state.accessToken}:{}),...(options.headers||{})},...options});let data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(data.detail||data.message||`Request failed (${response.status})`);return data;}
 function optionMarkup(items,selected,label=x=>x.name,value=x=>x.id){return items.map(item=>`<option value="${escapeHtml(value(item))}" ${value(item)===selected?'selected':''}>${escapeHtml(label(item))}</option>`).join('');}
-function setPage(name){const target=$(`.page[data-page-panel="${name}"]`);if(target?.classList.contains('surface-hidden'))name='dashboard';$$('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$$('.page').forEach(x=>x.classList.toggle('active',x.dataset.pagePanel===name));$('#page-title').textContent=titles[name]||'OBus MOA';}
+function setPage(name){const target=$(`.page[data-page-panel="${name}"]`);if(target?.classList.contains('surface-hidden'))name='dashboard';$$('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$$('.page').forEach(x=>x.classList.toggle('active',x.dataset.pagePanel===name));const title=titles[name]||'OBus MOA';$('#page-title').textContent=title;const mobileTitle=$('#mobile-current-page');if(mobileTitle)mobileTitle.textContent=title;const drawer=$('#mobile-nav-drawer');if(drawer&&matchMedia('(max-width: 720px)').matches)drawer.open=false;}
 function applyWorkspaceSurface(surface){const value=surfaceRank[surface]===undefined?'operator':surface;const pageSurface={providers:'operator'};state.workspaceSurface=value;document.body.dataset.workspaceSurface=value;$$('[data-surface-min],.nav button[data-page="providers"]').forEach(element=>{const minimum=surfaceRank[element.dataset.surfaceMin||pageSurface[element.dataset.page]||'terminal']??0;element.classList.toggle('surface-hidden',minimum>surfaceRank[value]);});$('#workspace-surface').value=value;$('#workspace-surface-badge').textContent=`${value.toUpperCase()} surface`;const active=$('.page.active');if(active?.classList.contains('surface-hidden'))setPage('dashboard');}
 function renderCommandPalette(query=''){const needle=query.trim().toLowerCase();const source=state.commandActions||commandPaletteActions;state.paletteActions=source.filter(action=>!needle||`${action.label} ${action.hint}`.toLowerCase().includes(needle));state.paletteIndex=Math.min(state.paletteIndex,Math.max(0,state.paletteActions.length-1));$('#command-palette-results').innerHTML=state.paletteActions.length?state.paletteActions.map((action,index)=>`<button class="palette-item ${index===state.paletteIndex?'selected':''}" role="option" aria-selected="${index===state.paletteIndex}" data-palette-action="${escapeHtml(action.id)}"><span><strong>${escapeHtml(action.label)}</strong><small>${escapeHtml(action.hint)}</small></span><kbd>${index<9?index+1:''}</kbd></button>`).join(''):'<div class="empty">No matching OBus action.</div>';
   $$('.palette-item').forEach((button,index)=>button.onclick=()=>runCommandPaletteAction(state.paletteActions[index]?.id));

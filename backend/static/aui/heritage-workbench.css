@@ -541,6 +541,32 @@ dialog {
   overflow-wrap: anywhere;
 }
 
+.mobile-nav-drawer {
+  display: block;
+}
+
+.mobile-control-drawer {
+  display: block;
+  flex: 1 1 42rem;
+  min-width: 0;
+}
+
+.mobile-drawer-summary {
+  display: none;
+}
+
+.mobile-nav-drawer:not([open]) > .nav {
+  display: grid;
+}
+
+.mobile-control-drawer:not([open]) > .actions {
+  display: flex;
+}
+
+.mobile-control-drawer > .actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 960px) {
   .terminal-workbench,
   .room-workspace {
@@ -579,21 +605,57 @@ dialog {
     display: none;
   }
 
-  .nav {
+  .mobile-nav-drawer,
+  .mobile-control-drawer {
+    display: block;
+  }
+
+  .mobile-drawer-summary {
     display: flex;
-    grid-template-columns: none;
+    min-height: var(--control-min);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--space-3);
+    background: var(--ink-high);
+    color: var(--parchment);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobile-drawer-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-drawer-summary::after {
+    content: "⌄";
+    color: var(--brass-bright);
+  }
+
+  details[open] > .mobile-drawer-summary::after {
+    content: "⌃";
+  }
+
+  .mobile-nav-drawer:not([open]) > .nav,
+  .mobile-control-drawer:not([open]) > .actions {
+    display: none;
+  }
+
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
+    margin-top: var(--space-2);
     overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-gutter: stable;
   }
 
   .nav button {
-    flex: 0 0 auto;
-    min-width: max-content;
+    min-width: 0;
     padding-inline: var(--space-4);
     font-size: .75rem;
-    text-align: center;
+    text-align: left;
   }
 
   main {
@@ -606,12 +668,13 @@ dialog {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .top > .actions {
+  .mobile-control-drawer > .actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: var(--space-2);
   }
 
-  .top > .actions > * {
+  .mobile-control-drawer > .actions > * {
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -631,7 +694,7 @@ dialog {
     align-items: stretch;
   }
 
-  .top > .actions,
+  .mobile-control-drawer > .actions,
   .panel-head > .actions,
   .output-options,
   .composer-foot .actions,
