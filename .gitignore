@@ -1,6 +1,10 @@
 venv/
 build/
 dist/
+build-debug/
+dist-debug/
+*.spec
+build-aui-agent-visuals-v2/
 dist-aui-loop*/
 dist-remediation/
 dist-warp-review/

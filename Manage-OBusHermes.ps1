@@ -8,7 +8,10 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = if ($PSScriptRoot) { $PSScriptRoot } elseif ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { throw 'Could not determine the OBus project directory.' }
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
-$Python = 'C:\Users\Hermes\warden-discord-bot\.venv\Scripts\python.exe'
+$Python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $Python)) {
+    $Python = (Get-Command python -ErrorAction Stop).Source
+}
 $Wrapper = Join-Path $ProjectRoot 'obus_bridge_service.py'
 $ServiceName = 'OBusHermesBridge'
 $TaskName = 'OBusHermesBridgeAutostart'
