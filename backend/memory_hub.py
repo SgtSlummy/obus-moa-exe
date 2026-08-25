@@ -109,7 +109,7 @@ class MemoryHub:
             tables = {row[0] for row in connection.execute("select name from sqlite_master where type='table'")}
             for table, field in (("history", "count"), ("messages", "count")):
                 if table in tables:
-                    result[table] = int(connection.execute(f"select count(*) from {table}").fetchone()[0])
+                    result[table] = int(connection.execute(f"select count(*) from {table}").fetchone()[0])  # noqa: S608 -- table is from the fixed allowlist above
             connection.close()
         except (OSError, sqlite3.Error):
             result["status"] = "unreadable"

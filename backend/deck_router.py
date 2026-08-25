@@ -69,7 +69,7 @@ class DeckArchetype:
             "best_for": self.best_for,
             "cards": [c.to_dict() for c in self.cards],
             "image_pack": self.image_pack,
-            "enabled": enabled,
+            "enabled": self.enabled,
             "priority": self.priority
         }
 

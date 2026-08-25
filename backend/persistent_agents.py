@@ -231,7 +231,7 @@ def _validated_provider_base_url(provider: str, value: object) -> str:
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint") from exc
     if parsed.scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
-    host = parsed.hostname.casefold()
+    host = hostname.casefold()
     loopback = provider == "ollama" and host in {"localhost", "127.0.0.1", "::1"}
     allowed_hosts = {
         "anthropic": {"api.anthropic.com"}, "google": {"generativelanguage.googleapis.com"},
@@ -288,10 +288,10 @@ def execute_codex_prompt(command_builder: Callable[..., list[str] | None], key: 
         if not output_path.is_file() or output_path.stat().st_size > MAX_SUBPROCESS_OUTPUT_BYTES:
             raise RuntimeError("Codex output exceeded the bounded response limit")
         with output_path.open("rb") as handle:
-            output = handle.read(MAX_SUBPROCESS_OUTPUT_BYTES + 1)
-        if len(output) > MAX_SUBPROCESS_OUTPUT_BYTES:
+            raw_output = handle.read(MAX_SUBPROCESS_OUTPUT_BYTES + 1)
+        if len(raw_output) > MAX_SUBPROCESS_OUTPUT_BYTES:
             raise RuntimeError("Codex output exceeded the bounded response limit")
-        output = output.decode("utf-8", "replace").strip()
+        output = raw_output.decode("utf-8", "replace").strip()
         if result.returncode != 0 or not output:
             raise RuntimeError("Codex execution failed")
         return output

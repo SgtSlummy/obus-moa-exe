@@ -200,7 +200,8 @@ class MemoryStore:
 
         with self._connection() as connection:
             result = connection.execute(
-                f"UPDATE memories SET {', '.join(assignments)} WHERE id = ?", values
+                f"UPDATE memories SET {', '.join(assignments)} WHERE id = ?",  # noqa: S608 -- column names are fixed above; values are bound
+                values,
             )
             if result.rowcount == 0:
                 return False
