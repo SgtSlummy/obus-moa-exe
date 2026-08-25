@@ -21,6 +21,8 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "workspace-context-splitter",
             "studio-workspace-splitter",
             "page-subtitle",
+            "agents-jump-top",
+            "providers-jump-top",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn('role="separator"', html)
@@ -31,6 +33,8 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn("const subtitles=", html)
         self.assertIn("subtitles[name]", html)
         self.assertIn("formatReceiptTimestamp", html)
+        self.assertIn("syncPageJumpButtons", html)
+        self.assertIn("data-page-jump-top", html)
         for value in ("focus", "review", "deck", "studio"):
             self.assertIn(f'value="{value}"', html)
 
@@ -74,6 +78,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "textarea::-webkit-scrollbar-button",
             "#rooms-workspace > :first-child",
             ".terminal-history small",
+            "#settings-import-preview",
+            "grid-row: 1 / 3",
+            ".page-jump-top",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]

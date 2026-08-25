@@ -212,19 +212,23 @@ def _http_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeo
 
 def _validated_provider_base_url(provider: str, value: object) -> str:
     candidate = str(value or "").strip().rstrip("/")
-    parsed = urllib.parse.urlsplit(candidate)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+    try:
+        parsed = urllib.parse.urlsplit(candidate)
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise RuntimeError("Provider base URL is not an approved secret-free endpoint") from exc
+    if parsed.scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
     host = parsed.hostname.casefold()
-    loopback = host in {"localhost", "127.0.0.1", "::1"}
+    loopback = provider == "ollama" and host in {"localhost", "127.0.0.1", "::1"}
     allowed_hosts = {
         "anthropic": {"api.anthropic.com"}, "google": {"generativelanguage.googleapis.com"},
-        "gemini": {"generativelanguage.googleapis.com"}, "openrouter": {"openrouter.ai"},
+        "gemini": {"generativelanguage.googleapis.com"}, "codex": {"api.openai.com"}, "nous": {"api.upstage.com"}, "nvidia": {"integrate.api.nvidia.com"}, "openrouter": {"openrouter.ai"},
         "mistral": {"api.mistral.ai"}, "groq": {"api.groq.com"}, "xai": {"api.x.ai"},
         "together": {"api.together.xyz"}, "fireworks": {"api.fireworks.ai"},
         "deepseek": {"api.deepseek.com"}, "cerebras": {"api.cerebras.ai"},
     }
-    allowed = loopback or host in allowed_hosts.get(provider, set()) or (provider == "huggingface" and (host == "huggingface.co" or host.endswith(".huggingface.co"))) or (provider == "azure" and host.endswith(".openai.azure.com"))
+    allowed = loopback or host in allowed_hosts.get(provider, set()) or (provider == "huggingface" and host == "api-inference.huggingface.co") or (provider == "azure" and host.endswith(".openai.azure.com"))
     if not allowed or (not loopback and parsed.scheme != "https"):
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
     return candidate

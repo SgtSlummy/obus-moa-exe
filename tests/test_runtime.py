@@ -1161,12 +1161,15 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/rooms").json()), 2)
         self.assertEqual(len(self.client.get("/api/forum/threads").json()), 1)
 
-    def test_local_ollama_is_the_default_final_output(self):
+    def test_codex_is_the_default_primary_agent(self):
         state = backend.normalize_state({})
-        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
-        self.assertEqual(state["aggregator_key_id"], "key-local-ollama")
-        self.assertEqual(local["model"], "gpt-oss:20b")
-        self.assertTrue(local["can_aggregate"])
+        codex = next(key for key in state["keys"] if key["id"] == "key-codex-oauth")
+        self.assertEqual(state["aggregator_key_id"], "key-codex-oauth")
+        self.assertEqual(state["aggregation_order"], ["key-codex-oauth"])
+        self.assertEqual(state["runtime_settings"]["primary_key_id"], "key-codex-oauth")
+        self.assertEqual(codex["provider"], "codex")
+        self.assertEqual(codex["model"], "gpt-5.6-luna")
+        self.assertTrue(codex["can_aggregate"])
         statuses = [
             {"id": "key-local-ollama", "connected": True},
             {"id": "key-codex-oauth", "connected": True},

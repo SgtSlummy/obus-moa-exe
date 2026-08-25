@@ -495,6 +495,14 @@ pre {
   overflow-wrap: normal;
 }
 
+#settings-import-preview {
+  grid-row: 1 / 3;
+  min-width: 0;
+  max-height: 18rem;
+  overflow: auto;
+  word-break: break-word;
+}
+
 .aui-summary {
   display: flex;
   align-items: center;
@@ -651,6 +659,27 @@ dialog {
   justify-content: flex-end;
 }
 
+#settings-import-preview {
+  grid-template-columns: minmax(16rem, .75fr) minmax(0, 1.25fr);
+  align-items: start;
+}
+
+#settings-import-content {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 100%;
+  margin: 0;
+}
+
+#settings-import-apply {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.page-jump-top {
+  display: none;
+}
+
 @media (max-width: 960px) {
   .terminal-workbench,
   .room-workspace,
@@ -786,6 +815,25 @@ dialog {
   .page[data-page-panel="settings"] .row > * {
     min-width: 0;
     max-width: 100%;
+  }
+
+  #settings-import-content,
+  #settings-import-apply {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .page-jump-top:not([hidden]) {
+    position: fixed;
+    z-index: 12;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-min);
+    border-color: var(--brass);
+    background: var(--ink-high);
+    box-shadow: var(--shadow-resting);
   }
 
   .top > .actions > *,

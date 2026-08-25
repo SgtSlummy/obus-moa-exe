@@ -347,6 +347,18 @@ KEY_SETUP_GUIDES = {
 
 # ==================== STATE MANAGEMENT ====================
 
+KEY_PUBLIC_FIELDS = {
+    "id", "name", "provider", "model", "symbol", "sigil", "solomon_seal", "solomon_seal_number",
+    "solomon_seal_reason", "solomon_seal_source", "base_url", "env_var", "state", "capabilities",
+    "max_context_tokens", "configured", "verified", "approved", "active", "local", "open_model",
+    "can_aggregate", "oauth", "verified_at", "last_probe_reason", "last_probe_message",
+}
+
+
+def key_public(key: dict) -> dict:
+    return redact_value({field: key[field] for field in KEY_PUBLIC_FIELDS if field in key})
+
+
 def normalize_state(state: dict) -> dict:
     state = copy.deepcopy(state or {})
     existing_keys = {item.get("id"): item for item in state.get("keys", [])}
@@ -367,6 +379,12 @@ def normalize_state(state: dict) -> dict:
             value["model"] = "gpt-5.6-luna"
             value["provider"] = "codex"
             value["can_aggregate"] = True
+        value = {field: value[field] for field in KEY_PUBLIC_FIELDS if field in value}
+        try:
+            value["base_url"] = _validated_provider_base_url(str(value.get("provider") or "custom"), value.get("base_url"))
+        except RuntimeError:
+            value["base_url"] = ""
+            value.update(state="disabled", verified=False, approved=False, active=False)
         merged_keys.append(value)
     for custom in existing_keys.values():
         custom.setdefault("max_context_tokens", 131072)
@@ -374,6 +392,12 @@ def normalize_state(state: dict) -> dict:
         custom.setdefault("state", "staged")
         custom.setdefault("open_model", False)
         custom.setdefault("sigil", f"/static/art/keys/{custom['id']}.svg")
+        custom = {field: custom[field] for field in KEY_PUBLIC_FIELDS if field in custom}
+        try:
+            custom["base_url"] = _validated_provider_base_url(str(custom.get("provider") or "custom"), custom.get("base_url"))
+        except RuntimeError:
+            custom["base_url"] = ""
+            custom.update(state="disabled", verified=False, approved=False, active=False)
         merged_keys.append(custom)
     state["keys"] = merged_keys
 
@@ -390,14 +414,14 @@ def normalize_state(state: dict) -> dict:
         merged_cards.append(value)
     merged_cards.extend(existing_cards.values())
     state["cards"] = merged_cards
-    # Local Ollama is the autonomous default. A remote aggregate is used only
-    # after an explicit, persisted selection through /api/aggregator/select.
-    if not state.get("aggregation_explicit") and state.get("aggregator_key_id") == "key-local-ollama":
-        state["aggregator_key_id"] = "key-local-ollama"
-        state["aggregation_order"] = ["key-local-ollama"]
+    # Codex is the first-class default. Preserve an explicit persisted selection,
+    # while migrating legacy implicit local-Ollama defaults to Codex.
+    if not state.get("aggregation_explicit"):
+        state["aggregator_key_id"] = "key-codex-oauth"
+        state["aggregation_order"] = ["key-codex-oauth"]
     else:
-        state.setdefault("aggregator_key_id", "key-local-ollama")
-        state.setdefault("aggregation_order", ["key-local-ollama"])
+        state.setdefault("aggregator_key_id", "key-codex-oauth")
+        state.setdefault("aggregation_order", ["key-codex-oauth"])
     state.setdefault("rooms", [])
     state.setdefault("room_messages", [])
     state.setdefault("forum_threads", [])
@@ -406,7 +430,7 @@ def normalize_state(state: dict) -> dict:
     state.setdefault("runtime_settings", {
         "max_agents": 30,
         "max_parallel": 8,
-        "primary_key_id": "key-local-ollama",
+        "primary_key_id": "key-codex-oauth",
         "auto_deliberation": AUTO_DELIBERATION_STARTUP,
     })
     state["runtime_settings"].setdefault("auto_deliberation", AUTO_DELIBERATION_STARTUP)
@@ -441,7 +465,7 @@ def normalize_state(state: dict) -> dict:
         state["runtime_settings"] = {
             "max_agents": 30,
             "max_parallel": 8,
-            "primary_key_id": "key-local-ollama",
+            "primary_key_id": "key-codex-oauth",
             "auto_deliberation": AUTO_DELIBERATION_STARTUP,
         }
     state["runtime_settings"].setdefault("auto_deliberation", AUTO_DELIBERATION_STARTUP)
@@ -3288,13 +3312,14 @@ async def create_key(create: KeyCreate):
     })
     state["keys"].append(key)
     save_state(state)
-    return key
+    return key_public(key)
+
 
 @app.get("/api/keys")
 async def get_keys():
     """Get all Solomon's keys"""
     state = load_state()
-    return state.get("keys", DEFAULT_KEYS)
+    return [key_public(key) for key in state.get("keys", DEFAULT_KEYS)]
 
 
 @app.put("/api/keys/{key_id}")
@@ -3327,11 +3352,7 @@ async def update_key(key_id: str, update: KeyUpdate = Body(...)):
                    last_probe_reason="configuration_changed", last_probe_message="Configuration changed; run Test & enable again")
         if key.get("state") != "disabled":
             key["state"] = "staged"
-    save_state(state)
-    return key
-
-
-@app.delete("/api/keys/{key_id}")
+    return key_public(key)
 async def delete_key(key_id: str):
     state = load_state()
     before = len(state["keys"])
