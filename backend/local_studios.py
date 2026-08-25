@@ -114,13 +114,21 @@ def launch_comfyui() -> dict[str, Any]:
 def _graph_path(workspace_root: str | None) -> Path | None:
     if not workspace_root:
         return None
-    root = Path(workspace_root).expanduser()
+    try:
+        root = Path(workspace_root).expanduser().resolve(strict=True)
+    except OSError:
+        return None
     if not root.is_dir():
         return None
     for name in (".ua", ".understand-anything"):
         candidate = root / name / "knowledge-graph.json"
-        if candidate.is_file() and candidate.stat().st_size <= MAX_GRAPH_BYTES:
-            return candidate
+        try:
+            resolved = candidate.resolve(strict=True)
+            resolved.relative_to(root)
+            if resolved.is_file() and resolved.stat().st_size <= MAX_GRAPH_BYTES:
+                return resolved
+        except (OSError, ValueError):
+            continue
     return None
 
 
@@ -130,8 +138,12 @@ def understand_anything_status(workspace_root: str | None) -> dict[str, Any]:
     graph: dict[str, Any] = {}
     if graph_path:
         try:
-            graph = json.loads(graph_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            with graph_path.open("rb") as handle:
+                raw = handle.read(MAX_GRAPH_BYTES + 1)
+            if len(raw) > MAX_GRAPH_BYTES:
+                raise ValueError("graph exceeds the bounded size limit")
+            graph = json.loads(raw.decode("utf-8"))
+        except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
             graph_path = None
     nodes = graph.get("nodes") if isinstance(graph, dict) else []
     edges = graph.get("edges") if isinstance(graph, dict) else []

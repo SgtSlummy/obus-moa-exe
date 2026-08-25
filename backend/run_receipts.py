@@ -120,11 +120,22 @@ def persist_receipt(path: str | os.PathLike[str], receipt: dict[str, Any], *, re
     target.parent.mkdir(parents=True, exist_ok=True)
     records = load_receipts(target)
     records.append(_safe_value(receipt))
-    records = records[-min(max(int(retention), 1), RETENTION_LIMIT):]
+    retention = min(max(int(retention), 1), RETENTION_LIMIT)
+    bounded_records = []
+    for record in reversed(records[-retention:]):
+        candidate = [record] + bounded_records
+        encoded = json.dumps(candidate, indent=2, ensure_ascii=False).encode("utf-8")
+        if len(encoded) > MAX_RECEIPT_FILE_BYTES:
+            break
+        bounded_records = candidate
+    records = list(reversed(bounded_records))
+    if not records:
+        raise ValueError("receipt exceeds the bounded persistence limit")
+    encoded = json.dumps(records, indent=2, ensure_ascii=False).encode("utf-8")
     temp = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
     try:
-        with temp.open("w", encoding="utf-8") as handle:
-            json.dump(records, handle, indent=2, ensure_ascii=False)
+        with temp.open("wb") as handle:
+            handle.write(encoded)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temp, target)

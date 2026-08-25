@@ -1390,7 +1390,10 @@ def run_codex_login(job_id: str) -> None:
                 break
             if len(output_bytes) + len(chunk) > MAX_SUBPROCESS_OUTPUT_BYTES:
                 terminate_process_tree(process)
-                process.wait()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
                 watchdog.cancel()
                 CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex device login output exceeded the bounded limit")
                 return
