@@ -186,14 +186,18 @@ def read_workspace_file(root: str | os.PathLike[str] | None, relative_path: str,
     if _is_secret_name(path.name):
         raise WorkspaceContextError("secret-shaped workspace files are redacted")
     try:
-        if not stat.S_ISREG(path.stat().st_mode):
+        resolved_file = path.resolve(strict=True)
+        if not _inside(resolved_root, resolved_file) or not stat.S_ISREG(resolved_file.stat().st_mode):
             raise WorkspaceContextError("workspace path is not a regular file")
     except OSError as exc:
         raise WorkspaceContextError("workspace file could not be inspected") from exc
     max_bytes = min(max(int(max_bytes), 1), MAX_FILE_BYTES)
     try:
-        size = path.stat().st_size
-        with path.open("rb") as handle:
+        resolved_file = path.resolve(strict=True)
+        if not _inside(resolved_root, resolved_file):
+            raise WorkspaceContextError("workspace path escaped the configured root")
+        size = resolved_file.stat().st_size
+        with resolved_file.open("rb") as handle:
             sample = handle.read(max_bytes + 1)
     except (OSError, ValueError) as exc:
         raise WorkspaceContextError("workspace file could not be read") from exc

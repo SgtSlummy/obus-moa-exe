@@ -695,28 +695,40 @@ class DeckUpdate(BaseModel):
     priority: Optional[int] = Field(default=None, strict=True, ge=-100, le=100)
 
 
+class CardCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(default="New Card", max_length=240)
+    symbol: str = Field(default="🔮", max_length=40)
+    persona: str = Field(default="Agent", max_length=2000)
+    key_id: Optional[str] = Field(default=None, max_length=120)
+    capabilities: List[str] = Field(default_factory=list, max_length=32)
+    can_aggregate: bool = False
+    decks: List[str] = Field(default_factory=list, max_length=16)
+
+
 class CardUpdate(BaseModel):
-    name: Optional[str] = None
-    symbol: Optional[str] = None
-    key_id: Optional[str] = None
-    assignment_mode: Optional[str] = None
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, max_length=240)
+    symbol: Optional[str] = Field(default=None, max_length=40)
+    key_id: Optional[str] = Field(default=None, max_length=120)
+    assignment_mode: Optional[str] = Field(default=None, max_length=20)
     reversed: Optional[bool] = None
     active: Optional[bool] = None
-    capabilities: Optional[List[str]] = None
+    capabilities: Optional[List[str]] = Field(default=None, max_length=32)
     can_aggregate: Optional[bool] = None
 
 
 class KeyUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = None
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    base_url: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=240)
+    provider: Optional[str] = Field(default=None, max_length=80)
+    model: Optional[str] = Field(default=None, max_length=240)
+    base_url: Optional[str] = Field(default=None, max_length=500)
     env_var: Optional[str] = Field(default=None, pattern=r"^[A-Z_][A-Z0-9_]{0,127}$")
-    state: Optional[str] = None
-    symbol: Optional[str] = None
-    capabilities: Optional[List[str]] = None
-    max_context_tokens: Optional[int] = None
+    state: Optional[str] = Field(default=None, max_length=20)
+    symbol: Optional[str] = Field(default=None, max_length=40)
+    capabilities: Optional[List[str]] = Field(default=None, max_length=32)
+    max_context_tokens: Optional[int] = Field(default=None, strict=True, ge=1, le=2_000_000)
     local: Optional[bool] = None
     open_model: Optional[bool] = None
     can_aggregate: Optional[bool] = None
@@ -724,15 +736,15 @@ class KeyUpdate(BaseModel):
 
 class KeyCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    name: str
-    provider: str
-    model: str
-    base_url: str
+    name: str = Field(..., max_length=240)
+    provider: str = Field(..., max_length=80)
+    model: str = Field(..., max_length=240)
+    base_url: str = Field(..., max_length=500)
     env_var: Optional[str] = Field(default=None, pattern=r"^[A-Z_][A-Z0-9_]{0,127}$")
     state: str = "staged"
     symbol: str = "🗝️"
-    capabilities: List[str] = ["general"]
-    max_context_tokens: int = 131072
+    capabilities: List[str] = Field(default_factory=lambda: ["general"], max_length=32)
+    max_context_tokens: int = Field(default=131072, strict=True, ge=1, le=2_000_000)
     local: bool = False
     open_model: bool = False
     can_aggregate: bool = False
@@ -808,8 +820,8 @@ class HarnessPreviewRequest(BaseModel):
 
 class MachineSetupUpdate(BaseModel):
     role: Literal["primary", "worker"]
-    label: str = ""
-    peer_label: str = ""
+    label: str = Field(default="", max_length=240)
+    peer_label: str = Field(default="", max_length=240)
 
 
 class VoiceTranscriptionRequest(BaseModel):
@@ -849,8 +861,8 @@ class GitHubAppConfig(BaseModel):
 
 class ForgeSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    project_ids: List[str]
-    agent_ids: List[str]
+    project_ids: List[str] = Field(..., max_length=32)
+    agent_ids: List[str] = Field(..., max_length=78)
     auto_assign: bool = True
 
 
@@ -982,9 +994,13 @@ def get_memory() -> list:
     if not MEMORY_FILE.exists():
         return []
     try:
-        value = json.loads(MEMORY_FILE.read_text(encoding="utf-8"))
-        return value if isinstance(value, list) else []
-    except (OSError, json.JSONDecodeError):
+        with MEMORY_FILE.open("rb") as handle:
+            raw = handle.read(2_000_001)
+        if len(raw) > 2_000_000:
+            return []
+        value = json.loads(raw.decode("utf-8"))
+        return merge_memory_chunks([], value) if isinstance(value, list) else []
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
         return []
 
 
@@ -992,9 +1008,13 @@ def save_memory(items: list) -> None:
     """Persist local memory atomically so concurrent routes cannot corrupt it."""
     with MEMORY_LOCK:
         MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        bounded = merge_memory_chunks([], items if isinstance(items, list) else [])
+        encoded = json.dumps(bounded, indent=2, ensure_ascii=False).encode("utf-8")
+        if len(encoded) > 2_000_000:
+            raise ValueError("memory exceeds the bounded persistence limit")
         temp_path = MEMORY_FILE.with_name(f".{MEMORY_FILE.name}.{uuid.uuid4().hex}.tmp")
         try:
-            temp_path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
+            temp_path.write_bytes(encoded)
             os.replace(temp_path, MEMORY_FILE)
         finally:
             temp_path.unlink(missing_ok=True)
@@ -3539,25 +3559,26 @@ async def get_cards():
 
 
 @app.post("/api/cards")
-async def create_card(card: dict = Body(...)):
+async def create_card(card: CardCreate):
     """Create a new tarot card"""
     state = load_state()
-    assigned_key_id = card.get("key_id")
+    payload = card.model_dump()
+    assigned_key_id = payload.get("key_id")
     if assigned_key_id and not any(key.get("id") == assigned_key_id for key in state.get("keys", [])):
         raise HTTPException(status_code=404, detail="Key not found")
     new_card_id = "card-custom-" + uuid.uuid4().hex[:12]
     new_card = {
         "id": new_card_id,
-        "name": card.get("name", "New Card"),
-        "symbol": card.get("symbol", "🔮"),
-        "persona": card.get("persona", "Agent"),
+        "name": payload["name"],
+        "symbol": payload["symbol"],
+        "persona": payload["persona"],
         "image": f"/static/tarot/{new_card_id}.svg",
         "reversed": False,
         "active": False,
         "assigned_key_id": assigned_key_id,
-        "capabilities": card.get("capabilities", []),
-        "can_aggregate": card.get("can_aggregate", False),
-        "decks": card.get("decks", [])
+        "capabilities": payload["capabilities"],
+        "can_aggregate": payload["can_aggregate"],
+        "decks": payload["decks"]
     }
     state["cards"].append(new_card)
     save_state(state)
