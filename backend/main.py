@@ -780,15 +780,15 @@ class SettingsUpdate(BaseModel):
     auto_memory: Optional[bool] = None
     rag_character_budget: Optional[int] = None
     max_parallel_agents: Optional[int] = None
-    selected_model: Optional[str] = None
-    selected_deck: Optional[str] = None
+    selected_model: Optional[str] = Field(default=None, max_length=240)
+    selected_deck: Optional[str] = Field(default=None, max_length=120)
     gpu_backend: Optional[Literal["auto", "cpu", "cuda:0"]] = None
     warp_preprocess_enabled: Optional[bool] = None
     harness_enabled: Optional[bool] = None
     output_autoscroll: Optional[bool] = None
     workspace_surface: Optional[Literal["terminal", "operator", "ade"]] = None
     routing_policy: Optional[Literal["local-first", "auto-open", "manual"]] = None
-    workspace_root: Optional[str] = None
+    workspace_root: Optional[str] = Field(default=None, max_length=500)
 
 
 class AutoDeliberationUpdate(BaseModel):
@@ -1259,7 +1259,7 @@ def sanitize_auth_output(value: str) -> str:
     value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
     value = re.sub(r"(?i)(access[_ -]?token|authorization|bearer)\s*[:=]\s*\S+", r"\1: [REDACTED]", value)
     value = re.sub(r"\b(sk-[A-Za-z0-9_-]{12,}|gh[opusr]_[A-Za-z0-9_]{12,})\b", "[REDACTED]", value)
-    return value[-8000:]
+    return redact_text(value[-8000:], 8000, parse_json=False)
 
 
 CODEX_DEVICE_URL = "https://auth.openai.com/codex/device"
@@ -1588,10 +1588,11 @@ def get_ollama_status() -> dict:
             payload = read_bounded_json_response(response)
         if not isinstance(payload, dict):
             raise ValueError("invalid tags response")
-        models = [item.get("name", "") for item in payload.get("models", [])]
+        model_items = [item for item in payload.get("models", []) if isinstance(item, dict)]
+        models = [item.get("name", "") for item in model_items]
         contexts = {
             item.get("name", ""): int(item.get("details", {}).get("context_length") or 0)
-            for item in payload.get("models", [])
+            for item in model_items if isinstance(item.get("details", {}), dict)
         }
         runtime_contexts = {}
         vram_bytes = {}

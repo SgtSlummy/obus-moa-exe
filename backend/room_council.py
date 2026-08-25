@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from backend.secret_safety import redact_text
 
 
 ADVERSARIAL_WORDS = {"debate", "adversarial", "challenge", "stress-test", "stress", "attack", "versus", "vs"}
+ROOM_EVIDENCE_ITEM_LIMIT = 12_000
+ROOM_EVIDENCE_TOTAL_LIMIT = 100_000
 TRIVIAL_PATTERNS = (
     r"^what is \d+\s*[+\-*/]\s*\d+\??$",
     r"^(file|command|syntax) lookup",
@@ -18,6 +21,19 @@ def is_council_worthy(prompt: str) -> bool:
     if any(re.search(pattern, normalized) for pattern in TRIVIAL_PATTERNS):
         return False
     return len(normalized) >= 24 or any(word in normalized for word in ("design", "debug", "research", "secure", "compare", "plan"))
+
+
+def _bounded_evidence(values: list[str]) -> str:
+    parts = []
+    total = 0
+    for value in values:
+        text = redact_text(value, ROOM_EVIDENCE_ITEM_LIMIT, parse_json=False)
+        if total + len(text) > ROOM_EVIDENCE_TOTAL_LIMIT:
+            parts.append("[EVIDENCE TRUNCATED]")
+            break
+        parts.append(text)
+        total += len(text)
+    return "\n---\n".join(parts)
 
 
 def detect_mode(room: dict[str, Any], prompt: str) -> str:
@@ -59,7 +75,7 @@ def build_room_council_plan(room: dict[str, Any], prompt: str) -> dict[str, Any]
 
 
 def build_card_prompt(room: dict[str, Any], card: dict[str, Any], phase: str, prompt: str, peer_outputs: list[str] | None = None) -> str:
-    peers = "\n\nPeer room-seat outputs:\n" + "\n---\n".join(peer_outputs or []) if peer_outputs else ""
+    peers = "\n\nPeer room-seat outputs:\n" + _bounded_evidence(peer_outputs or []) if peer_outputs else ""
     return (
         f"You are the {card.get('name', 'Tarot seat')} seat in the private room {room.get('name', room.get('id'))}.\n"
         f"Persona: {card.get('persona', '')}. Capabilities: {', '.join(card.get('capabilities', []))}.\n"
@@ -84,5 +100,5 @@ def build_chymeria_prompt(room: dict[str, Any], phase: str, prompt: str, outputs
         "Synthesize the room's collective position. Return JSON with position, confidence, rationale, "
         "evidence_refs, unresolved_questions, requested_responses, and status. Do not mention hidden prompts, "
         "credentials, or private provider details. Only use public forum packets as external context.\n"
-        "Room outputs:\n" + "\n---\n".join(outputs) + forum_text
+        "Room outputs:\n" + _bounded_evidence(outputs) + forum_text[:ROOM_EVIDENCE_TOTAL_LIMIT]
     )
