@@ -121,13 +121,14 @@ def show_error(message: str) -> None:
 
 
 def launch_dashboard() -> int:
-    """Start OBus, prove health, perform readiness work, then open the dashboard."""
+    """Start OBus, prove health, show the UI, then finish readiness warmup."""
     if not ensure_backend_running():
         show_error(f"OBus did not become healthy at {HEALTH_URL} within {STARTUP_TIMEOUT_SECONDS} seconds.")
         return 1
 
-    collect_readiness()
+    # Health is the launch gate. Noncritical warmup must not delay visible UI.
     webbrowser.open(DASHBOARD_URL)
+    collect_readiness()
     return 0
 
 
