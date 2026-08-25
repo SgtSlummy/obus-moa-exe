@@ -14,3 +14,5 @@ Understand-Anything/
 build-aui-*/
 dist-aui-*/
 .hermes/audits/
+.hermes/package-loop*/
+.hermes/package-loop*/home/

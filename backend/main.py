@@ -35,7 +35,7 @@ from backend.tentacle_worms import WORM_ROLES, run_tentacle_audit
 from backend import access_gate
 from backend.aui import build_manifest
 from backend.aui_events import ROUTE_EVENTS, safe_route_id
-from backend.secret_safety import redact_text, redact_value
+from backend.secret_safety import is_secret_key, redact_text, redact_value
 from backend.user_settings import (
     ROUTING_POLICIES,
     WORKSPACE_SURFACES,
@@ -247,16 +247,18 @@ DECK_KEYWORDS = {
 }
 
 
-def select_deck_for_prompt(prompt: str) -> dict:
+def select_deck_for_prompt(prompt: str, decks: Optional[list[dict]] = None) -> dict:
     """Auto-select the best deck based on prompt content"""
+    available = [deck for deck in (decks or ALL_DECKS) if deck.get("enabled", True)]
+    if not available:
+        available = list(ALL_DECKS)
     prompt_lower = prompt.lower()
     
     for deck_id, keywords in DECK_KEYWORDS.items():
         if any(keyword in prompt_lower for keyword in keywords):
-            return next((d for d in ALL_DECKS if d["id"] == deck_id), 
-                       next((d for d in ALL_DECKS if d["id"] == "rider-waite-smith")))
+            return next((d for d in available if d["id"] == deck_id), available[0])
     
-    return next((d for d in ALL_DECKS if d["id"] == "rider-waite-smith"))
+    return next((d for d in available if d["id"] == "rider-waite-smith"), available[0])
 
 
 # ==================== TAROT CARDS ====================
@@ -381,6 +383,20 @@ DECK_PUBLIC_FIELDS = {"id", "name", "symbol", "description", "style", "best_for"
 
 def deck_public(deck: dict) -> dict:
     return redact_value({field: deck[field] for field in DECK_PUBLIC_FIELDS if field in deck})
+
+
+ROUTE_OUTPUT_STRING_LIMIT = 100_000
+
+
+def route_result_public(value: object) -> object:
+    """Redact route output without the generic 2,000/20-item serializer limits."""
+    if isinstance(value, dict):
+        return {str(key): route_result_public(child) for key, child in value.items() if not is_secret_key(key)}
+    if isinstance(value, list):
+        return [route_result_public(child) for child in value]
+    if isinstance(value, str):
+        return redact_text(value, ROUTE_OUTPUT_STRING_LIMIT)
+    return value
 
 
 def normalize_state(state: dict) -> dict:
@@ -3681,10 +3697,11 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     profile["parallel_workers"] = min(profile["parallel_workers"], parallel_limit)
     
     # Determine deck
+    available_decks = [deck for deck in state.get("decks", ALL_DECKS) if deck.get("enabled", True)]
     if deck_mode and deck_mode != "auto":
-        deck = next((d for d in ALL_DECKS if d["id"] == deck_mode), None)
+        deck = next((d for d in available_decks if d["id"] == deck_mode), None)
     else:
-        deck = select_deck_for_prompt(prompt)
+        deck = select_deck_for_prompt(prompt, available_decks)
     if deck is None:
         raise HTTPException(status_code=400, detail="Unknown deck")
     
@@ -4129,7 +4146,7 @@ async def _run_route_impl(request: RouteRequest):
     def finalize_result(result: dict, event_type: str = "route.complete") -> dict:
         if route_deliberation:
             result["deliberation"] = copy.deepcopy(route_deliberation)
-        public_result = redact_value(result)
+        public_result = route_result_public(result)
         public_result["route_id"] = route_id
         ROUTE_EVENTS.publish(route_id, event_type, {"status": public_result.get("status"), "engine": public_result.get("engine"), "aggregate": (public_result.get("aggregate") or {}).get("status")})
         clear_route_cancel(route_id)
