@@ -3431,7 +3431,7 @@ async def stop_persistent_agent(agent_id: str):
     event = PERSISTENT_AGENT_STOP_EVENTS.get(agent_id)
     if event:
         event.set()
-        agent["status"] = "stopping"
+        agent["status"] = "stopped"
     elif agent.get("status") in {"queued", "running"}:
         agent["status"] = "interrupted"
     else:

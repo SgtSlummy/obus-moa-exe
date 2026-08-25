@@ -112,6 +112,17 @@ body {
   flex: 1 1 12rem;
 }
 
+.hint,
+.metric span,
+.row p,
+.key-meta p,
+.agent-info p,
+.stage-meta,
+.terminal-safety {
+  font-size: .8125rem;
+  line-height: 1.5;
+}
+
 .nav {
   gap: var(--space-2);
 }
@@ -487,6 +498,32 @@ pre {
   color: var(--parchment-muted);
 }
 
+#rooms-workspace #room-list > .empty::before {
+  content: "✦";
+  display: block;
+  margin-bottom: var(--space-3);
+  color: var(--brass-bright);
+  font-family: var(--font-editorial);
+  font-size: 2rem;
+}
+
+.page[data-page-panel="runs"] > .panel > .panel-body {
+  display: grid;
+  grid-template-columns: minmax(18rem, .618fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.page[data-page-panel="runs"] #run-list {
+  min-width: 0;
+}
+
+.page[data-page-panel="runs"] #run-receipt-detail {
+  min-width: 0;
+  min-height: 20rem;
+  margin: 0 !important;
+}
+
 .terminal-history small {
   display: block;
   margin-top: var(--space-2);
@@ -695,6 +732,10 @@ dialog {
   .pane-splitter {
     display: none;
   }
+
+  .page[data-page-panel="runs"] > .panel > .panel-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 720px) {
@@ -817,10 +858,17 @@ dialog {
     max-width: 100%;
   }
 
+  #settings-import-preview {
+    display: grid;
+    max-height: none;
+    overflow: visible;
+  }
+
   #settings-import-content,
   #settings-import-apply {
-    grid-column: auto;
-    grid-row: auto;
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    width: 100%;
   }
 
   .page-jump-top:not([hidden]) {

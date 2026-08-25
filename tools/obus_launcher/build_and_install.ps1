@@ -1,9 +1,14 @@
+param(
+    [switch]$SkipInstall,
+    [string]$PythonPath = ""
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $launcherDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path (Split-Path $launcherDir -Parent) -Parent
-$python = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$python = if ($PythonPath) { $PythonPath } else { Join-Path $repoRoot ".venv\Scripts\python.exe" }
 $entryPoint = Join-Path $launcherDir "obus_launcher.py"
 $testFile = Join-Path $launcherDir "test_obus_launcher.py"
 $icon = Join-Path $launcherDir "obus.ico"
@@ -14,7 +19,7 @@ $deployedExe = Join-Path $desktop "Obus.exe"
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
 $startMenuShortcut = Join-Path $startMenu "Obus.lnk"
 
-if (-not (Test-Path $python)) {
+if (-not $PythonPath -and -not (Test-Path $python)) {
     throw "Expected project interpreter was not found: $python"
 }
 
@@ -38,9 +43,15 @@ finally {
 
 $builtExe = Join-Path $dist "Obus.exe"
 if (-not (Test-Path $builtExe)) { throw "PyInstaller did not produce $builtExe" }
+$sourceHash = (Get-FileHash $builtExe -Algorithm SHA256).Hash
+
+if ($SkipInstall) {
+    Write-Host "Built release artifact: $builtExe"
+    Write-Host "SHA-256: $sourceHash"
+    return
+}
 
 Copy-Item $builtExe $deployedExe -Force
-$sourceHash = (Get-FileHash $builtExe -Algorithm SHA256).Hash
 $desktopHash = (Get-FileHash $deployedExe -Algorithm SHA256).Hash
 if ($sourceHash -ne $desktopHash) { throw "Desktop EXE hash does not match the verified build." }
 

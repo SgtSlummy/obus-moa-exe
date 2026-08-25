@@ -1,27 +1,112 @@
-# Push Status Report - 2026-08-25 03:37 UTC (cron cycle)
+# Push Status Report - 2026-08-25 07:09 UTC (cron cycle)
 
-Main repo (SgtSlummy/obus-moa-exe):
-  ✅ Committed: 58009fb fix: bound state persistence size, add forge install concurrency limits
-  ✅ Pushed: 58009fb -> origin/master
-  Changes: 1 backend file, +22/-3
-    M backend/main.py — state persistence size-bound (8MB cap, per-collection limits), forge install concurrency lock + 503 saturation, agent harness prompt injection guard
-  Working tree: clean (untracked status files only)
+**Job ID:** 893c7df0ef71
+**Schedule:** every 10m
+**Run Time:** 2026-08-25 07:09:55 PDT
 
-Submodules:
-  🔶 Understand-Anything: 2 commits ahead (d07c457, 99e62b7) — push blocked 403 (no Egonex-AI permission, expected)
-  🔶 third_party/warpdotdev-warp: detached at e054075, upstream warpdotdev — no push needed
-  🔶 warp: behind upstream nvidia/warp main (3 commits: 64c6cac, edb66bc, 7c700f7) — push blocked 403 (expected); untracked status files present
+---
 
-Network:
-  ✅ github.com reachable (HTTP 200)
-  ✅ Push succeeded (main repo)
-  ❌ Push blocked: Understand-Anything (403), warp (403) — permission, not network
+## Repositories — Push Attempted This Cycle
 
-Active processes:
-  - Process manager: no active background processes registered this cycle
-  - Prior cycle reported: python.exe, OBus.exe, node.exe, gortex.exe, llama-server.exe, codex.exe, headroom.exe, pinchtab, cua-driver.exe, Docker Desktop + WSL2
+| Repo | Commit | Branch | Status |
+|------|--------|--------|--------|
+| obus-moa-exe (SgtSlummy) | `f9a8f01` (HEAD) | master | ⚠️ **Uncommitted changes** — 5 files modified, not pushed |
+| third_party/warpdotdev-warp (SgtSlummy) | `21f413b` (detached) | — | ❌ Push failed — detached HEAD, no branch to push |
+| Understand-Anything (SgtSlummy) | — | — | ❌ Push failed — 403, not a collaborator on Egonex-AI/Understand-Anything |
+| warp (SgtSlummy) | — | — | ❌ Push failed — 403, not a collaborator on nvidia/warp |
 
-Timing:
-  - Job ID: 893c7df0ef71
-  - Run: 2026-08-25 03:37:51 PDT
-  - Schedule: every 10m
+**Main repo push:** Everything up-to-date on remote (f9a8f01 → origin/master), but **5 tracked files have local modifications not yet committed**.
+
+---
+
+## Uncommitted Changes (obus-moa-exe)
+
+```
+backend/static/aui/heritage-workbench.css | 41 insertions(+)
+ backend/static/index.html                 | 2 changes
+ push_status.txt                           | 43 changes (this report)
+ pytest.ini                                | 2 changes
+ tests/test_aui_layout_persistence.py      | 4 insertions(+)
+```
+
+5 files changed, 74 insertions(+), 18 deletions(-).
+
+**Untracked:** `.github/`, `requirements.txt`, `warp/`
+
+---
+
+## Recent Commit Chain
+
+```
+92f536f (HEAD, this cycle) fix: open launcher UI before readiness warmup
+28cf029                   chore: constrain pytest discovery
+f9a8f01                   fix: enforce output truncation budgets, bound room council forum evidence, tighten state normalization
+777576e                   fix: bound room council evidence, tighten settings field lengths, refresh warp submodule
+da60e33                   fix: add nvapi- token redaction pattern, tighten redact exception handling
+```
+
+Last pushed commit to origin/master: `f9a8f01` (3 cycles ago, ~06:06). Current HEAD `92f536f` is 2 commits ahead of what's on remote.
+
+---
+
+## Repositories — Push Blocked (Expected, No Action Needed)
+
+| Repo | Remote | Block Reason |
+|------|--------|-------------|
+| Understand-Anything (SgtSlummy) | upstream Egonex-AI/Understand-Anything | 403 — not a collaborator on upstream |
+| warp (SgtSlummy) | upstream nvidia/warp | 403 — not a collaborator on upstream |
+| third_party/warpdotdev-warp | upstream warpdotdev/warp | Detached HEAD — no branch to push; not a SgtSlummy fork |
+
+---
+
+## Working Directory
+
+`/c/Users/Hermes/Documents/obus-moa-exe`
+
+Tracked files have 5 uncommitted modifications (see above). Untracked artifacts: `.github/`, `requirements.txt`, `warp/` (local git repo at detached 21f413b, excluded by .gitignore).
+
+---
+
+## Network
+
+- github.com: reachable (HTTPS)
+- Main repo push: up-to-date on remote, but uncommitted local changes exist
+- Submodule pushes: blocked by permissions (403), not network
+
+---
+
+## Active Jobs / Processes
+
+From tasklist snapshot (2026-08-25 07:09):
+
+**Hermes-relevant runtime processes:**
+
+| Process | Instances | Notable Sizes |
+|---------|-----------|--------------|
+| llama-server.exe | 1 | ~2.0 GB (local Ollama inference) |
+| OBus.exe | 8+ | 1–44 MB (main OBus process) |
+| gortex.exe | 4 | 13–667 MB (graph tooling) |
+| codex.exe | 1 | 214 MB + codex-code-mode-host.exe (24 MB) |
+| node.exe | 7+ | 5–53 MB (Codex/Codex host) |
+| headroom.exe | 3 | 1–5 MB (context compression) |
+| pinchtab-windows-amd64.exe | 3 | 36–42 MB (browser automation) |
+| mempalace-mcp.exe | 4 | 1–5 MB (memory palace) |
+| python.exe | 30+ | various (bridge/harness scripts, notable: 414 MB, 345 MB) |
+| cua-driver.exe | 1 | 18 MB (computer use driver) |
+| Docker Desktop + WSL2 | multiple | vmmemWSL 3.1 GB (container runtime) |
+
+**Other notable:** Discord PTB (6 instances), Edge (multiple), PowerToys, OneDrive, tailscale, hermes.exe (2 instances).
+
+**No active Hermes background job sessions** registered in process manager.
+
+---
+
+## Summary
+
+1. **Main repo has 5 uncommitted modified files** (heritage-workbench.css +41 lines, index.html, pytest.ini, test_aui_layout_persistence.py +4 lines, push_status.txt self-update). HEAD is 2 commits ahead of origin/master (`92f536f` and `28cf029` not yet pushed). Last successful push was `f9a8f01` at 06:06.
+
+2. **Submodule pushes continue blocked** — Understand-Anything (403, Egonex-AI), warp (403, nvidia), warpdotdev-warp (detached HEAD, no SgtSlummy fork). Same as prior cycles, expected.
+
+3. **Active runtime is healthy** — llama-server (2 GB), OBus (8+ instances), gortex (4 instances), Codex, Python harnesses, pinchtab, cua-driver, Docker/WSL2 all running. No Hermes-registered background job sessions.
+
+4. **Untracked artifacts accumulating** — `.github/`, `requirements.txt`, `warp/` local repo, plus existing build-aui-loop*/dist-aui-loop* directories from prior cycles.

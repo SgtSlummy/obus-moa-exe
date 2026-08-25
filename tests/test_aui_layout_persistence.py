@@ -35,6 +35,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn("formatReceiptTimestamp", html)
         self.assertIn("syncPageJumpButtons", html)
         self.assertIn("data-page-jump-top", html)
+        self.assertIn('aria-label="Read-only workspace">Workspace</button>', html)
         for value in ("focus", "review", "deck", "studio"):
             self.assertIn(f'value="{value}"', html)
 
@@ -81,6 +82,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "#settings-import-preview",
             "grid-row: 1 / 3",
             ".page-jump-top",
+            '.page[data-page-panel="runs"] > .panel > .panel-body',
+            "font-size: .8125rem",
+            "#rooms-workspace #room-list > .empty::before",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]
@@ -96,6 +100,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertNotIn("overflow-x: auto", phone)
         self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", phone)
         self.assertIn('.page[data-page-panel="settings"] .row', phone)
+        self.assertIn("#settings-import-preview", phone)
+        self.assertIn("max-height: none", phone)
+        self.assertIn("overflow: visible", phone)
         for forbidden in ("prompt", "output", "provider", "api_key", "bearer"):
             self.assertNotIn(f'obus-aui-{forbidden}', layout.text.lower())
 
