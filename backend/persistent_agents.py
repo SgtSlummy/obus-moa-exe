@@ -210,12 +210,16 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 _NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
+MAX_PROVIDER_RESPONSE_BYTES = 4_000_000
 
 
 def _http_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeout: int = 180) -> dict[str, Any]:
     request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "OBus-Persistent-Agent/1.0", **headers}, method="POST")
     with _NO_REDIRECT_OPENER.open(request, timeout=timeout) as response:
-        return json.load(response)
+        raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+        raise RuntimeError("Provider response exceeded the bounded response limit")
+    return json.loads(raw.decode("utf-8"))
 
 
 def _validated_provider_base_url(provider: str, value: object) -> str:

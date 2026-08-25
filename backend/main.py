@@ -483,7 +483,19 @@ def route_result_public(value: object, depth: int = 0, budget: Optional[list[int
                 pass
         budget[0] = max(0, budget[0] - len(safe))
         return safe
-    return value
+    if value is None or isinstance(value, (int, float, bool)):
+        scalar_text = json.dumps(value, ensure_ascii=False)
+        if len(scalar_text) > budget[0]:
+            budget[0] = 0
+            return "[OUTPUT TRUNCATED: aggregate limit]"
+        budget[0] -= len(scalar_text)
+        return value
+    unknown_text = redact_text(str(value), 500, parse_json=False)
+    if len(unknown_text) > budget[0]:
+        budget[0] = 0
+        return "[OUTPUT TRUNCATED: aggregate limit]"
+    budget[0] -= len(unknown_text)
+    return unknown_text
 
 
 def normalize_state(state: dict) -> dict:
@@ -773,6 +785,7 @@ class SettingsImport(BaseModel):
 
 
 class RouteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     prompt: str = Field(..., min_length=1, max_length=4000)
     deck_mode: Optional[str] = Field(default="auto", max_length=120)
     rag_enabled: Optional[bool] = True
@@ -1088,8 +1101,10 @@ def github_json(url: str, method: str = "GET", token: Optional[str] = None, payl
         headers["Authorization"] = f"Bearer {token}"
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(request, timeout=30) as response:
-        raw = response.read()
+    with _NO_REDIRECT_OPENER.open(request, timeout=30) as response:
+        raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+        raise RuntimeError("GitHub response exceeded the bounded response limit")
     return json.loads(raw.decode("utf-8")) if raw else {}
 
 
@@ -1156,6 +1171,7 @@ def sanitize_auth_output(value: str) -> str:
 
 
 CODEX_DEVICE_URL = "https://auth.openai.com/codex/device"
+MAX_PROVIDER_RESPONSE_BYTES = 4_000_000
 
 
 def parse_codex_device_output(value: str) -> dict:
@@ -4023,9 +4039,12 @@ def generate_with_ollama(prompt: str, model: str, plan: dict) -> tuple[str, dict
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=180) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        with _NO_REDIRECT_OPENER.open(request, timeout=180) as response:
+            raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+            raise RuntimeError("Ollama response exceeded the bounded response limit")
+        payload = json.loads(raw.decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, RuntimeError) as exc:
         raise RuntimeError(f"Ollama execution failed: {exc}") from exc
     answer = str(payload.get("response", "")).strip()
     if not answer:
