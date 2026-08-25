@@ -466,12 +466,18 @@ def route_result_public(value: object, depth: int = 0, budget: Optional[list[int
             output = safe[:limit] + marker
             budget[0] = max(0, budget[0] - len(output))
             return output
+        if len(safe) > budget[0]:
+            marker = " [OUTPUT TRUNCATED: aggregate limit]"
+            limit = max(0, budget[0] - len(marker))
+            output = safe[:limit] + marker
+            budget[0] = 0
+            return output
         stripped = value.strip()
         if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
             try:
                 parsed = json.loads(stripped)
                 serialized = json.dumps(route_result_public(parsed, depth + 1, [ROUTE_OUTPUT_STRING_LIMIT]), ensure_ascii=False, separators=(",", ":"))
-                if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT:
+                if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT or len(serialized) > budget[0]:
                     marker = " [OUTPUT TRUNCATED: serialized JSON limit]"
                     limit = min(ROUTE_OUTPUT_STRING_LIMIT - len(marker), max(0, budget[0] - len(marker)))
                     output = redact_text(serialized[:limit], limit, parse_json=False) + marker
@@ -631,6 +637,10 @@ def normalize_state(state: dict) -> dict:
         state["persistent_agents"] = []
     if not isinstance(state["runtime_events"], list):
         state["runtime_events"] = []
+    state["rooms"] = [item for item in state["rooms"] if isinstance(item, dict) and item.get("id")]
+    state["room_messages"] = [item for item in state["room_messages"] if isinstance(item, dict)]
+    state["forum_threads"] = [item for item in state["forum_threads"] if isinstance(item, dict) and item.get("id")]
+    state["persistent_agents"] = [item for item in state["persistent_agents"] if isinstance(item, dict) and item.get("id")]
     state["runtime_events"] = [runtime_event_public(item) for item in state["runtime_events"] if isinstance(item, dict)][-200:]
     if not isinstance(state["runtime_settings"], dict):
         state["runtime_settings"] = {
@@ -1259,7 +1269,8 @@ def sanitize_auth_output(value: str) -> str:
     value = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", value)
     value = re.sub(r"(?i)(access[_ -]?token|authorization|bearer)\s*[:=]\s*\S+", r"\1: [REDACTED]", value)
     value = re.sub(r"\b(sk-[A-Za-z0-9_-]{12,}|gh[opusr]_[A-Za-z0-9_]{12,})\b", "[REDACTED]", value)
-    return redact_text(value[-8000:], 8000, parse_json=False)
+    redacted = redact_text(value, max(len(value), 8000), parse_json=False)
+    return redacted[-8000:]
 
 
 CODEX_DEVICE_URL = "https://auth.openai.com/codex/device"
