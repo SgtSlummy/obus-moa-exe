@@ -4007,7 +4007,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     hub_results = bounded_memory_results(raw_hub_results, character_budget=rag_budget, limit=5)
     hub_characters = sum(len(str(item.get("text", ""))) for item in hub_results)
     
-    return {
+    return route_result_public({
         "prompt": prompt,
         "routing_policy": policy,
         "execution_scope": execution_scope_manifest(aggregator, str(settings.get("selected_model", ""))),
@@ -4047,7 +4047,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
             "source": "local_memory+hermes+mempalace+mem0+tarot_rag",
             "hub_results": hub_results,
         }
-    }
+    })
 
 
 @app.post("/api/route/plan")

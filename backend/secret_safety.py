@@ -26,6 +26,7 @@ _SECRET_PATTERNS = (
     (_FIELD_PATTERN, "[REDACTED FIELD]"),
     (re.compile(r"(?i)https?://[^\s/@]+:[^\s/@]+@[^\s]+"), "[CREDENTIAL URL REDACTED]"),
     (re.compile(r"\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_)[A-Za-z0-9_-]{8,}\b"), "[TOKEN REDACTED]"),
+    (re.compile(r"(?i)\bnvapi-[A-Za-z0-9_-]{8,}\b"), "[TOKEN REDACTED]"),
 )
 _SAFE_ROUTE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
 _ROUTE_SENSITIVE_LABEL = re.compile(r"(?i)(?:api[_-]?key|password|secret|access[_-]?token|session[_-]?token|client[_-]?secret|private[_-]?key)[:=]")
@@ -54,7 +55,7 @@ def redact_text(value: Any, limit: int = 4000, *, parse_json: bool = True) -> st
         try:
             parsed = json.loads(stripped)
             return json.dumps(redact_value(parsed), ensure_ascii=False, separators=(",", ":"))[:limit]
-        except (TypeError, ValueError, json.JSONDecodeError):
+        except (TypeError, ValueError, json.JSONDecodeError, RecursionError):
             pass
     for pattern, replacement in _SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
@@ -87,6 +88,6 @@ def redact_value(value: Any, key: str | None = None, depth: int = 0) -> Any:
 
 def safe_route_id(value: object) -> str:
     raw = str(value or "")
-    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _JWT_SHAPE.search(raw) and not re.search(r"(?i)\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_)[A-Za-z0-9_-]{8,}\b", raw):
+    if _SAFE_ROUTE_ID.fullmatch(raw) and not _ROUTE_SENSITIVE_LABEL.search(raw) and not _JWT_SHAPE.search(raw) and not re.search(r"(?i)\b(?:sk[-_]|gh[pousr]_?|xox[baprs]_?|nvapi-)[A-Za-z0-9_-]{8,}\b", raw):
         return raw
     return "route-redacted-" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
