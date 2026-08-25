@@ -249,9 +249,9 @@ DECK_KEYWORDS = {
 
 def select_deck_for_prompt(prompt: str, decks: Optional[list[dict]] = None) -> dict:
     """Auto-select the best deck based on prompt content"""
-    available = [deck for deck in (decks or ALL_DECKS) if deck.get("enabled", True)]
+    available = [deck for deck in (ALL_DECKS if decks is None else decks) if deck.get("enabled", True)]
     if not available:
-        available = list(ALL_DECKS)
+        raise ValueError("No enabled decks are configured")
     prompt_lower = prompt.lower()
     
     for deck_id, keywords in DECK_KEYWORDS.items():
@@ -385,17 +385,47 @@ def deck_public(deck: dict) -> dict:
     return redact_value({field: deck[field] for field in DECK_PUBLIC_FIELDS if field in deck})
 
 
+def valid_custom_deck(deck: object) -> bool:
+    return (
+        isinstance(deck, dict)
+        and all(isinstance(deck.get(field), str) and deck.get(field).strip() for field in ("id", "name", "symbol", "style"))
+        and isinstance(deck.get("best_for"), list)
+        and all(isinstance(item, str) for item in deck["best_for"])
+        and isinstance(deck.get("enabled"), bool)
+        and isinstance(deck.get("priority"), int)
+    )
+
+
 ROUTE_OUTPUT_STRING_LIMIT = 100_000
+ROUTE_OUTPUT_LIST_LIMIT = 1_000
+ROUTE_OUTPUT_DICT_LIMIT = 1_000
+ROUTE_OUTPUT_DEPTH_LIMIT = 20
 
 
-def route_result_public(value: object) -> object:
-    """Redact route output without the generic 2,000/20-item serializer limits."""
+def route_result_public(value: object, depth: int = 0) -> object:
+    """Redact route output with explicit bounded-container limits."""
+    if depth >= ROUTE_OUTPUT_DEPTH_LIMIT:
+        return "[OUTPUT TRUNCATED: nesting limit]"
     if isinstance(value, dict):
-        return {str(key): route_result_public(child) for key, child in value.items() if not is_secret_key(key)}
+        items = list(value.items())
+        output = {str(key): route_result_public(child, depth + 1) for key, child in items[:ROUTE_OUTPUT_DICT_LIMIT] if not is_secret_key(key)}
+        if len(items) > ROUTE_OUTPUT_DICT_LIMIT:
+            output["_output_truncated"] = True
+        return output
     if isinstance(value, list):
-        return [route_result_public(child) for child in value]
+        output = [route_result_public(child, depth + 1) for child in value[:ROUTE_OUTPUT_LIST_LIMIT]]
+        if len(value) > ROUTE_OUTPUT_LIST_LIMIT:
+            output.append({"_output_truncated": True})
+        return output
     if isinstance(value, str):
-        return redact_text(value, ROUTE_OUTPUT_STRING_LIMIT)
+        stripped = value.strip()
+        if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
+            try:
+                parsed = json.loads(stripped)
+                return json.dumps(route_result_public(parsed, depth + 1), ensure_ascii=False, separators=(",", ":"))[:ROUTE_OUTPUT_STRING_LIMIT]
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+        return redact_text(value, ROUTE_OUTPUT_STRING_LIMIT, parse_json=False)
     return value
 
 
@@ -481,7 +511,7 @@ def normalize_state(state: dict) -> dict:
         previous = existing_decks.pop(template["id"], {})
         deck.update({field: previous[field] for field in DECK_PUBLIC_FIELDS if field in previous})
         merged_decks.append(deck)
-    merged_decks.extend(item for item in existing_decks.values() if item.get("name"))
+    merged_decks.extend(item for item in existing_decks.values() if valid_custom_deck(item))
     state["decks"] = merged_decks
     # Codex is the first-class default. Preserve an explicit persisted selection,
     # while migrating legacy implicit local-Ollama defaults to Codex.
@@ -3294,14 +3324,12 @@ async def get_deck(deck_id: str):
 async def update_deck(deck_id: str, update: DeckUpdate):
     """Update only documented deck configuration fields."""
     changes = update.model_dump(exclude_none=True)
-    for deck in ALL_DECKS:
+    state = load_state()
+    for deck in state.get("decks", []):
         if deck["id"] == deck_id:
-            state = load_state()
-            persisted = next((item for item in state.get("decks", []) if item["id"] == deck_id), copy.deepcopy(deck))
-            persisted.update(changes)
-            state["decks"] = [persisted if item["id"] == deck_id else item for item in state.get("decks", [])]
+            deck.update(changes)
             save_state(state)
-            return deck_public(persisted)
+            return deck_public(deck)
     raise HTTPException(status_code=404, detail="Deck not found")
 
 
@@ -3698,6 +3726,8 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     
     # Determine deck
     available_decks = [deck for deck in state.get("decks", ALL_DECKS) if deck.get("enabled", True)]
+    if not available_decks:
+        raise HTTPException(status_code=409, detail="No enabled decks are configured")
     if deck_mode and deck_mode != "auto":
         deck = next((d for d in available_decks if d["id"] == deck_mode), None)
     else:

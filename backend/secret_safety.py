@@ -39,10 +39,10 @@ def is_secret_key(key: object) -> bool:
     return normalized_key(key) in SECRET_KEYS
 
 
-def redact_text(value: Any, limit: int = 4000) -> str:
+def redact_text(value: Any, limit: int = 4000, *, parse_json: bool = True) -> str:
     text = str(value or "")
     stripped = text.strip()
-    if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
+    if parse_json and stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
         try:
             parsed = json.loads(stripped)
             return json.dumps(redact_value(parsed), ensure_ascii=False, separators=(",", ":"))[:limit]
