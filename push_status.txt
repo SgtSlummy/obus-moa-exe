@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 20:06 PDT (cron cycle)
+# Push Status Report - 2026-08-25 20:38 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 20:06 PDT
+**Run Time:** 2026-08-25 20:38 PDT
 
 ---
 
@@ -10,28 +10,28 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `4a2b782` | master | ✅ **Up to date** — already pushed last cycle; nothing new |
+| obus-moa-exe (SgtSlummy) | `b8826fd` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports` |
 | warp submodule (SgtSlummy) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found) |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — 403, not a collaborator on warpdotdev/warp |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
 
-**Main repo:** No new commits. `4a2b782` already pushed to origin/master in prior cycle. Up to date.
+**Main repo:** `b8826fd` pushed to origin/master this cycle. 1 commit pushed.
 
 ---
 
 ## Recent Commit Chain (obus-moa-exe, all pushed)
 
 ```
-4a2b782 (HEAD, origin/master) chore: update push status and status report for this cycle
-9470a23                        chore: preserve existing warp submodule pointer
-fd54ca3                        fix: start paired Loki build in portal serve mode
-0f14234                        feat: build private Thor Loki paired distribution
-e3841a9                        chore: update warp submodule pointer to latest status reports
-dd88b1b                        chore: update push status and status report for this cycle
+b8826fd (HEAD, origin/master) chore: refresh status and task reports
+998aecf                        test: cover tray voice controls and restore warp pointer
+e08d116                        feat: add local-first voice API with transcript routing and tests
+902bd6b                        security: protect peer identities with DPAPI
+6b6a141                        feat: add transactional harness recovery
+1bc81aa                        fix: declare peer signing dependency
 ```
 
-All commits pushed to origin/master. No new local commits in this cycle.
+All commits pushed to origin/master.
 
 ---
 
@@ -41,11 +41,11 @@ All commits pushed to origin/master. No new local commits in this cycle.
 |------|--------|
 | Current HEAD | `405e468` — `chore: update warp submodule cron status reports` |
 | Prior commit | `fee1347` — same purpose (from prior cycle) |
-| Upstream (nvidia/warp main) | `64c6cacd6` — behind by some commits |
+| Upstream (nvidia/warp main) | behind by some commits |
 | SgtSlummy/warp fork | **Does not exist** — push fails with "Repository not found" |
-| Superproject pointer (in `4a2b782`) | `fee1347` — but working tree has `405e468` (dirty) |
+| Superproject pointer (in `b8826fd`) | `998aecf` — clean now (prior cycle recorded `fee1347`, this cycle didn't advance it) |
 
-The superproject `warp` is **dirty** — a new commit `405e468` was created locally but the superproject hasn't been updated to point to it. This commit carries cron status reports. The fork still doesn't exist so it cannot be pushed.
+The superproject is **clean** — no new submodule advancement was recorded this cycle. The `405e468` worktree commit from prior cycles persists locally but is not referenced by the superproject.
 
 ---
 
@@ -64,7 +64,7 @@ The superproject `warp` is **dirty** — a new commit `405e468` was created loca
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: **dirty** — submodule `warp` has new commit `405e468` not yet recorded in superproject
+- Tracked files: **clean** — superproject points to `998aecf`, no dirty submodule
 - Untracked: `warp/` (local git repo, excluded by .gitignore) — carries 3 committed-but-unpushable changes (`405e468`, `fee1347`, `e98ac07`)
 - `.gitmodules` tracks `warp` at `https://github.com/nvidia/warp.git` (fetch+push); SgtSlummy fork mapped to `sgtfork` remote
 
@@ -80,9 +80,9 @@ The superproject `warp` is **dirty** — a new commit `405e468` was created loca
 
 ## Summary
 
-1. **Main repo:** Up to date. `4a2b782` pushed in prior cycle. No new work to push.
+1. **Main repo:** ✅ Pushed this cycle. `b8826fd` (chore: refresh status and task reports) now on origin/master.
 
-2. **Warp submodule:** New local commit `405e468` added this cycle. Superproject not yet updated. Push to SgtSlummy/warp blocked — fork does not exist. Push to nvidia/warp not possible (not a collaborator). Local commits preserved.
+2. **Warp submodule:** New local commit `405e468` from prior cycles persists. Superproject clean this cycle (no new submodule pointer recorded). Push to SgtSlummy/warp blocked — fork does not exist. Push to nvidia/warp not possible (not a collaborator). Local commits preserved.
 
 3. **third_party/warpdotdev-warp:** Clean, tracking upstream warpdotdev. Push blocked 403 (not collaborator). No action needed.
 
