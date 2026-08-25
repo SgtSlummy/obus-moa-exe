@@ -77,6 +77,10 @@ Tagging a release with `v*` invokes the release workflow, reruns all gates, buil
 
 To register a least-privilege GitHub App for repository memory synchronization, see [docs/github-app.md](docs/github-app.md). GitHub App registration and Windows executable certification are separate trust systems.
 
+## Thor portal
+
+The packaged EXE can expose this PC's installed Ollama models to Thor through a bearer-authenticated, capability-limited portal while keeping the dashboard, filesystem, and inference local. See [docs/thor-portal.md](docs/thor-portal.md).
+
 ## Architecture and operations
 
 See [docs/architecture.md](docs/architecture.md) for component boundaries and [docs/release.md](docs/release.md) for release, deployment, startup, health, shutdown, and rollback procedures.

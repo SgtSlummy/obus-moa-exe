@@ -19,6 +19,7 @@ import base64
 import copy
 import html
 import hashlib
+import hmac
 import importlib.util
 import functools
 import shutil
@@ -70,9 +71,18 @@ app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
 @app.middleware("http")
 async def enforce_local_access(request: Request, call_next):
-    """Gate packaged deployments after a local password verifier has been installed."""
+    """Keep the dashboard local and expose only the authenticated Thor portal remotely."""
     path = request.url.path
-    public = path == "/" or path == "/health" or path.startswith("/static/") or path.startswith("/api/access/")
+    client_host = (request.client.host if request.client else "").split("%", 1)[0]
+    is_local = client_host in {"127.0.0.1", "::1", "localhost", "testclient"}
+    thor_portal = path.startswith("/api/portal/thor")
+    if not is_local and not thor_portal:
+        return JSONResponse(status_code=403, content={"detail": "Remote access is limited to the Thor portal."})
+
+    public = (
+        path == "/" or path == "/health" or path.startswith("/static/")
+        or path.startswith("/api/access/") or thor_portal
+    )
     access = access_gate.status()
     if access["enabled"] and not access["machine_bound"] and not public:
         return JSONResponse(status_code=403, content={"detail": "This OBus deployment is bound to another machine."})
@@ -1911,6 +1921,80 @@ async def plan_workbench():
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "obus-moa"}
+
+
+class ThorPortalGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt: str = Field(..., min_length=1, max_length=32768)
+    model: Optional[str] = Field(default=None, max_length=200)
+
+
+def _require_thor_portal(request: Request) -> None:
+    token = os.environ.get("OBUS_THOR_TOKEN", "")
+    if len(token) < 32:
+        raise HTTPException(status_code=503, detail="Thor portal is not configured")
+    authorization = request.headers.get("Authorization", "")
+    supplied = authorization[7:] if authorization.startswith("Bearer ") else ""
+    if not hmac.compare_digest(supplied, token):
+        raise HTTPException(status_code=401, detail="Invalid Thor portal token")
+
+
+def _thor_local_generate(prompt: str, model: str) -> dict:
+    payload = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "system": "You are using this PC through the authenticated Obus Thor portal. Keep execution local and do not claim access to capabilities not listed by the portal.",
+        "stream": False,
+        "keep_alive": OLLAMA_KEEP_ALIVE,
+    }).encode("utf-8")
+    outbound = urllib.request.Request(
+        f"{OLLAMA_URL}/api/generate", data=payload,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with _NO_REDIRECT_OPENER.open(outbound, timeout=180) as response:
+            raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+            raise RuntimeError("Local model response exceeded the portal limit")
+        result = json.loads(raw.decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, RuntimeError) as exc:
+        raise RuntimeError(f"Local LLM unavailable: {exc}") from exc
+    answer = str(result.get("response") or "").strip()
+    if not answer:
+        raise RuntimeError("Local LLM returned an empty response")
+    return {
+        "response": answer,
+        "model": model,
+        "prompt_tokens": int(result.get("prompt_eval_count") or 0),
+        "completion_tokens": int(result.get("eval_count") or 0),
+    }
+
+
+@app.get("/api/portal/thor/status")
+async def thor_portal_status(request: Request):
+    _require_thor_portal(request)
+    ollama = await asyncio.to_thread(get_ollama_status)
+    return {
+        "status": "ready" if ollama.get("connected") else "degraded",
+        "portal": "thor",
+        "execution": "local",
+        "model": _configured_local_model(),
+        "capabilities": ["llm.generate", "llm.models", "system.health"],
+        "ollama": {"connected": bool(ollama.get("connected")), "models": ollama.get("models", [])},
+    }
+
+
+@app.post("/api/portal/thor/generate")
+async def thor_portal_generate(payload: ThorPortalGenerateRequest, request: Request):
+    _require_thor_portal(request)
+    installed = set((await asyncio.to_thread(get_ollama_status)).get("models", []))
+    model = (payload.model or _configured_local_model()).strip()
+    if model not in installed:
+        raise HTTPException(status_code=400, detail="Requested model is not installed on this PC")
+    try:
+        return await asyncio.to_thread(_thor_local_generate, payload.prompt, model)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.get("/api/aui/manifest")

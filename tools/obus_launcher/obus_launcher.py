@@ -21,6 +21,7 @@ from typing import Any
 
 
 HOST = "127.0.0.1"
+BIND_HOST = os.environ.get("OBUS_HOST", HOST).strip() or HOST
 PORT = int(os.environ.get("OBUS_PORT", "38173"))
 DASHBOARD_URL = f"http://{HOST}:{PORT}/"
 HEALTH_URL = f"http://{HOST}:{PORT}/health"
@@ -234,7 +235,7 @@ def serve_backend() -> None:
     from backend.main import app
     import uvicorn
 
-    uvicorn.run(app, host=HOST, port=PORT)
+    uvicorn.run(app, host=BIND_HOST, port=PORT)
 
 
 if __name__ == "__main__":

@@ -44,6 +44,33 @@ class RuntimeContractTests(unittest.TestCase):
             self.memory_patch.stop()
             self.state_patch.stop()
 
+    def test_thor_portal_requires_token_and_uses_only_installed_local_model(self):
+        token = "t" * 32
+        headers = {"Authorization": f"Bearer {token}"}
+        with patch.dict(backend.os.environ, {"OBUS_THOR_TOKEN": token}, clear=False), patch.object(
+            backend, "get_ollama_status", return_value={"connected": True, "models": ["local:test"]}
+        ), patch.object(
+            backend, "_configured_local_model", return_value="local:test"
+        ), patch.object(
+            backend, "_thor_local_generate", return_value={"response": "local answer", "model": "local:test", "prompt_tokens": 2, "completion_tokens": 3}
+        ):
+            unauthorized = self.client.get("/api/portal/thor/status")
+            self.assertEqual(unauthorized.status_code, 401)
+            status = self.client.get("/api/portal/thor/status", headers=headers)
+            self.assertEqual(status.status_code, 200)
+            self.assertEqual(status.json()["execution"], "local")
+            generated = self.client.post(
+                "/api/portal/thor/generate", headers=headers,
+                json={"prompt": "Use this PC's local model"},
+            )
+            self.assertEqual(generated.status_code, 200)
+            self.assertEqual(generated.json()["response"], "local answer")
+            rejected = self.client.post(
+                "/api/portal/thor/generate", headers=headers,
+                json={"prompt": "test", "model": "remote:not-installed"},
+            )
+            self.assertEqual(rejected.status_code, 400)
+
     def test_modern_ui_exposes_real_controls_not_simulated_alerts(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)

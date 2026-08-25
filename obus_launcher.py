@@ -253,7 +253,8 @@ def main(args: list[str] | None = None):
         sys.path.insert(0, str(APP_DIR))
         from backend.main import app
         import uvicorn
-        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=APP_PORT, log_level="warning", access_log=False))
+        bind_host = os.environ.get("OBUS_HOST", "127.0.0.1").strip() or "127.0.0.1"
+        server = uvicorn.Server(uvicorn.Config(app, host=bind_host, port=APP_PORT, log_level="warning", access_log=False))
         tray = None if headless else start_system_tray(
             lambda: open_app_window(APP_URL), lambda: setattr(server, "should_exit", True)
         )

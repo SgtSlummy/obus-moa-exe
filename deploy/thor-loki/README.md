@@ -3,6 +3,10 @@
 This package installs the OBus standalone application on **Thor** in primary mode.
 It seeds a Loki worker target at Tailscale IP `100.73.36.108` and keeps remote-terminal activation disabled until Thor has an approved SSH account and local identity-file reference.
 
+## Use this PC as Thor's local-resource portal
+
+To keep models on the resource PC and let Thor call them through Obus, run `Enable-OBus-Thor-Portal.ps1` on the resource PC, transfer its generated token securely to Thor, and use `Invoke-OBus-Portal.ps1` from Thor. See `docs/thor-portal.md` in the repository for network and firewall boundaries.
+
 ## Included capabilities
 
 - Text chat and dynamic Tarot/Key agent harness.

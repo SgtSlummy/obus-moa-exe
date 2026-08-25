@@ -9,6 +9,8 @@ build-aui-agent-visuals-v2/
 .gortex-batch-*
 dist-aui-loop*/
 dist-remediation/
+build-onedrive-fix/
+dist-onedrive-fix/
 dist-warp-review/
 __pycache__/
 *.pyc
