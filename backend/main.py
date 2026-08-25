@@ -849,14 +849,14 @@ class TentacleRunRequest(BaseModel):
 
 class GitHubAppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    app_id: str
-    installation_id: str
-    owner: str
-    repo: str
-    branch: str = "main"
-    memory_path: str = "obus/memory.json"
-    private_key_path: str
-    app_slug: Optional[str] = None
+    app_id: str = Field(..., max_length=32)
+    installation_id: str = Field(..., max_length=32)
+    owner: str = Field(..., max_length=100)
+    repo: str = Field(..., max_length=100)
+    branch: str = Field(default="main", max_length=120, pattern=r"^[A-Za-z0-9._/-]+$")
+    memory_path: str = Field(default="obus/memory.json", max_length=240)
+    private_key_path: str = Field(..., max_length=1000)
+    app_slug: Optional[str] = Field(default=None, max_length=120)
 
 
 class ForgeSelection(BaseModel):
@@ -1171,7 +1171,11 @@ def github_installation_token(config: dict) -> str:
 
 def github_memory_get(config: dict, token: str) -> tuple[list, Optional[str]]:
     path = str(config.get("memory_path", "obus/memory.json")).lstrip("/")
-    url = f"https://api.github.com/repos/{config['owner']}/{config['repo']}/contents/{path}?ref={config.get('branch', 'main')}"
+    owner = urllib.parse.quote(str(config.get("owner", "")), safe=".-_")
+    repo = urllib.parse.quote(str(config.get("repo", "")), safe=".-_")
+    encoded_path = urllib.parse.quote(path, safe="/-_.")
+    branch = urllib.parse.quote(str(config.get("branch", "main")), safe="A-Za-z0-9._/-")
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
     try:
         response = github_json(url, token=token)
     except urllib.error.HTTPError as exc:
@@ -1191,7 +1195,10 @@ def github_memory_get(config: dict, token: str) -> tuple[list, Optional[str]]:
 
 def github_memory_put(config: dict, token: str, chunks: list, sha: Optional[str] = None) -> dict:
     path = str(config.get("memory_path", "obus/memory.json")).lstrip("/")
-    url = f"https://api.github.com/repos/{config['owner']}/{config['repo']}/contents/{path}"
+    owner = urllib.parse.quote(str(config.get("owner", "")), safe=".-_")
+    repo = urllib.parse.quote(str(config.get("repo", "")), safe=".-_")
+    encoded_path = urllib.parse.quote(path, safe="/-_.")
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{encoded_path}"
     document = {"version": 1, "updated_at": int(time.time()), "chunks": chunks}
     document_bytes = json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")
     if len(document_bytes) > 2_000_000:
@@ -2303,7 +2310,7 @@ async def configure_github_app(update: GitHubAppConfig):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", value["owner"]) or not re.fullmatch(r"[A-Za-z0-9_.-]+", value["repo"]):
         raise HTTPException(status_code=400, detail="Invalid GitHub owner or repository")
     memory_path = value["memory_path"].replace("\\", "/").lstrip("/")
-    if ".." in memory_path.split("/"):
+    if ".." in memory_path.split("/") or not re.fullmatch(r"[A-Za-z0-9._/-]+", memory_path):
         raise HTTPException(status_code=400, detail="Invalid memory path")
     value["memory_path"] = memory_path
     state = load_state()

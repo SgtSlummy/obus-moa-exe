@@ -65,7 +65,7 @@ class MemoryHub:
                 if isinstance(value, list):
                     chunks = len(value)
                     characters = sum(len(str(item.get("text", ""))) for item in value if isinstance(item, dict))
-            except (OSError, UnicodeError, json.JSONDecodeError):
+            except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
                 result["error"] = "unreadable"
         result.update({"status": "ready" if "error" not in result else "error", "chunks": chunks, "characters": characters})
         return result
@@ -79,7 +79,7 @@ class MemoryHub:
                 text = self._read_text_bounded(self.hermes_memory)
                 lines = len(text.splitlines())
                 characters = len(text)
-            except (OSError, UnicodeError):
+            except (OSError, UnicodeError, ValueError):
                 result["error"] = "unreadable"
         result.update({"status": "ready" if "error" not in result else "error", "lines": lines, "characters": characters})
         return result
@@ -167,7 +167,7 @@ class MemoryHub:
                 completed = subprocess.run(command, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace", **silent_process_kwargs())
             else:
                 completed = run_bounded_subprocess(command, timeout=30)
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, subprocess.SubprocessError, RuntimeError):
             return []
         if completed.returncode != 0:
             return []
@@ -245,7 +245,7 @@ class MemoryHub:
                         matched += 1
                         if matched >= source_limit:
                             break
-            except (OSError, UnicodeError, json.JSONDecodeError):
+            except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
                 pass
         if self.hermes_memory.is_file():
             try:
@@ -256,7 +256,7 @@ class MemoryHub:
                         matched += 1
                         if matched >= source_limit:
                             break
-            except (OSError, UnicodeError):
+            except (OSError, UnicodeError, ValueError):
                 pass
         if self.mem0_db.is_file():
             try:
@@ -292,7 +292,7 @@ def default_memory_hub() -> MemoryHub:
             configured = json.loads(config_file.read_text(encoding="utf-8")).get("palace_path")
             if configured:
                 mempalace_palace = Path(configured)
-        except (OSError, UnicodeError, json.JSONDecodeError):
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
             pass
     return MemoryHub(
         obus_memory=occultbus_home / "memory.json",
