@@ -56,12 +56,23 @@ def build(executable: Path, output: Path, thor_name: str, loki_name: str, loki_u
     _write_json(thor_dir / "thor-loki.pairing.json", shared)
     shutil.copy2(executable, loki_dir / "OBus.exe")
 
+    portal_port = parsed.port or (443 if parsed.scheme == "https" else 80)
     (loki_dir / "Start-Loki-Portal.ps1").write_text(
         "$ErrorActionPreference = 'Stop'\n"
         "$config = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'thor-loki.pairing.json') | ConvertFrom-Json\n"
+        "$portalUri = [Uri]$config.loki.portal_url\n"
         "$env:OBUS_THOR_TOKEN = $config.portal_key\n"
         "$env:OBUS_HOST = '0.0.0.0'\n"
-        "& (Join-Path $PSScriptRoot 'OBus.exe')\n",
+        f"$env:OBUS_PORT = '{portal_port}'\n"
+        "$process = Start-Process -FilePath (Join-Path $PSScriptRoot 'OBus.exe') -ArgumentList '--serve' -PassThru -WindowStyle Hidden\n"
+        "$statusUri = \"http://127.0.0.1:$env:OBUS_PORT/api/portal/thor/status\"\n"
+        "$headers = @{ Authorization = \"Bearer $($config.portal_key)\" }\n"
+        "for ($attempt = 1; $attempt -le 60; $attempt++) {\n"
+        "  if ($process.HasExited) { throw \"OBus portal exited before startup (code $($process.ExitCode)). Check $env:LOCALAPPDATA\\Obus\\logs\\launcher.log\" }\n"
+        "  try { Invoke-RestMethod -Uri $statusUri -Headers $headers -TimeoutSec 2 | Out-Host; Write-Host \"LOKI portal ready at $($config.loki.portal_url)\"; exit 0 } catch { Start-Sleep -Milliseconds 500 }\n"
+        "}\n"
+        "Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n"
+        "throw \"OBus portal did not become ready on port $env:OBUS_PORT within 30 seconds. Check $env:LOCALAPPDATA\\Obus\\logs\\launcher.log\"\n",
         encoding="utf-8",
     )
     (thor_dir / "Invoke-Thor-Portal.ps1").write_text(

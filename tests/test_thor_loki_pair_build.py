@@ -26,6 +26,11 @@ class ThorLokiPairBuildTests(unittest.TestCase):
             self.assertGreaterEqual(len(loki["portal_key"]), 43)
             self.assertNotIn(loki["portal_key"], (output / "PRIVATE-README.txt").read_text(encoding="utf-8"))
             self.assertTrue((output / "Loki-Portal" / "OBus.exe").is_file())
+            startup = (output / "Loki-Portal" / "Start-Loki-Portal.ps1").read_text(encoding="utf-8")
+            self.assertIn("$env:OBUS_PORT = '8000'", startup)
+            self.assertIn("-ArgumentList '--serve'", startup)
+            self.assertIn("/api/portal/thor/status", startup)
+            self.assertIn("did not become ready", startup)
             self.assertTrue((output / "SHA256SUMS.txt").is_file())
             with zipfile.ZipFile(archive) as package:
                 names = set(package.namelist())
