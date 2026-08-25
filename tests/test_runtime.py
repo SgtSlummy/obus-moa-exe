@@ -28,10 +28,21 @@ class RuntimeContractTests(unittest.TestCase):
         self.usage_patch.start()
 
     def tearDown(self):
-        self.usage_patch.stop()
-        self.memory_patch.stop()
-        self.state_patch.stop()
-        self.tempdir.cleanup()
+        self.client.close()
+        deadline = time.monotonic() + 3
+        try:
+            while True:
+                try:
+                    self.tempdir.cleanup()
+                    break
+                except PermissionError:
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.05)
+        finally:
+            self.usage_patch.stop()
+            self.memory_patch.stop()
+            self.state_patch.stop()
 
     def test_modern_ui_exposes_real_controls_not_simulated_alerts(self):
         response = self.client.get("/")
