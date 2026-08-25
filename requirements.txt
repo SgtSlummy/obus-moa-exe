@@ -5,3 +5,4 @@ pillow>=11,<13
 pydantic>=2.10,<3
 pystray>=0.19,<1
 uvicorn[standard]>=0.34,<1
+cryptography>=44,<51
