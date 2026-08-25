@@ -198,6 +198,7 @@ class HarnessStore:
 
 
 from backend.autonomy import ProviderRegistry
+from backend.recovery import RecoveryManager
 
 
 Runner = Callable[[dict[str, Any], threading.Event, Callable[[str, dict[str, Any]], None]], str]
@@ -208,6 +209,7 @@ class AgentHarnessRuntime:
 
     def __init__(self, database: Path, runner: Runner | None = None, max_workers: int = 2):
         self.store = HarnessStore(database)
+        self.recovery = RecoveryManager(database)
         self.providers = ProviderRegistry()
         self.runner = runner or self.providers.run
         self.max_workers = max(1, max_workers)
@@ -272,17 +274,25 @@ class AgentHarnessRuntime:
                 return
             state = "running" if attempt == 1 else "repairing"
             self.store.transition(task_id, state, attempt=attempt)
+            checkpoint = self.recovery.create(task_id, Path(task["workspace"]))
+            self.store.add_event(task_id, "checkpoint.created", {
+                "checkpoint_id": checkpoint["id"], "files": checkpoint["files_copied"],
+                "bytes": checkpoint["bytes_copied"], "skipped": checkpoint["files_skipped"],
+            })
             provider = str(task.get("provider") or "codex")
             action_id = self.store.start_action(task_id, f"{provider}.unrestricted", {
                 "objective": task["objective"], "workspace": task["workspace"], "attempt": attempt,
-                "provider": provider, "model": task.get("model"),
+                "provider": provider, "model": task.get("model"), "checkpoint_id": checkpoint["id"],
             })
             try:
                 result = self.runner(task | {"attempt": attempt}, cancellation,
                                      lambda kind, payload: self.store.add_event(task_id, kind, payload))
                 if cancellation.is_set():
                     raise InterruptedError("task cancelled")
-                self.store.finish_action(task_id, action_id, "succeeded", {"result": result[-8000:]})
+                checkpoint_receipt = self.recovery.complete(checkpoint["id"])
+                self.store.finish_action(task_id, action_id, "succeeded", {
+                    "result": result[-8000:], "checkpoint": checkpoint_receipt,
+                })
                 self.store.transition(task_id, "verifying", attempt=attempt)
                 lesson = self.store.promote_lesson(task_id, task["objective"], result[-16000:])
                 self.store.transition(task_id, "succeeded", attempt=attempt, result=result,
@@ -290,15 +300,27 @@ class AgentHarnessRuntime:
                 self.store.add_event(task_id, "task.completed", {"lesson_id": lesson["id"]})
                 return
             except InterruptedError as exc:
-                self.store.finish_action(task_id, action_id, "cancelled", {"error": str(exc)})
+                rollback = self.recovery.rollback(checkpoint["id"])
+                self.store.finish_action(task_id, action_id, "cancelled", {
+                    "error": str(exc), "rollback": rollback,
+                })
                 self.store.transition(task_id, "cancelled", attempt=attempt, error=str(exc), finished_at=utc_now())
                 return
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
-                self.store.finish_action(task_id, action_id, "failed", {"error": error})
-                self.store.add_event(task_id, "repair.required", {"attempt": attempt, "error": error})
-                if attempt >= int(task["max_attempts"]):
-                    self.store.transition(task_id, "failed", attempt=attempt, error=error, finished_at=utc_now())
+                rollback = self.recovery.rollback(checkpoint["id"])
+                failure = self.recovery.record_failure(task_id, exc)
+                self.store.finish_action(task_id, action_id, "failed", {
+                    "error": error, "rollback": rollback, "failure": failure,
+                })
+                self.store.add_event(task_id, "repair.required", {
+                    "attempt": attempt, "error": error, "rollback": rollback,
+                    "fingerprint": failure["fingerprint"], "circuit_open": failure["circuit_open"],
+                })
+                if failure["circuit_open"] or attempt >= int(task["max_attempts"]):
+                    final_error = f"circuit breaker opened: {error}" if failure["circuit_open"] else error
+                    self.store.transition(task_id, "failed", attempt=attempt, error=final_error,
+                                          finished_at=utc_now())
                     return
                 time.sleep(min(attempt, 3))
         self.store.transition(task_id, "failed", error="repair budget exhausted", finished_at=utc_now())
