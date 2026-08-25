@@ -20,6 +20,7 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             "rooms-workspace-splitter",
             "workspace-context-splitter",
             "studio-workspace-splitter",
+            "page-subtitle",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn('role="separator"', html)
@@ -27,6 +28,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn('aria-valuemin="45"', html)
         self.assertIn('aria-valuemax="75"', html)
         self.assertIn('aria-valuenow="62"', html)
+        self.assertIn("const subtitles=", html)
+        self.assertIn("subtitles[name]", html)
+        self.assertIn("formatReceiptTimestamp", html)
         for value in ("focus", "review", "deck", "studio"):
             self.assertIn(f'value="{value}"', html)
 
@@ -65,6 +69,11 @@ class AUILayoutPersistenceTests(unittest.TestCase):
             ".guide div",
             ".adjustable-workspace",
             "word-break: break-word",
+            ".top .layout-control",
+            "white-space: nowrap",
+            "textarea::-webkit-scrollbar-button",
+            "#rooms-workspace > :first-child",
+            ".terminal-history small",
         ):
             self.assertIn(marker, heritage.text)
         workbench_rule = heritage.text.split(".terminal-workbench {", 1)[1].split("}", 1)[0]
@@ -77,7 +86,9 @@ class AUILayoutPersistenceTests(unittest.TestCase):
         self.assertIn(".mobile-drawer-summary", phone)
         self.assertIn(".mobile-control-drawer:not([open]) > .actions", phone)
         self.assertIn(".mobile-nav-drawer:not([open]) > .nav", phone)
-        self.assertIn("overflow-x: auto", phone)
+        self.assertNotIn("overflow-x: auto", phone)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", phone)
+        self.assertIn('.page[data-page-panel="settings"] .row', phone)
         for forbidden in ("prompt", "output", "provider", "api_key", "bearer"):
             self.assertNotIn(f'obus-aui-{forbidden}', layout.text.lower())
 

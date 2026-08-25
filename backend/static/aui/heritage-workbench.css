@@ -145,6 +145,17 @@ main {
   margin-bottom: var(--space-5);
 }
 
+.top .layout-control,
+.top .layout-control .hint,
+.top .status {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.top .layout-control .select {
+  min-width: 7.5rem;
+}
+
 .top > .actions,
 .panel-head > .actions,
 .terminal-block-head > .output-options,
@@ -311,6 +322,26 @@ textarea::placeholder {
   color: color-mix(in srgb, var(--parchment-muted) 82%, transparent);
 }
 
+textarea::-webkit-scrollbar,
+.result::-webkit-scrollbar,
+.code-output::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+textarea::-webkit-scrollbar-button,
+.result::-webkit-scrollbar-button,
+.code-output::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+textarea::-webkit-resizer {
+  border: 0;
+  background: linear-gradient(135deg, transparent 55%, var(--rule-strong) 56% 62%, transparent 63%);
+}
+
 :where(.result, .code-output, .terminal-result, .agent-context-text, #workspace-file, #room-deliberation, #room-decision) {
   min-block-size: 6rem;
   max-block-size: min(72vh, 50rem);
@@ -437,6 +468,31 @@ pre {
   display: grid;
   min-width: 0;
   gap: var(--space-4);
+}
+
+#rooms-workspace > :first-child {
+  min-height: 20rem;
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--space-4);
+  background: radial-gradient(circle at 50% 0, color-mix(in srgb, var(--brass) 7%, transparent), transparent 58%), var(--ink-soft);
+}
+
+#rooms-workspace #room-list > .empty {
+  display: grid;
+  min-height: 14rem;
+  place-items: center;
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--parchment-muted);
+}
+
+.terminal-history small {
+  display: block;
+  margin-top: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .aui-summary {
@@ -677,7 +733,7 @@ dialog {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
     margin-top: var(--space-2);
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .nav button {
@@ -701,6 +757,35 @@ dialog {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: var(--space-2);
+  }
+
+  .terminal-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .terminal-tabs {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    overflow: visible;
+  }
+
+  .terminal-tab {
+    min-width: 0;
+    padding-inline: var(--space-2);
+    white-space: normal;
+    text-align: center;
+  }
+
+  .page[data-page-panel="settings"] .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page[data-page-panel="settings"] .row > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .top > .actions > *,

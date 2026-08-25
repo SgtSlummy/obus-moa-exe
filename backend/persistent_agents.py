@@ -210,6 +210,19 @@ def _http_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeo
         return json.load(response)
 
 
+def _validated_provider_base_url(provider: str, value: object) -> str:
+    candidate = str(value or "").strip().rstrip("/")
+    parsed = urllib.parse.urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
+    host = parsed.hostname.casefold()
+    loopback = host in {"localhost", "127.0.0.1", "::1"}
+    allowed = loopback or (provider == "anthropic" and host == "api.anthropic.com") or (provider in {"google", "gemini"} and host == "generativelanguage.googleapis.com") or (provider == "huggingface" and host.endswith("huggingface.co")) or (provider == "azure" and host.endswith(".openai.azure.com"))
+    if not allowed or (not loopback and parsed.scheme != "https"):
+        raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
+    return candidate
+
+
 def execute_remote_provider(key: dict[str, Any], prompt: str) -> str:
     provider = str(key.get("provider", "")).lower()
     env_var = key.get("env_var")
@@ -217,7 +230,7 @@ def execute_remote_provider(key: dict[str, Any], prompt: str) -> str:
     if not secret:
         raise RuntimeError(f"Authorization reference is unavailable: {env_var or 'not configured'}")
     model = str(key.get("model") or "")
-    base_url = str(key.get("base_url") or "").rstrip("/")
+    base_url = _validated_provider_base_url(provider, key.get("base_url"))
     if provider == "anthropic":
         result = _http_json(base_url + "/messages", {"x-api-key": secret, "anthropic-version": "2023-06-01"}, {"model": model, "max_tokens": 2048, "messages": [{"role": "user", "content": prompt}]})
         return "\n".join(item.get("text", "") for item in result.get("content", []) if item.get("type") == "text").strip()

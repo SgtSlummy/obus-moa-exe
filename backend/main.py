@@ -275,6 +275,7 @@ from backend.persistent_agents import (
     PersistentAgentCreate, PersistentAgentRunRequest, RuntimeOrchestratorRequest,
     execute_codex_prompt, execute_remote_provider, parse_orchestrator_plan,
     select_persistent_agent_key,
+    _validated_provider_base_url,
 )
 
 
@@ -1010,10 +1011,10 @@ def probe_key_live(key: dict) -> dict:
     if not secret and not key.get("local"):
         return {"success": False, "status_code": None, "reason": "missing_reference", "message": f"Authorization reference {env_var or 'not configured'} is unavailable"}
 
-    base_url = str(key.get("base_url") or "").strip()
-    parsed = urllib.parse.urlsplit(base_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        return {"success": False, "status_code": None, "reason": "invalid_url", "message": "Key base URL must be a secret-free HTTP or HTTPS URL"}
+    try:
+        base_url = _validated_provider_base_url(provider, key.get("base_url"))
+    except RuntimeError:
+        return {"success": False, "status_code": None, "reason": "invalid_url", "message": "Key base URL must be an approved secret-free provider endpoint"}
 
     headers = {"Accept": "application/json", "User-Agent": "OBus-Key-Probe/1.0"}
     if provider == "anthropic":
@@ -2959,7 +2960,7 @@ def _start_persistent_agent(agent_id: str, prompt: str | None = None) -> dict:
     with start_lock:
         state = load_state()
         agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
-        if not agent:
+        if not agent or agent.get("status") == "deleted":
             raise HTTPException(status_code=404, detail="Persistent agent not found")
         thread = PERSISTENT_AGENT_THREADS.get(agent_id)
         if thread and thread.is_alive():
@@ -2999,7 +3000,7 @@ async def get_persistent_agent(agent_id: str):
     if _recover_orphaned_agents(state):
         save_state(state)
     agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id and item.get("status") != "deleted"), None)
-    if not agent:
+    if not agent or agent.get("status") == "deleted":
         raise HTTPException(status_code=404, detail="Persistent agent not found")
     return _persistent_agent_public(agent)
 
@@ -3013,7 +3014,7 @@ async def run_persistent_agent(agent_id: str, request: PersistentAgentRunRequest
 async def stop_persistent_agent(agent_id: str):
     state = load_state()
     agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
-    if not agent:
+    if not agent or agent.get("status") == "deleted":
         raise HTTPException(status_code=404, detail="Persistent agent not found")
     event = PERSISTENT_AGENT_STOP_EVENTS.get(agent_id)
     if event:
@@ -3032,7 +3033,7 @@ async def stop_persistent_agent(agent_id: str):
 async def delete_persistent_agent(agent_id: str):
     state = load_state()
     agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
-    if not agent:
+    if not agent or agent.get("status") == "deleted":
         raise HTTPException(status_code=404, detail="Persistent agent not found")
     thread = PERSISTENT_AGENT_THREADS.get(agent_id)
     if thread and thread.is_alive():
@@ -3365,44 +3366,8 @@ async def verify_key(key_id: str):
 
 @app.post("/api/login")
 async def login(req: LoginRequest):
-    """Handle login for various providers"""
-    state = load_state()
-    
-    if req.provider == "codex":
-        key = next((k for k in state["keys"] if k["id"] == "key-codex-oauth"), None)
-        if key:
-            key["verified"] = True
-            key["approved"] = True
-            save_state(state)
-            return {"success": True, "message": "Codex OAuth configured successfully", "key_id": "key-codex-oauth"}
-    elif req.provider == "ollama":
-        try:
-            import urllib.request
-            url = req.url or "http://localhost:11434"
-            req_url = f"{url}/api/tags"
-            urllib.request.urlopen(req_url, timeout=5)
-            
-            key = next((k for k in state["keys"] if k["id"] == "key-local-ollama"), None)
-            if key:
-                key["verified"] = True
-                key["approved"] = True
-                key["base_url"] = url
-                key["active"] = True
-                save_state(state)
-                return {"success": True, "message": "Local Ollama connected successfully", "key_id": "key-local-ollama"}
-        except Exception as e:
-            return {"success": False, "message": f"Could not connect to Ollama: {str(e)}"}
-    elif req.provider in ["nvidia", "nous"]:
-        key_id_map = {"nvidia": "key-nvidia-nim", "nous": "key-nous-oauth"}
-        if key_id_map.get(req.provider):
-            key = next((k for k in state["keys"] if k["id"] == key_id_map[req.provider]), None)
-            if key and req.token:
-                key["verified"] = True
-                key["approved"] = True
-                save_state(state)
-                return {"success": True, "message": f"{req.provider} configured successfully", "key_id": key_id_map[req.provider]}
-    
-    return {"success": False, "message": "Login failed or incomplete configuration"}
+    """Reject the legacy unvalidated token-login path."""
+    raise HTTPException(status_code=410, detail="Legacy login is disabled; use the provider Test & enable or device-login flow")
 
 
 # ==================== AGGREGATOR ====================
@@ -4026,6 +3991,7 @@ async def _run_route_impl(request: RouteRequest):
         clear_route_cancel(route_id)
         raise
     ROUTE_EVENTS.publish(route_id, "route.plan_ready", {"deck": plan.get("selected_deck", {}).get("name"), "specialists": len(plan.get("agents", {}).get("dynamic_assignments", []))})
+    aggregate_manifest = plan["agents"]["aggregator"]
     route_deliberation: Optional[dict] = None
     runtime_state = load_state()
     settings = get_settings(runtime_state)
@@ -4059,7 +4025,7 @@ async def _run_route_impl(request: RouteRequest):
         return finalize_result(result, "route.cancelled")
 
     if route_cancel_requested(route_id):
-        return cancelled_result("planning")
+        return cancelled_result("planning", aggregate_manifest=aggregate_manifest)
 
     if runtime_state["runtime_settings"].get("auto_deliberation", False) and is_council_worthy(request.prompt):
         ROUTE_EVENTS.publish(route_id, "route.deliberation_started", {"status": "deliberating", "parallel": True})
@@ -4071,7 +4037,7 @@ async def _run_route_impl(request: RouteRequest):
             route_deliberation = {"status": "unavailable", "parallel": True, "reason": type(exc).__name__, "room_ids": [], "packets": []}
             ROUTE_EVENTS.publish(route_id, "route.deliberation_failed", {"status": "unavailable", "reason": type(exc).__name__})
         if route_cancel_requested(route_id):
-            return cancelled_result("deliberation")
+            return cancelled_result("deliberation", aggregate_manifest=aggregate_manifest)
 
     if model not in ollama_status.get("models", []):
         offline_answer = generate_offline_answer(request.prompt, plan)
