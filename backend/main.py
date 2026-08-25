@@ -1557,6 +1557,8 @@ def forge_project_status(project: dict) -> dict:
         blocker = "Source is present but runtime integration is not verified" if source.is_dir() else "Not installed"
         if source.is_dir():
             evidence.append(f"source: {source}")
+    if not operational and not blocker:
+        blocker = "Runtime integration is not yet verified"
     return {**project, "status": status, "operational": operational, "evidence": evidence, "blocker": blocker, "binary_path": path, "source_present": source.is_dir()}
 
 
