@@ -65,6 +65,10 @@ export function deviceMetricsFor(width, height) {
   return {width, height, deviceScaleFactor: 1, mobile: false};
 }
 
+export function effectiveSettleMs(value) {
+  return Math.max(800, Number(value) || 0);
+}
+
 export function ratioScore(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return 0;
   const logarithmicDistance = Math.abs(Math.log(ratio / GOLDEN_RATIO));
@@ -319,7 +323,7 @@ export async function runAudit(options) {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
     await client.send("Page.navigate", {url: options.url});
-    await delay(Math.max(800, options.settleMs));
+    await delay(effectiveSettleMs(options.settleMs));
 
     for (const width of options.viewports) {
       await client.send("Emulation.setDeviceMetricsOverride", deviceMetricsFor(width, options.height));
@@ -332,7 +336,7 @@ export async function runAudit(options) {
             returnByValue: true,
             awaitPromise: true,
           });
-          await delay(options.settleMs);
+          await delay(effectiveSettleMs(options.settleMs));
           const evaluated = await client.send("Runtime.evaluate", {
             expression: evaluationExpression(pageId, density),
             returnByValue: true,

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildPreparationExpression,
   deviceMetricsFor,
+  effectiveSettleMs,
   GOLDEN_RATIO,
   isRectInViewport,
   layoutRatio,
@@ -48,6 +49,12 @@ test("desktop AUI viewport audit does not emulate a mobile browser", () => {
     deviceScaleFactor: 1,
     mobile: false,
   });
+});
+
+
+test("audit waits for bounded deal motion to finish before measuring", () => {
+  assert.equal(effectiveSettleMs(300), 800);
+  assert.equal(effectiveSettleMs(1200), 1200);
 });
 
 

@@ -2224,24 +2224,30 @@ def room_public(room: dict) -> dict:
 
 
 def forum_public(thread: dict) -> dict:
-    value = copy.deepcopy(thread)
-    value.pop("private_messages", None)
-    messages = value.pop("messages", [])
+    raw = copy.deepcopy(thread)
+    raw.pop("private_messages", None)
+    messages = raw.pop("messages", [])
+    allowed = {"id", "title", "prompt", "room_ids", "revision", "status", "created_at", "updated_at", "last_round_signature", "route_manifest", "messages_truncated", "message_cap"}
+    value = {key: raw[key] for key in allowed if key in raw}
     public = redact_value(value)
     if isinstance(messages, list):
         public["messages"] = [redact_value(message) for message in messages[:100]]
         public["messages_truncated"] = len(messages) > 100
+        public["message_cap"] = 100
     return public
 
 
 def forum_round_public(result: dict) -> dict:
-    value = redact_value(copy.deepcopy(result))
+    allowed = {"thread", "messages", "new_messages", "round_results", "idempotent", "thread_id", "room_ids", "card_sets"}
+    value = {key: result[key] for key in allowed if key in result}
+    value = redact_value(value)
     value["thread"] = forum_public(result.get("thread", {}))
     for field in ("messages", "new_messages"):
         messages = result.get(field, [])
         value[field] = [redact_value(message) for message in messages[:100]] if isinstance(messages, list) else []
     value["round_results"] = [redact_value(item) for item in result.get("round_results", [])[:100]]
     value["message_cap"] = 100
+    value["round_results_truncated"] = len(result.get("round_results", [])) > 100 if isinstance(result.get("round_results", []), list) else False
     return value
 
 

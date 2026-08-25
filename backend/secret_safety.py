@@ -11,7 +11,9 @@ SECRET_KEYS = {
     "password", "secret", "private_key", "credential", "authorization",
     "auth", "basic_auth", "auth_token", "pem", "certificate", "client_secret",
     "session_token", "sessiontoken", "id_token", "idtoken", "secret_key", "privatekey", "credentials",
-    "clientsecret", "refreshtoken", "accesstoken",}
+    "clientsecret", "refreshtoken", "accesstoken", "private_messages", "private_transcript",
+    "hidden_prompt", "room_messages", "internal_context",
+}
 
 _FIELD_PATTERN = re.compile(
     r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,}\]]+)'''
