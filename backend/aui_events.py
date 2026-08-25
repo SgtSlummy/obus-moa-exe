@@ -46,12 +46,13 @@ class RouteEventHub:
             if cursor_index is None:
                 return []
             events = events[cursor_index + 1 :]
-        return deepcopy(events[-max(1, min(int(limit), 100)) :])
+        bounded_limit = max(1, min(int(limit), 100))
+        return deepcopy(events[:bounded_limit] if since else events[-bounded_limit:])
 
     def stream(self, route_id: str | None = None, since: str | None = None, heartbeat_seconds: float = 10.0) -> Iterator[str]:
         cursor = since
         while True:
-            if cursor and not self.contains_id(cursor):
+            if cursor and not self.contains_id(cursor, route_id):
                 yield "event: route.cursor_reset\ndata: {\"reset\":true}\n\n"
                 cursor = None
             events = self.snapshot(route_id=route_id, since=cursor, limit=100)

@@ -420,9 +420,15 @@ def route_result_public(value: object, depth: int = 0) -> object:
     if depth >= ROUTE_OUTPUT_DEPTH_LIMIT:
         return "[OUTPUT TRUNCATED: nesting limit]"
     if isinstance(value, dict):
-        items = list(value.items())
-        output = {str(key): route_result_public(child, depth + 1) for key, child in items[:ROUTE_OUTPUT_DICT_LIMIT] if not is_secret_key(key)}
-        if len(items) > ROUTE_OUTPUT_DICT_LIMIT:
+        output = {}
+        truncated = False
+        for index, (key, child) in enumerate(value.items()):
+            if index >= ROUTE_OUTPUT_DICT_LIMIT:
+                truncated = True
+                break
+            if not is_secret_key(key):
+                output[str(key)] = route_result_public(child, depth + 1)
+        if truncated:
             output["_output_truncated"] = True
         return output
     if isinstance(value, list):
@@ -432,14 +438,18 @@ def route_result_public(value: object, depth: int = 0) -> object:
         return output
     if isinstance(value, str):
         if len(value) > ROUTE_OUTPUT_STRING_LIMIT:
-            return redact_text(value[:ROUTE_OUTPUT_STRING_LIMIT], ROUTE_OUTPUT_STRING_LIMIT, parse_json=False) + " [OUTPUT TRUNCATED: string limit]"
+            marker = " [OUTPUT TRUNCATED: string limit]"
+            budget = ROUTE_OUTPUT_STRING_LIMIT - len(marker)
+            return redact_text(value[:budget], budget, parse_json=False) + marker
         stripped = value.strip()
         if stripped[:1] in {"{", "["} and stripped[-1:] in {"}", "]"}:
             try:
                 parsed = json.loads(stripped)
                 serialized = json.dumps(route_result_public(parsed, depth + 1), ensure_ascii=False, separators=(",", ":"))
                 if len(serialized) > ROUTE_OUTPUT_STRING_LIMIT:
-                    return redact_text(serialized[:ROUTE_OUTPUT_STRING_LIMIT], ROUTE_OUTPUT_STRING_LIMIT, parse_json=False) + " [OUTPUT TRUNCATED: serialized JSON limit]"
+                    marker = " [OUTPUT TRUNCATED: serialized JSON limit]"
+                    budget = ROUTE_OUTPUT_STRING_LIMIT - len(marker)
+                    return redact_text(serialized[:budget], budget, parse_json=False) + marker
                 return serialized
             except (TypeError, ValueError, json.JSONDecodeError):
                 pass
@@ -733,15 +743,15 @@ class SettingsImport(BaseModel):
 
 
 class RouteRequest(BaseModel):
-    prompt: str
-    deck_mode: Optional[str] = "auto"
+    prompt: str = Field(..., min_length=1, max_length=4000)
+    deck_mode: Optional[str] = Field(default="auto", max_length=120)
     rag_enabled: Optional[bool] = True
-    model: Optional[str] = None
+    model: Optional[str] = Field(default=None, max_length=240)
     performance_profile: Literal["fast", "balanced", "deep", "throughput"] = "balanced"
     harness_enabled: Optional[bool] = None
     routing_policy: Optional[Literal["local-first", "auto-open", "manual"]] = None
     confirm_remote_execution: bool = False
-    route_id: Optional[str] = None
+    route_id: Optional[str] = Field(default=None, max_length=96)
 
 
 class HarnessPreviewRequest(BaseModel):
@@ -1982,6 +1992,10 @@ async def update_settings(update: SettingsUpdate):
         raise HTTPException(status_code=400, detail="rag_character_budget must be 800-8000")
     if "max_parallel_agents" in values and not 1 <= int(values["max_parallel_agents"]) <= 20:
         raise HTTPException(status_code=400, detail="max_parallel_agents must be 1-20")
+    if "selected_deck" in values:
+        enabled_decks = {deck["id"] for deck in state.get("decks", ALL_DECKS) if deck.get("enabled", True)}
+        if values["selected_deck"] != "auto" and values["selected_deck"] not in enabled_decks:
+            raise HTTPException(status_code=400, detail="selected_deck must be auto or an enabled deck")
     for field, value in values.items():
         settings[field] = value
     state["settings"] = settings
@@ -2058,7 +2072,7 @@ async def get_workspace_diff(path: str):
 
 
 def record_run_receipt(prompt: str, plan: dict, result: dict) -> dict:
-    receipt = build_run_receipt(prompt, plan, result)
+    receipt = build_run_receipt(prompt, plan, route_result_public(result))
     with RECEIPT_LOCK:
         stored = persist_receipt(RECEIPT_FILE, receipt)
     return {
@@ -3748,8 +3762,9 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     available_decks = [deck for deck in state.get("decks", ALL_DECKS) if deck.get("enabled", True)]
     if not available_decks:
         raise HTTPException(status_code=409, detail="No enabled decks are configured")
-    if deck_mode and deck_mode != "auto":
-        deck = next((d for d in available_decks if d["id"] == deck_mode), None)
+    requested_deck = deck_mode if deck_mode and deck_mode != "auto" else settings.get("selected_deck", "auto")
+    if requested_deck != "auto":
+        deck = next((d for d in available_decks if d["id"] == requested_deck), None)
     else:
         deck = select_deck_for_prompt(prompt, available_decks)
     if deck is None:

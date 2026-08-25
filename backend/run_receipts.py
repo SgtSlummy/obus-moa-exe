@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from backend.secret_safety import is_secret_key, redact_text as shared_redact_text
 
 RETENTION_LIMIT = 500
 _SECRET_ASSIGNMENT_KEYS = {"api_key", "token", "password", "secret", "private_key", "access_token", "refresh_token"}
@@ -36,7 +37,7 @@ def _safe_value(value: Any, *, depth: int = 0) -> Any:
         safe: dict[str, Any] = {}
         for key, child in value.items():
             key_text = str(key)
-            if key_text.lower() in _SECRET_ASSIGNMENT_KEYS or key_text.lower().endswith("_token"):
+            if is_secret_key(key_text) or key_text.lower() in _SECRET_ASSIGNMENT_KEYS or key_text.lower().endswith("_token"):
                 continue
             if key_text in {"private_messages", "room_messages", "private_transcript", "hidden_prompt"}:
                 continue
@@ -45,10 +46,10 @@ def _safe_value(value: Any, *, depth: int = 0) -> Any:
     if isinstance(value, list):
         return [_safe_value(item, depth=depth + 1) for item in value[:100]]
     if isinstance(value, str):
-        return redact_text(value)
+        return shared_redact_text(value, 12000, parse_json=False)
     if isinstance(value, (int, float, bool)) or value is None:
         return value
-    return redact_text(value)
+    return shared_redact_text(value, 12000, parse_json=False)
 
 
 def build_run_receipt(prompt: str, plan: dict, result: dict, *, receipt_id: str | None = None) -> dict[str, Any]:
@@ -70,7 +71,7 @@ def build_run_receipt(prompt: str, plan: dict, result: dict, *, receipt_id: str 
             "role": event.get("role"),
             "model": event.get("model"),
             "status": event.get("status"),
-            "output": redact_text(event.get("output", ""), limit=5000),
+            "output": shared_redact_text(event.get("output", ""), limit=5000, parse_json=False),
         })
     receipt = {
         "id": receipt_id or f"run-{uuid.uuid4().hex[:16]}",
@@ -89,7 +90,7 @@ def build_run_receipt(prompt: str, plan: dict, result: dict, *, receipt_id: str 
         "aggregate": _safe_value(result.get("aggregate", {})),
         "trace": trace,
         "usage": _safe_value(result.get("usage", {})),
-        "final": redact_text(result.get("final", ""), limit=12000),
+        "final": shared_redact_text(result.get("final", ""), limit=12000, parse_json=False),
         "contains_task_content": True,
         "privacy": "Prompt text is represented by a SHA-256 hash; private room transcripts and credentials are excluded.",
     }
