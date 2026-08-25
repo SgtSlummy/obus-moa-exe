@@ -136,8 +136,8 @@ def startup_enabled() -> bool:
         return False
     try:
         import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_REGISTRY_PATH) as key:
-            command, _ = winreg.QueryValueEx(key, STARTUP_VALUE_NAME)
+        with getattr(winreg, "OpenKey")(getattr(winreg, "HKEY_CURRENT_USER"), STARTUP_REGISTRY_PATH) as key:
+            command, _ = getattr(winreg, "QueryValueEx")(key, STARTUP_VALUE_NAME)
         return str(Path(sys.executable).resolve()).casefold() in command.casefold()
     except (FileNotFoundError, OSError):
         return False
@@ -148,12 +148,12 @@ def set_startup_enabled(enabled: bool) -> None:
     if os.name != "nt":
         raise OSError("Launch at login is supported only on Windows")
     import winreg
-    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, STARTUP_REGISTRY_PATH) as key:
+    with getattr(winreg, "CreateKey")(getattr(winreg, "HKEY_CURRENT_USER"), STARTUP_REGISTRY_PATH) as key:
         if enabled:
-            winreg.SetValueEx(key, STARTUP_VALUE_NAME, 0, winreg.REG_SZ, f'"{Path(sys.executable).resolve()}" --startup')
+            getattr(winreg, "SetValueEx")(key, STARTUP_VALUE_NAME, 0, getattr(winreg, "REG_SZ"), f'"{Path(sys.executable).resolve()}" --startup')
         else:
             try:
-                winreg.DeleteValue(key, STARTUP_VALUE_NAME)
+                getattr(winreg, "DeleteValue")(key, STARTUP_VALUE_NAME)
             except FileNotFoundError:
                 pass
 
