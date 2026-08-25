@@ -14,10 +14,11 @@ $testFile = Join-Path $launcherDir "test_obus_launcher.py"
 $icon = Join-Path $launcherDir "obus.ico"
 $dist = Join-Path $launcherDir "dist"
 $work = Join-Path $launcherDir "build"
-$desktop = [Environment]::GetFolderPath("Desktop")
-$deployedExe = Join-Path $desktop "Obus.exe"
+$installDir = Join-Path $env:LOCALAPPDATA "Programs\Obus"
+$deployedExe = Join-Path $installDir "Obus.exe"
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
 $startMenuShortcut = Join-Path $startMenu "Obus.lnk"
+$startupRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 
 if (-not $PythonPath -and -not (Test-Path $python)) {
     throw "Expected project interpreter was not found: $python"
@@ -51,19 +52,24 @@ if ($SkipInstall) {
     return
 }
 
+New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 Copy-Item $builtExe $deployedExe -Force
-$desktopHash = (Get-FileHash $deployedExe -Algorithm SHA256).Hash
-if ($sourceHash -ne $desktopHash) { throw "Desktop EXE hash does not match the verified build." }
+$installedHash = (Get-FileHash $deployedExe -Algorithm SHA256).Hash
+if ($sourceHash -ne $installedHash) { throw "Installed EXE hash does not match the verified build." }
 
 New-Item -ItemType Directory -Path $startMenu -Force | Out-Null
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($startMenuShortcut)
 $shortcut.TargetPath = $deployedExe
-$shortcut.WorkingDirectory = $desktop
+$shortcut.WorkingDirectory = $installDir
 $shortcut.IconLocation = "$deployedExe,0"
 $shortcut.Description = "Launch the local OBus dashboard"
 $shortcut.Save()
 
-Write-Host "Built and deployed: $deployedExe"
+New-Item -Path $startupRegistryPath -Force | Out-Null
+Set-ItemProperty -Path $startupRegistryPath -Name "Obus" -Value "`"$deployedExe`" --startup"
+
+Write-Host "Built and installed: $deployedExe"
 Write-Host "Start Menu shortcut: $startMenuShortcut"
-Write-Host "SHA-256: $desktopHash"
+Write-Host "Launch at login: enabled (system tray)"
+Write-Host "SHA-256: $installedHash"

@@ -27,6 +27,34 @@ Get-FileHash .\Obus.exe -Algorithm SHA256
 
 GitHub Actions uploads the Windows executable produced by the same non-installing build path.
 
+## Certified Windows releases
+
+Windows publisher trust is established with an Authenticode code-signing certificate issued to the publisher by a trusted certificate authority. Repository code cannot self-issue that identity or bypass SmartScreen reputation.
+
+Configure these GitHub Actions repository secrets before publishing a certified build:
+
+- `WINDOWS_CERTIFICATE_BASE64`: base64 encoding of the password-protected `.pfx` certificate
+- `WINDOWS_CERTIFICATE_PASSWORD`: the PFX password
+
+Create the base64 value locally without printing the password:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('publisher-certificate.pfx')) | Set-Clipboard
+```
+
+Push an annotated `v*` tag only after the secrets are configured. `.github/workflows/release.yml` verifies source, builds `Obus.exe`, signs with SHA-256 and a trusted timestamp, rejects an invalid configured signature, and publishes `Obus.exe`, `SHA256SUMS.txt`, and `signature.txt` to a GitHub Release. Releases are allowed to remain unsigned only when the certificate secret is absent, and `signature.txt` makes that status explicit.
+
+For stronger key isolation, replace the exported PFX step with the certificate authority's hardware-token or managed signing action. Protect the release environment, restrict secret access, require tag review, and never store a PFX or password in the repository.
+
+## Publishing
+
+```powershell
+git tag -a v1.0.0 -m "Obus 1.0.0"
+git push origin v1.0.0
+```
+
+Confirm the release workflow is green, download its assets, independently verify the checksum and `Get-AuthenticodeSignature`, then publish the release URL. See [install.md](install.md) for user-facing installation steps and [github-app.md](github-app.md) for the separate GitHub App registration process.
+
 ## Source deployment
 
 Run behind the local access boundary on loopback:

@@ -9,7 +9,9 @@ Obus is a local-first full-stack agent workspace with a FastAPI backend, browser
 - Windows for the packaged desktop executable
 - Optional: Ollama, provider API credentials, ComfyUI, NVIDIA Warp, and GitHub App credentials
 
-## Quick start
+## Install
+
+For the packaged Windows app, checksum and signature verification, launch-at-login, source installation, and uninstall steps, see [docs/install.md](docs/install.md).
 
 ```powershell
 python -m venv .venv
@@ -67,7 +69,13 @@ python -m pip install pyinstaller
 .\tools\obus_launcher\build_and_install.ps1 -SkipInstall -PythonPath python
 ```
 
-The verified artifact is written to `tools/obus_launcher/dist/Obus.exe` and its SHA-256 is printed. Omit `-SkipInstall` to install the executable and Start Menu shortcut using the project `.venv`.
+The verified artifact is written to `tools/obus_launcher/dist/Obus.exe` and its SHA-256 is printed. Omit `-SkipInstall` to install the executable and Start Menu shortcut using the project `.venv`. The packaged app remains in the Windows notification area; its menu opens Obus, toggles per-user **Start with Windows**, and exits the launcher-owned backend cleanly.
+
+Tagging a release with `v*` invokes the release workflow, reruns all gates, builds the executable, optionally Authenticode-signs it, verifies the signature, and publishes the executable and checksum. A trusted public build requires the repository signing secrets described in [docs/release.md](docs/release.md).
+
+## GitHub App integration
+
+To register a least-privilege GitHub App for repository memory synchronization, see [docs/github-app.md](docs/github-app.md). GitHub App registration and Windows executable certification are separate trust systems.
 
 ## Architecture and operations
 

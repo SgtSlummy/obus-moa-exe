@@ -91,6 +91,16 @@ class LauncherContractTests(unittest.TestCase):
         show_error.assert_called_once()
         browser_open.assert_not_called()
 
+    @patch("obus_launcher.threading.Thread")
+    @patch("obus_launcher.webbrowser.open")
+    @patch("obus_launcher.ensure_backend_running", return_value=True)
+    def test_startup_mode_stays_in_tray_without_opening_browser(self, ensure, browser_open, thread):
+        self.assertEqual(obus_launcher.launch_dashboard(show_browser=False, keep_alive=False), 0)
+        ensure.assert_called_once_with()
+        browser_open.assert_not_called()
+        thread.assert_called_once_with(target=obus_launcher.collect_readiness, name="obus-readiness", daemon=True)
+        thread.return_value.start.assert_called_once_with()
+
     def test_source_server_command_reenters_launcher_with_serve_mode(self):
         with patch.object(sys, "frozen", False, create=True):
             command = obus_launcher.backend_command()
