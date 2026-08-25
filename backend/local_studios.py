@@ -24,10 +24,18 @@ MAX_PROBE_BYTES = 1_000_000
 def _loopback_url(value: str, fallback: str) -> str:
     """Return a normalized local HTTP URL, never an arbitrary network target."""
     candidate = str(value or fallback).strip().rstrip("/")
-    parsed = urllib.parse.urlsplit(candidate)
-    if parsed.scheme not in {"http", "https"} or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+    try:
+        parsed = urllib.parse.urlsplit(candidate)
+        port = parsed.port
+    except ValueError:
         return fallback
-    return candidate
+    if parsed.scheme not in {"http", "https"} or parsed.hostname not in {"127.0.0.1", "localhost", "::1"} or parsed.username or parsed.password or parsed.query or parsed.fragment or (port is not None and not 1 <= port <= 65535):
+        return fallback
+    host = parsed.hostname
+    host_text = f"[{host}]" if ":" in host else host
+    default_port = (parsed.scheme == "http" and port == 80) or (parsed.scheme == "https" and port == 443)
+    port_text = "" if port is None or default_port else f":{port}"
+    return f"{parsed.scheme}://{host_text}{port_text}{parsed.path or ''}".rstrip("/")
 
 
 def _json_probe(url: str, path: str, timeout: float = 1.5) -> tuple[bool, dict[str, Any] | None]:
@@ -58,6 +66,8 @@ def comfyui_status() -> dict[str, Any]:
     config = comfyui_configuration()
     reachable, stats = _json_probe(config["url"], "/system_stats")
     system = (stats or {}).get("system") or {}
+    if not isinstance(system, dict):
+        system = {}
     launch_ready = (config["home"] / "main.py").is_file() and config["python"].is_file()
     reason = "ready" if reachable else "service_not_running" if launch_ready else "source_not_found"
     next_step = "none" if reachable else "start_local_service" if launch_ready else "configure_source_root"

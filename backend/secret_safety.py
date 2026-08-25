@@ -11,12 +11,12 @@ SECRET_KEYS = {
     "password", "secret", "private_key", "credential", "authorization",
     "auth", "basic_auth", "auth_token", "pem", "certificate", "client_secret",
     "session_token", "sessiontoken", "id_token", "idtoken", "secret_key", "privatekey", "credentials",
-    "clientsecret", "refreshtoken", "accesstoken", "private_messages", "private_transcript",
+    "clientsecret", "refreshtoken", "accesstoken", "aws_secret_access_key", "aws_access_key_id", "google_application_credentials", "azure_client_secret", "private_messages", "private_transcript",
     "hidden_prompt", "room_messages", "internal_context",
 }
 
 _FIELD_PATTERN = re.compile(
-    r'''(?ix)(?:["']?(?:api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\]]+)'''
+    r'''(?ix)(?:["']?(?:aws[_-]?secret[_-]?access[_-]?key|aws[_-]?access[_-]?key[_-]?id|google[_-]?application[_-]?credentials|azure[_-]?client[_-]?secret|api[_-]?key|x-api-key|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|session[_-]?token|sessionToken|client[_-]?secret|clientSecret|private[_-]?key|privateKey|id[_-]?token|idToken|auth[_-]?token|authToken|authorization|credential|credentials|secret[_-]?key|secretKey|basic[_-]?auth|basicAuth|pem|certificate|password|secret)["']?)\s*[:=]\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\]]+)'''
 )
 _SECRET_PATTERNS = (
     (re.compile(r"(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"), "[PRIVATE KEY REDACTED]"),
@@ -62,13 +62,22 @@ def redact_text(value: Any, limit: int = 4000, *, parse_json: bool = True) -> st
     return text.strip()[:limit]
 
 
-def redact_value(value: Any, key: str | None = None) -> Any:
+def redact_value(value: Any, key: str | None = None, depth: int = 0) -> Any:
     if key and is_secret_key(key):
         return "[REDACTED]"
+    if depth >= 20:
+        return "[OUTPUT TRUNCATED: nesting limit]"
     if isinstance(value, dict):
-        return {str(child_key): redact_value(child, str(child_key)) for child_key, child in value.items() if not is_secret_key(child_key)}
+        output = {}
+        for index, (child_key, child) in enumerate(value.items()):
+            if index >= 1000:
+                output["_output_truncated"] = True
+                break
+            if not is_secret_key(child_key):
+                output[str(child_key)] = redact_value(child, str(child_key), depth + 1)
+        return output
     if isinstance(value, list):
-        return [redact_value(child) for child in value[:20]]
+        return [redact_value(child, depth=depth + 1) for child in value[:20]]
     if isinstance(value, str):
         return redact_text(value, 2000)
     if isinstance(value, (int, float, bool)) or value is None:

@@ -62,14 +62,21 @@ def run_bounded_subprocess(
     ]
     for thread in threads:
         thread.start()
+    timeout_error = None
     try:
         return_code = process.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
-        raise
-    for thread in threads:
-        thread.join(timeout=2)
+    except subprocess.TimeoutExpired as exc:
+        timeout_error = exc
+        try:
+            process.kill()
+        finally:
+            process.wait()
+        return_code = process.returncode
+    finally:
+        for thread in threads:
+            thread.join(timeout=2)
+    if timeout_error is not None:
+        raise timeout_error
     if len(stdout) + len(stderr) > limit or overflow.is_set():
         raise RuntimeError("Local subprocess output exceeded the bounded response limit")
     return subprocess.CompletedProcess(

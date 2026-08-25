@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from backend.process_utils import run_bounded_subprocess, silent_process_kwargs
+from backend.process_utils import MAX_SUBPROCESS_OUTPUT_BYTES, run_bounded_subprocess, silent_process_kwargs
 
 MAX_PERSISTENT_AGENTS = 30
 MAX_AGENT_STEPS = 8
@@ -285,7 +285,13 @@ def execute_codex_prompt(command_builder: Callable[..., list[str] | None], key: 
     command.extend(["--output-last-message", str(output_path), prompt])
     try:
         result = run_bounded_subprocess(command, timeout=300, cwd=workdir)
-        output = output_path.read_text(encoding="utf-8", errors="replace").strip() if output_path.exists() else ""
+        if not output_path.is_file() or output_path.stat().st_size > MAX_SUBPROCESS_OUTPUT_BYTES:
+            raise RuntimeError("Codex output exceeded the bounded response limit")
+        with output_path.open("rb") as handle:
+            output = handle.read(MAX_SUBPROCESS_OUTPUT_BYTES + 1)
+        if len(output) > MAX_SUBPROCESS_OUTPUT_BYTES:
+            raise RuntimeError("Codex output exceeded the bounded response limit")
+        output = output.decode("utf-8", "replace").strip()
         if result.returncode != 0 or not output:
             raise RuntimeError("Codex execution failed")
         return output

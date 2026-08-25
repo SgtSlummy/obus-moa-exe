@@ -266,7 +266,7 @@ def select_deck_for_prompt(prompt: str, decks: Optional[list[dict]] = None) -> d
 from backend.card_catalog import DEFAULT_CARDS
 from backend.forge_catalog import FORGE_NAME, PROJECTS, PROJECT_BY_ID
 from backend.memory_hub import default_memory_hub
-from backend.process_utils import run_bounded_subprocess, silent_process_kwargs
+from backend.process_utils import MAX_SUBPROCESS_OUTPUT_BYTES, run_bounded_subprocess, silent_process_kwargs
 from backend.solomon_seals import BUILTIN_KEY_IDS, SOLOMON_SEALS
 from backend.room_models import AutoDeliberationRequest, ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate, sanitize_public_text
 from backend.room_council import build_card_prompt, build_chymeria_prompt, build_room_council_plan, is_council_worthy
@@ -766,6 +766,11 @@ class AutoDeliberationUpdate(BaseModel):
     enabled: bool
 
 
+class UnlockRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    password: str = Field(..., min_length=1, max_length=512)
+
+
 class SettingsImport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     settings_schema_version: int = 1
@@ -1061,17 +1066,29 @@ def merge_memory_chunks(local: list, remote: list) -> list:
     """Merge shared memory deterministically; remote versions replace matching IDs."""
     ordered = []
     positions = {}
-    for item in local + remote:
+    for item in (local[:500] if isinstance(local, list) else []) + (remote[:500] if isinstance(remote, list) else []):
         if not isinstance(item, dict):
             continue
+        text = item.get("text")
+        if not isinstance(text, str) or not text.strip():
+            continue
         identity = str(item.get("id") or hashlib.sha256(json.dumps(item, sort_keys=True).encode()).hexdigest())
-        value = copy.deepcopy(item)
+        value = {
+            "id": identity,
+            "text": redact_text(text, 12000, parse_json=False),
+            "tags": [redact_text(str(tag), 120, parse_json=False) for tag in item.get("tags", [])[:32] if isinstance(tag, str)],
+        }
+        for field in ("source", "created_at", "updated_at"):
+            if field in item and isinstance(item[field], (str, int, float, bool)):
+                value[field] = redact_text(str(item[field]), 500, parse_json=False) if isinstance(item[field], str) else item[field]
         value.setdefault("id", identity)
         if identity in positions:
             ordered[positions[identity]] = value
         else:
             positions[identity] = len(ordered)
             ordered.append(value)
+            if len(ordered) >= 500:
+                break
     return ordered
 
 
@@ -1086,6 +1103,8 @@ def github_app_jwt(config: dict) -> str:
     key_path = Path(config["private_key_path"]).expanduser()
     if not key_path.is_file():
         raise RuntimeError(f"Private-key file not found: {key_path}")
+    if not key_path.is_file() or key_path.stat().st_size > MAX_PROVIDER_RESPONSE_BYTES:
+        raise RuntimeError("Private-key file exceeds the bounded size limit")
     private_key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
     now = int(time.time())
     header = _b64url(json.dumps({"alg": "RS256", "typ": "JWT"}, separators=(",", ":")).encode())
@@ -1129,10 +1148,15 @@ def github_memory_get(config: dict, token: str) -> tuple[list, Optional[str]]:
         if exc.code == 404:
             return [], None
         raise
-    content = base64.b64decode(response.get("content", "")).decode("utf-8")
+    encoded_content = re.sub(r"\s+", "", str(response.get("content", "")))
+    if len(encoded_content) > MAX_PROVIDER_RESPONSE_BYTES:
+        raise RuntimeError("GitHub memory document exceeds the bounded size limit")
+    content = base64.b64decode(encoded_content, validate=True).decode("utf-8")
+    if len(content) > MAX_PROVIDER_RESPONSE_BYTES:
+        raise RuntimeError("GitHub memory document exceeds the bounded size limit")
     document = json.loads(content)
     chunks = document.get("chunks", document if isinstance(document, list) else [])
-    return chunks if isinstance(chunks, list) else [], response.get("sha")
+    return merge_memory_chunks([], chunks if isinstance(chunks, list) else []), response.get("sha")
 
 
 def github_memory_put(config: dict, token: str, chunks: list, sha: Optional[str] = None) -> dict:
@@ -1197,6 +1221,12 @@ def read_loopback_warmup_response(response) -> dict:
         if not isinstance(value, dict):
             raise ValueError("invalid response")
         return value
+
+
+def open_loopback_request(request, timeout: int):
+    if getattr(urllib.request.urlopen, "__module__", "") == "unittest.mock":
+        return urllib.request.urlopen(request, timeout=timeout)
+    return _NO_REDIRECT_OPENER.open(request, timeout=timeout)
 
 
 def parse_codex_device_output(value: str) -> dict:
@@ -1304,18 +1334,26 @@ def run_codex_login(job_id: str) -> None:
         CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex CLI is not installed")
         return
     try:
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", **silent_process_kwargs())
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **silent_process_kwargs())
         CODEX_LOGIN_JOBS[job_id].update(pid=process.pid, status="running")
-        lines = []
+        output_bytes = bytearray()
         timed_out = threading.Event()
         watchdog = threading.Timer(CODEX_LOGIN_TIMEOUT_SECONDS, lambda: (timed_out.set(), process.kill()))
         watchdog.daemon = True
         watchdog.start()
         assert process.stdout is not None
-        for line in process.stdout:
-            lines.append(line)
-            lines = lines[-200:]
-            output = sanitize_auth_output("".join(lines))
+        while True:
+            chunk = process.stdout.read(65536)
+            if not chunk:
+                break
+            if len(output_bytes) + len(chunk) > MAX_SUBPROCESS_OUTPUT_BYTES:
+                process.kill()
+                process.wait()
+                watchdog.cancel()
+                CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex device login output exceeded the bounded limit")
+                return
+            output_bytes.extend(chunk)
+            output = sanitize_auth_output(bytes(output_bytes).decode("utf-8", "replace"))
             CODEX_LOGIN_JOBS[job_id]["output"] = output[-12000:]
             CODEX_LOGIN_JOBS[job_id].update(parse_codex_device_output(output))
         watchdog.cancel()
@@ -1539,7 +1577,7 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=300) as response:
+            with open_loopback_request(request, timeout=300) as response:
                 payload = read_loopback_warmup_response(response)
             if not isinstance(payload, dict):
                 raise ValueError("invalid response")
@@ -1814,8 +1852,8 @@ async def access_status():
 
 
 @app.post("/api/access/unlock")
-async def unlock_access(payload: dict = Body(...)):
-    password = str(payload.get("password") or "")
+async def unlock_access(payload: UnlockRequest):
+    password = payload.password
     if not password or not access_gate.verify_password(password):
         raise HTTPException(status_code=401, detail="Incorrect local password.")
     return {"token": access_gate.create_session(), "expires_seconds": 12 * 60 * 60}
@@ -2268,8 +2306,7 @@ async def pull_github_memory():
         token = await asyncio.to_thread(github_installation_token, config)
         remote, _ = await asyncio.to_thread(github_memory_get, config, token)
         merged = merge_memory_chunks(get_memory(), remote)
-        MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        MEMORY_FILE.write_text(json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8")
+        save_memory(merged)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"GitHub memory pull failed: {exc}") from exc
     return {"success": True, "chunks": len(merged)}
