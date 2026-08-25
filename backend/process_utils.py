@@ -70,7 +70,7 @@ def run_bounded_subprocess(
         raise
     for thread in threads:
         thread.join(timeout=2)
-    if overflow.is_set():
+    if len(stdout) + len(stderr) > limit or overflow.is_set():
         raise RuntimeError("Local subprocess output exceeded the bounded response limit")
     return subprocess.CompletedProcess(
         command,

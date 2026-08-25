@@ -11,11 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from backend.process_utils import silent_process_kwargs
+from backend.persistent_agents import _NoRedirectHandler
 
 
 DEFAULT_COMFYUI_URL = "http://127.0.0.1:8188"
 DEFAULT_UNDERSTAND_ANYTHING_URL = "http://127.0.0.1:5173"
 MAX_GRAPH_BYTES = 5 * 1024 * 1024
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
+MAX_PROBE_BYTES = 1_000_000
 
 
 def _loopback_url(value: str, fallback: str) -> str:
@@ -29,10 +32,13 @@ def _loopback_url(value: str, fallback: str) -> str:
 
 def _json_probe(url: str, path: str, timeout: float = 1.5) -> tuple[bool, dict[str, Any] | None]:
     try:
-        with urllib.request.urlopen(f"{url}{path}", timeout=timeout) as response:
+        with _NO_REDIRECT_OPENER.open(urllib.request.Request(f"{url}{path}", method="GET"), timeout=timeout) as response:
             if response.status != 200:
                 return False, None
-            value = json.loads(response.read().decode("utf-8"))
+            raw = response.read(MAX_PROBE_BYTES + 1)
+            if len(raw) > MAX_PROBE_BYTES:
+                return False, None
+            value = json.loads(raw.decode("utf-8"))
             return True, value if isinstance(value, dict) else None
     except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
         return False, None

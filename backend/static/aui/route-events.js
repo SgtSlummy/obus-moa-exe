@@ -39,7 +39,7 @@
           if ((!allowed.size || allowed.has(payload.type)) && typeof onEvent === "function") onEvent(payload, event);
           lastEventId = payload.id || event.lastEventId || lastEventId;
         };
-        knownTypes.forEach((type) => source.addEventListener(type, handle));
+        new Set([...knownTypes, ...effectiveTypes]).forEach((type) => source.addEventListener(type, handle));
         let fallback = null;
         source.onerror = (event) => {
           if (!fallback) { source.close(); fallback = startPolling(lastEventId); }
