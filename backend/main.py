@@ -3275,7 +3275,12 @@ async def create_key(create: KeyCreate):
     while key_id in ids:
         key_id = f"{base_id}-{suffix}"
         suffix += 1
+    try:
+        canonical_base_url = _validated_provider_base_url(create.provider, create.base_url)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail="base_url must be an approved secret-free provider endpoint") from exc
     key = create.model_dump()
+    key["base_url"] = canonical_base_url
     key.update({
         "id": key_id, "oauth": False, "verified": False,
         "approved": False, "active": False,
@@ -3305,6 +3310,11 @@ async def update_key(key_id: str, update: KeyUpdate = Body(...)):
         raise HTTPException(status_code=400, detail="state must be ready, staged, or disabled")
     if changes.get("max_context_tokens") is not None and changes["max_context_tokens"] <= 0:
         raise HTTPException(status_code=400, detail="Context window must be positive")
+    if "base_url" in changes:
+        try:
+            changes["base_url"] = _validated_provider_base_url(str(changes.get("provider") or key.get("provider") or "custom"), changes["base_url"])
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail="base_url must be an approved secret-free provider endpoint") from exc
     sensitive_fields = {"provider", "model", "base_url", "env_var"}
     sensitive_changed = any(field in changes and changes[field] != key.get(field) for field in sensitive_fields)
     prospective_verified = bool(key.get("verified")) and not sensitive_changed

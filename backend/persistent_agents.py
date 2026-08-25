@@ -217,7 +217,14 @@ def _validated_provider_base_url(provider: str, value: object) -> str:
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
     host = parsed.hostname.casefold()
     loopback = host in {"localhost", "127.0.0.1", "::1"}
-    allowed = loopback or (provider == "anthropic" and host == "api.anthropic.com") or (provider in {"google", "gemini"} and host == "generativelanguage.googleapis.com") or (provider == "huggingface" and host.endswith("huggingface.co")) or (provider == "azure" and host.endswith(".openai.azure.com"))
+    allowed_hosts = {
+        "anthropic": {"api.anthropic.com"}, "google": {"generativelanguage.googleapis.com"},
+        "gemini": {"generativelanguage.googleapis.com"}, "openrouter": {"openrouter.ai"},
+        "mistral": {"api.mistral.ai"}, "groq": {"api.groq.com"}, "xai": {"api.x.ai"},
+        "together": {"api.together.xyz"}, "fireworks": {"api.fireworks.ai"},
+        "deepseek": {"api.deepseek.com"}, "cerebras": {"api.cerebras.ai"},
+    }
+    allowed = loopback or host in allowed_hosts.get(provider, set()) or (provider == "huggingface" and (host == "huggingface.co" or host.endswith(".huggingface.co"))) or (provider == "azure" and host.endswith(".openai.azure.com"))
     if not allowed or (not loopback and parsed.scheme != "https"):
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
     return candidate
