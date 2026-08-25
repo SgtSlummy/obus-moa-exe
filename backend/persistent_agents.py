@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from backend.process_utils import silent_process_kwargs
+from backend.process_utils import run_bounded_subprocess, silent_process_kwargs
 
 MAX_PERSISTENT_AGENTS = 30
 MAX_AGENT_STEPS = 8
@@ -284,7 +284,7 @@ def execute_codex_prompt(command_builder: Callable[..., list[str] | None], key: 
         output_path = Path(temp.name)
     command.extend(["--output-last-message", str(output_path), prompt])
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=300, cwd=workdir, encoding="utf-8", errors="replace", **silent_process_kwargs())
+        result = run_bounded_subprocess(command, timeout=300, cwd=workdir)
         output = output_path.read_text(encoding="utf-8", errors="replace").strip() if output_path.exists() else ""
         if result.returncode != 0 or not output:
             raise RuntimeError("Codex execution failed")

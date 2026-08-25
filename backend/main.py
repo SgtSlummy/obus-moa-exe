@@ -266,7 +266,7 @@ def select_deck_for_prompt(prompt: str, decks: Optional[list[dict]] = None) -> d
 from backend.card_catalog import DEFAULT_CARDS
 from backend.forge_catalog import FORGE_NAME, PROJECTS, PROJECT_BY_ID
 from backend.memory_hub import default_memory_hub
-from backend.process_utils import silent_process_kwargs
+from backend.process_utils import run_bounded_subprocess, silent_process_kwargs
 from backend.solomon_seals import BUILTIN_KEY_IDS, SOLOMON_SEALS
 from backend.room_models import AutoDeliberationRequest, ForumMessageCreate, ForumThreadCreate, RoomCreate, RoomRunRequest, RoomUpdate, sanitize_public_text
 from backend.room_council import build_card_prompt, build_chymeria_prompt, build_room_council_plan, is_council_worthy
@@ -798,7 +798,7 @@ class RouteRequest(BaseModel):
 
 
 class HarnessPreviewRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(..., min_length=1, max_length=4000)
 
 
 class MachineSetupUpdate(BaseModel):
@@ -808,14 +808,14 @@ class MachineSetupUpdate(BaseModel):
 
 
 class VoiceTranscriptionRequest(BaseModel):
-    audio_base64: str
-    mime_type: str = "audio/webm"
+    audio_base64: str = Field(..., min_length=1, max_length=20_000_000)
+    mime_type: str = Field(default="audio/webm", max_length=100)
 
 
 class MemoryCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    text: str
-    tags: List[str] = []
+    text: str = Field(..., min_length=1, max_length=12_000)
+    tags: List[str] = Field(default_factory=list, max_length=32)
 
 
 class WarmupRequest(BaseModel):
@@ -1175,10 +1175,7 @@ MAX_PROVIDER_RESPONSE_BYTES = 4_000_000
 
 
 def read_bounded_json_response(response, limit: int = MAX_PROVIDER_RESPONSE_BYTES) -> dict:
-    try:
-        raw = response.read(limit + 1)
-    except TypeError:
-        raw = response.read()
+    raw = response.read(limit + 1)
     if len(raw) > limit:
         raise RuntimeError("Provider response exceeded the bounded response limit")
     value = json.loads(raw.decode("utf-8")) if raw else {}
@@ -1187,22 +1184,19 @@ def read_bounded_json_response(response, limit: int = MAX_PROVIDER_RESPONSE_BYTE
     return value
 
 
-def run_bounded_subprocess(command: list[str], timeout: int | float, limit: int = MAX_PROVIDER_RESPONSE_BYTES):
-    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
-        process = subprocess.Popen(command, stdout=stdout_file, stderr=stderr_file, **silent_process_kwargs())
-        try:
-            return_code = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+def read_loopback_warmup_response(response) -> dict:
+    try:
+        return read_bounded_json_response(response)
+    except TypeError:
+        if hasattr(response, "headers"):
             raise
-        stdout_file.seek(0)
-        stderr_file.seek(0)
-        stdout = stdout_file.read(limit + 1)
-        stderr = stderr_file.read(limit + 1)
-    if len(stdout) > limit or len(stderr) > limit:
-        raise RuntimeError("Local subprocess output exceeded the bounded response limit")
-    return subprocess.CompletedProcess(command, return_code, stdout.decode("utf-8", "replace"), stderr.decode("utf-8", "replace"))
+        raw = response.read()
+        if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+            raise RuntimeError("Loopback warmup response exceeded the bounded response limit")
+        value = json.loads(raw.decode("utf-8")) if raw else {}
+        if not isinstance(value, dict):
+            raise ValueError("invalid response")
+        return value
 
 
 def parse_codex_device_output(value: str) -> dict:
@@ -1238,7 +1232,7 @@ def probe_key_live(key: dict) -> dict:
         if not command:
             return {"success": False, "status_code": None, "reason": "cli_missing", "message": "Codex CLI is not installed"}
         try:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace", **silent_process_kwargs())
+            result = run_bounded_subprocess(command, timeout=15)
             output = sanitize_auth_output((result.stdout or "") + (result.stderr or "")).lower()
             logged_in = result.returncode == 0 and "logged in" in output
             return {
@@ -1299,6 +1293,9 @@ def probe_key_live(key: dict) -> dict:
 
 CODEX_LOGIN_JOBS: dict[str, dict] = {}
 FORGE_INSTALL_JOBS: dict[str, dict] = {}
+CODEX_LOGIN_LOCK = threading.Lock()
+CODEX_LOGIN_MAX_JOBS = 32
+CODEX_LOGIN_TIMEOUT_SECONDS = 300
 
 
 def run_codex_login(job_id: str) -> None:
@@ -1310,12 +1307,21 @@ def run_codex_login(job_id: str) -> None:
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", **silent_process_kwargs())
         CODEX_LOGIN_JOBS[job_id].update(pid=process.pid, status="running")
         lines = []
+        timed_out = threading.Event()
+        watchdog = threading.Timer(CODEX_LOGIN_TIMEOUT_SECONDS, lambda: (timed_out.set(), process.kill()))
+        watchdog.daemon = True
+        watchdog.start()
         assert process.stdout is not None
         for line in process.stdout:
             lines.append(line)
+            lines = lines[-200:]
             output = sanitize_auth_output("".join(lines))
-            CODEX_LOGIN_JOBS[job_id]["output"] = output
+            CODEX_LOGIN_JOBS[job_id]["output"] = output[-12000:]
             CODEX_LOGIN_JOBS[job_id].update(parse_codex_device_output(output))
+        watchdog.cancel()
+        if timed_out.is_set():
+            CODEX_LOGIN_JOBS[job_id].update(status="error", output="Codex device login timed out")
+            return
         code = process.wait()
         CODEX_LOGIN_JOBS[job_id]["status"] = "complete" if code == 0 else "error"
         CODEX_LOGIN_JOBS[job_id]["return_code"] = code
@@ -1342,7 +1348,7 @@ def isolated_import_status(module: str) -> tuple[bool, str]:
         if not interpreter.is_file():
             continue
         try:
-            result = subprocess.run([str(interpreter), "-c", f"import {module}; print('ready')"], capture_output=True, text=True, timeout=45, encoding="utf-8", errors="replace", **silent_process_kwargs())
+            result = run_bounded_subprocess([str(interpreter), "-c", f"import {module}; print('ready')"], timeout=45)
             if result.returncode == 0:
                 return True, str(interpreter)
         except Exception:
@@ -1375,7 +1381,7 @@ def forge_project_status(project: dict) -> dict:
         interpreter = integrations / "vllm" / "Scripts" / "python.exe"
         if interpreter.is_file():
             try:
-                result = subprocess.run([str(interpreter), "-c", "import vllm,torch; print(vllm.__version__,torch.__version__,torch.cuda.is_available())"], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace", **silent_process_kwargs())
+                result = run_bounded_subprocess([str(interpreter), "-c", "import vllm,torch; print(vllm.__version__,torch.__version__,torch.cuda.is_available())"], timeout=60)
                 evidence.append(f"native install: {result.stdout.strip()}")
             except Exception:
                 pass
@@ -1534,7 +1540,7 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
         )
         try:
             with urllib.request.urlopen(request, timeout=300) as response:
-                payload = read_bounded_json_response(response)
+                payload = read_loopback_warmup_response(response)
             if not isinstance(payload, dict):
                 raise ValueError("invalid response")
         except (OSError, urllib.error.URLError, ValueError, TypeError, UnicodeDecodeError, RuntimeError) as exc:
@@ -2275,7 +2281,7 @@ async def codex_status():
     if not command:
         return {"available": False, "logged_in": False, "message": "Codex CLI is not installed"}
     try:
-        result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace", **silent_process_kwargs())
+        result = await asyncio.to_thread(run_bounded_subprocess, command, 15)
         output = sanitize_auth_output((result.stdout or "") + (result.stderr or "")).strip()
         return {"available": True, "logged_in": result.returncode == 0, "message": output or "Codex login status checked"}
     except Exception as exc:
@@ -2286,8 +2292,15 @@ async def codex_status():
 async def start_codex_login():
     if not codex_command("login", "--device-auth"):
         raise HTTPException(status_code=503, detail="Codex CLI is not installed")
-    job_id = uuid.uuid4().hex
-    CODEX_LOGIN_JOBS[job_id] = {"status": "starting", "output": "Starting Codex device login…", "verification_url": CODEX_DEVICE_URL, "user_code": None}
+    with CODEX_LOGIN_LOCK:
+        now = time.time()
+        for old_id, old_job in list(CODEX_LOGIN_JOBS.items()):
+            if old_job.get("status") in {"complete", "error"} and now - float(old_job.get("created_at", now)) > 3600:
+                CODEX_LOGIN_JOBS.pop(old_id, None)
+        if sum(job.get("status") in {"starting", "running"} for job in CODEX_LOGIN_JOBS.values()) >= CODEX_LOGIN_MAX_JOBS:
+            raise HTTPException(status_code=503, detail="Codex login capacity is temporarily full")
+        job_id = uuid.uuid4().hex
+        CODEX_LOGIN_JOBS[job_id] = {"status": "starting", "output": "Starting Codex device login…", "verification_url": CODEX_DEVICE_URL, "user_code": None, "created_at": now}
     threading.Thread(target=run_codex_login, args=(job_id,), daemon=True).start()
     return {"job_id": job_id, "status": "starting", "verification_url": CODEX_DEVICE_URL}
 
@@ -2386,7 +2399,7 @@ async def forge_recommend():
     models = []
     if command:
         try:
-            result = await asyncio.to_thread(subprocess.run, [command, "recommend", "--json"], capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace", **silent_process_kwargs())
+            result = await asyncio.to_thread(run_bounded_subprocess, [command, "recommend", "--json"], 180)
             payload = json.loads(result.stdout) if result.returncode == 0 else {}
             raw_system = payload.get("system", {})
             system = {
