@@ -50,6 +50,30 @@ class AUIModuleContractTests(unittest.TestCase):
         self.assertIn('OBusPlan', plan.text)
         self.assertIn('OBusMemory', memory.text)
 
+    def test_heritage_workbench_loads_last_with_offline_safe_phi_tokens(self):
+        client = TestClient(backend.app)
+        html = client.get('/').text
+        heritage = client.get('/static/aui/heritage-workbench.css')
+
+        self.assertIn('/static/aui/heritage-workbench.css', html)
+        self.assertLess(html.index('</style>'), html.index('/static/aui/heritage-workbench.css'))
+        self.assertEqual(heritage.status_code, 200)
+        for marker in (
+            '--phi: 1.61803398875',
+            '--space-phi',
+            '--ink:',
+            '--parchment:',
+            '--brass:',
+            '--verdigris:',
+            '--focus:',
+            '--control-min: 40px',
+            'grid-template-columns: minmax(0, var(--phi)fr) minmax(17rem, 1fr)',
+            'resize: vertical',
+        ):
+            self.assertIn(marker, heritage.text)
+        self.assertNotIn('@import url(', heritage.text)
+        self.assertNotIn('https://fonts.', heritage.text)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
