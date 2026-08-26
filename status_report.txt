@@ -1,7 +1,7 @@
-# System Status Report - 2026-08-26 12:39 PDT
+# System Status Report - 2026-08-26 13:41 PDT
 
 **Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-26 12:39 PDT (UTC-07:00)  
+**Run Time:** 2026-08-26 13:41 PDT (UTC-07:00)  
 **Schedule:** every 10m
 
 ---
@@ -9,24 +9,29 @@
 ## Active Projects & Pushes
 
 ### obus-moa-exe (SgtSlummy) — MAIN
-- **Commit:** 2f80dd4 — chore: refresh warp submodule pointers to upstream latest
+- **Commit:** `eef2b96` — chore: refresh status and task reports for 12:39 cycle
 - **Branch:** master → origin/master ✅
-- **Pushed this cycle** — submodule pointer refresh pushed.
+- **Status:** Fully in sync. No push needed this cycle.
+
+### obus-moa-exe (SgtSlummy) — SOURCE WORKTREE
+- **Branch:** `codex/autonomy-context-agents`
+- **Base commit:** `77a6f02` (09:13 cycle) — **4 commits behind** origin/master
+- **Push status:** ✅ **Branch pushed to origin this cycle** — now exists on remote
+- **Local state:** 31 dirty files (unstaged), extensive untracked feature work — nothing committed
 
 ### warp (submodule, nvidia/warp)
-- **Commit:** 808ddbdc0 — Invalidate cached FEM arguments after rebuilds [GH-1852]
+- **Commit:** `808ddbdc0` — Invalidate cached FEM arguments after rebuilds [GH-1852]
 - **Branch:** main → origin/main (local, push blocked)
-- **Upstream pull:** pulled latest `808ddbdc0` (v1.4.0-3533), pointer updated.
+- **Note:** Superproject pointer at `dd76273` (v1.4.0-3532), 1 commit behind actual submodule HEAD
 
 ### Understand-Anything (submodule, Egonex-AI)
-- **Commit:** 99e62b7 — Sync Understand-Anything submodule changes for deploy
+- **Commit:** `99e62b7` — Sync Understand-Anything submodule changes for deploy
 - **Branch:** main → origin/main ❌ ahead 2
 - **Push blocked:** 403 (not collaborator)
 
 ### third_party/warpdotdev-warp (submodule)
-- **Commit:** 6afb6c8 — Update common skills lock for warpdotdev/common-skills#77 (#15577)
+- **Commit:** `6afb6c8` — Update common skills lock for warpdotdev/common-skills#77 (#15577)
 - **State:** detached HEAD at upstream warpdotdev/warp master
-- **Upstream pull:** pulled latest `6afb6c8`, pointer updated.
 - **Push blocked:** detached + 403
 
 ### Tarot-Router (occultbus)
@@ -36,27 +41,45 @@
 
 ## Build / EXE Status
 
-- Build pipeline idle — no new loop EXEs since Aug 25 10:46
-- Latest EXE: dist-onedrive-fix/OBus.exe (133.6MB, Aug 25 10:46)
+- **Main dir pipeline:** Idle — no new loop EXEs since Aug 25 10:46 (27 hours)
+- **Latest main EXE:** `dist-onedrive-fix/OBus.exe` (133.6MB, Aug 25 10:46)
+- **Running instance:** `dist-aui-loop21/OBus.exe` (67.5MB, Aug 24 16:31, PID 18292)
+- **Source worktree builds:** `dist-aui-loop10/OBus.exe` (70.7MB) and `dist-aui-loop5/OBus.exe` (70.6MB), both Aug 26 09:38
 - No active build/deploy tasks running
 
 ---
 
 ## Process Inventory (summary)
 
-~343 processes. OBus ecosystem fully operational (unchanged from 09:39 cycle):
-- 20 OBus.exe instances
-- Supporting: Codex (1), ollama (2), gortex (3), pinchtab (3), mempalace (2), cua-driver (1), llama-server (1)
+No background processes registered in this Hermes session this cycle. System processes from prior observations:
+- 20+ OBus.exe instances across various builds
+- Supporting: Codex, ollama, gortex, pinchtab, mempalace, cua-driver, llama-server
 - Browser/discord: chrome (10), DiscordPTB (6), ChatGPT (7)
 - Infrastructure: Docker Desktop, WSL, python (24+), node (4)
 
+**Listening ports:**
+- `:8000` — OBus MOA FastAPI backend (confirmed live)
+- `:3000` — Davy Jones server control panel (confirmed live)
+
 ---
 
-## Upstream Changes Pulled This Cycle
+## Upstream Changes (pulled/potential)
 
 | Submodule | New Commit | Description |
 |-----------|-----------|-------------|
-| warp | 808ddbdc0 | Invalidate cached FEM arguments after rebuilds [GH-1852] |
-| warpdotdev-warp | 6afb6c8 | Update common skills lock for warpdotdev/common-skills#77 (#15577) |
-| | 43de7e4 | Fix warp_tui compile error: thread RequestTeamScope through TUI voice transcription (#15570) |
-| | d6a389d | [multi-team P3a] Parse and store the team catalog into UserWorkspaces (#15463) |
+| warp | `808ddbdc0` | Invalidate cached FEM arguments after rebuilds [GH-1852] |
+| warpdotdev-warp | `6afb6c8` | Update common skills lock for warpdotdev/common-skills#77 (#15577) |
+
+---
+
+## Key Observations
+
+1. **Source worktree branch pushed for first time** — `codex/autonomy-context-agents` now on origin. But the branch has 31 dirty files and extensive uncommitted feature work that hasn't been pushed as commits.
+
+2. **Main repo is fully in sync** — `eef2b96` matches origin/master. No action needed on master.
+
+3. **Worktree is 4 commits behind master** — missing report-refresh commits from 09:39–12:39 cycles.
+
+4. **Build pipeline idle** — last main-dir build Aug 25 10:46. Worktree had builds Aug 26 09:38 (fresh, larger EXEs).
+
+5. **Loop21 still running** despite 55 newer loop EXEs existing — live OBus instance unchanged.
