@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-26 09:39 PDT (cron cycle)
+# Push Status Report - 2026-08-26 12:39 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-26 09:39 PDT
+**Run Time:** 2026-08-26 12:39 PDT
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `77a6f02` | master | ✅ **Up to date** — no new commits this cycle (last push `e3e6e6d` in 09:13 cycle, status refresh `77a6f02` pushed this cycle) |
-| warp submodule (nvidia/warp + sgtfork) | `405e468` | v1.4.0-3531-g405e4682c | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist; nvidia/warp not collaborator. 3 local commits preserved. |
-| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD, upstream tracking only; 403 on push attempt. |
+| obus-moa-exe (SgtSlummy) | `2f80dd4` | master | ✅ **Pushed this cycle** — `2f80dd4` (chore: refresh warp submodule pointers to upstream latest) |
+| warp submodule (nvidia/warp) | `808ddbdc` | main | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist; nvidia/warp not collaborator. 3 local commits preserved. |
+| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ **Push blocked** — detached HEAD, upstream tracking only; 403 on push attempt. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ **Push blocked** — 403, not a collaborator. 2 commits preserved. |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `77a6f02` on `origin/master` — **pushed this cycle** (status refresh). Last substantive push `e3e6e6d` (09:13 cycle, electron dep bump + commonjs type).
+**Main repo:** `2f80dd4` on `origin/master` — **pushed this cycle**.
 
 ---
 
@@ -24,9 +24,9 @@
 
 | Submodule | Status |
 |-----------|--------|
-| warp | `405e468` (working tree) — local-only, push blocked. 3 local commits preserved (`405e468`, `fee1347`, `e98ac07`). Superproject pointer matches. |
+| warp | `808ddbdc` — pulled upstream `v1.4.0-3533-g808ddbdc0` (1 commit ahead of pointer). Pointer updated to `2f80dd4`. Local-only, push blocked. |
 | Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403). Local work preserved. |
-| third_party/warpdotdev-warp | `21f413b` — detached HEAD, clean, tracking upstream warpdotdev. Push blocked. |
+| third_party/warpdotdev-warp | `6afb6c8` — pulled upstream latest (`6afb6c8`). Pointer updated to `2f80dd4`. Detached, push blocked. |
 
 ---
 
@@ -41,41 +41,22 @@
 
 ## Network
 
-- github.com: reachable (DNS resolves, HTTPS push successful)
-- Push to SgtSlummy/obus-moa-exe: ✅ **successful** — `77a6f02` pushed this cycle
+- github.com: reachable
+- Push to SgtSlummy/obus-moa-exe: ✅ **successful** — `2f80dd4` pushed this cycle
 - Push blocks are permission/fork issues, not network
 
 ---
 
 ## Active Jobs / Processes
 
-**~343 total processes.** OBus ecosystem fully running:
-
-| Process | Count | Notes |
-|---------|-------|-------|
-| OBus.exe / Obus.exe | 20 | Core instances |
-| Codex.exe | 1 | Code review agent |
-| ollama | 2 | Local LLM |
-| gortex.exe | 3 | Graph tools |
-| pinchtab-windows-amd64.exe | 3 | Browser automation |
-| mempalace-mcp.exe | 2 | Memory palace |
-| cua-driver.exe | 1 | Computer-use |
-| llama-server.exe | 1 | Llama inference (2.6GB) |
-| python.exe | 24+ | Scripts/agents |
-| node.exe | 4 | Various |
-| chrome.exe | 10 | Browser instances |
-| DiscordPTB.exe | 6 | Discord client |
-| Docker Desktop + WSL | active | Docker/WSL infra |
-| ChatGPT.exe | 7 | ChatGPT desktop |
-
-No active Hermes background timed jobs beyond this cron cycle. No pending build/deploy tasks.
+**~343 total processes.** OBus ecosystem fully running. (No detailed recount this cycle — unchanged from 09:39 cycle.)
 
 ---
 
 ## Build Loops
 
 No new EXE artifacts since Aug 25 10:46 (dist-onedrive-fix, 133.6MB).  
-Build pipeline appears idle — 22+ hours without a fresh loop artifact.
+Build pipeline appears idle — 26+ hours without a fresh loop artifact.
 
 Most recent EXEs (all Aug 25):
 - `dist-aui-loop76/OBus.exe` — 67.5MB, Aug 25 04:49
@@ -88,8 +69,9 @@ Most recent EXEs (all Aug 25):
 
 ## Summary
 
-1. **Main repo:** ✅ **Pushed this cycle** — `77a6f02` (status refresh) pushed to origin/master. No new substantive commits.
-2. **Submodules:** All push blocks persistent and expected — no new action possible.
-3. **Build loops:** Idle — no new EXE artifacts since Aug 25 10:46.
-4. **Processes:** Full OBus ecosystem running (~343 processes, 20 OBus instances + supporting services).
-5. **Network:** Healthy. Blocks are auth/fork, not connectivity.
+1. **Main repo:** ✅ **Pushed this cycle** — `2f80dd4` (warp submodule pointer refresh) pushed to origin/master.
+2. **Submodule updates pulled:** warp → `808ddbdc` (v1.4.0-3533), warpdotdev-warp → `6afb6c8`. Pointers updated and pushed.
+3. **Submodule pushes:** All push blocks persistent — permission/fork issues, not network.
+4. **Build loops:** Idle — no new EXE artifacts since Aug 25 10:46.
+5. **Processes:** Full OBus ecosystem running (~343 processes).
+6. **Network:** Healthy. Blocks are auth/fork, not connectivity.

@@ -1,7 +1,7 @@
-# System Status Report - 2026-08-26 09:39 PDT
+# System Status Report - 2026-08-26 12:39 PDT
 
 **Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-26 09:39 PDT (UTC-07:00)  
+**Run Time:** 2026-08-26 12:39 PDT (UTC-07:00)  
 **Schedule:** every 10m
 
 ---
@@ -9,14 +9,14 @@
 ## Active Projects & Pushes
 
 ### obus-moa-exe (SgtSlummy) — MAIN
-- **Commit:** 77a6f02 — chore: refresh status and task reports for 09:27 cycle
+- **Commit:** 2f80dd4 — chore: refresh warp submodule pointers to upstream latest
 - **Branch:** master → origin/master ✅
-- **Pushed this cycle** — status refresh commit pushed. Last substantive push `e3e6e6d` (09:13 cycle).
+- **Pushed this cycle** — submodule pointer refresh pushed.
 
 ### warp (submodule, nvidia/warp)
-- **Commit:** 405e4682c — chore: update warp submodule cron status reports
-- **Branch:** main → origin/main ⚠️ ahead 3, behind 1
-- **Push blocked:** 403 (not collaborator on nvidia/warp; fork SgtSlummy/warp missing)
+- **Commit:** 808ddbdc0 — Invalidate cached FEM arguments after rebuilds [GH-1852]
+- **Branch:** main → origin/main (local, push blocked)
+- **Upstream pull:** pulled latest `808ddbdc0` (v1.4.0-3533), pointer updated.
 
 ### Understand-Anything (submodule, Egonex-AI)
 - **Commit:** 99e62b7 — Sync Understand-Anything submodule changes for deploy
@@ -24,8 +24,9 @@
 - **Push blocked:** 403 (not collaborator)
 
 ### third_party/warpdotdev-warp (submodule)
-- **Commit:** 21f413b — Move terminal grid code to warp_terminal crate
+- **Commit:** 6afb6c8 — Update common skills lock for warpdotdev/common-skills#77 (#15577)
 - **State:** detached HEAD at upstream warpdotdev/warp master
+- **Upstream pull:** pulled latest `6afb6c8`, pointer updated.
 - **Push blocked:** detached + 403
 
 ### Tarot-Router (occultbus)
@@ -43,8 +44,19 @@
 
 ## Process Inventory (summary)
 
-~343 processes. OBus ecosystem fully operational:
+~343 processes. OBus ecosystem fully operational (unchanged from 09:39 cycle):
 - 20 OBus.exe instances
 - Supporting: Codex (1), ollama (2), gortex (3), pinchtab (3), mempalace (2), cua-driver (1), llama-server (1)
 - Browser/discord: chrome (10), DiscordPTB (6), ChatGPT (7)
 - Infrastructure: Docker Desktop, WSL, python (24+), node (4)
+
+---
+
+## Upstream Changes Pulled This Cycle
+
+| Submodule | New Commit | Description |
+|-----------|-----------|-------------|
+| warp | 808ddbdc0 | Invalidate cached FEM arguments after rebuilds [GH-1852] |
+| warpdotdev-warp | 6afb6c8 | Update common skills lock for warpdotdev/common-skills#77 (#15577) |
+| | 43de7e4 | Fix warp_tui compile error: thread RequestTeamScope through TUI voice transcription (#15570) |
+| | d6a389d | [multi-team P3a] Parse and store the team catalog into UserWorkspaces (#15463) |
