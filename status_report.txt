@@ -1,7 +1,7 @@
-# System Status Report - 2026-08-26 13:41 PDT
+# System Status Report - 2026-08-26 14:33 PDT
 
 **Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-26 13:41 PDT (UTC-07:00)  
+**Run Time:** 2026-08-26 14:33 PDT (UTC-07:00)  
 **Schedule:** every 10m
 
 ---
@@ -9,15 +9,15 @@
 ## Active Projects & Pushes
 
 ### obus-moa-exe (SgtSlummy) — MAIN
-- **Commit:** `eef2b96` — chore: refresh status and task reports for 12:39 cycle
+- **Commit:** `9bf99a7` — chore: refresh status and task reports for 14:33 cycle
 - **Branch:** master → origin/master ✅
-- **Status:** Fully in sync. No push needed this cycle.
+- **Status:** **Pushed this cycle** — report refresh (7 files, 637 insertions, 73 deletions) committed and pushed. Now in sync with origin.
 
 ### obus-moa-exe (SgtSlummy) — SOURCE WORKTREE
 - **Branch:** `codex/autonomy-context-agents`
 - **Base commit:** `77a6f02` (09:13 cycle) — **4 commits behind** origin/master
-- **Push status:** ✅ **Branch pushed to origin this cycle** — now exists on remote
-- **Local state:** 31 dirty files (unstaged), extensive untracked feature work — nothing committed
+- **Push status:** Branch already on origin since 13:41 cycle. No new commits this cycle.
+- **Local state:** 70 dirty files (31 modified + ~40 untracked build artifacts), nothing staged.
 
 ### warp (submodule, nvidia/warp)
 - **Commit:** `808ddbdc0` — Invalidate cached FEM arguments after rebuilds [GH-1852]
@@ -49,6 +49,15 @@
 
 ---
 
+## Service Health
+
+| Service | Port | Status |
+|---------|------|--------|
+| OBus MOA FastAPI backend | `:8000` | ✅ Live — `{"status":"ok","service":"obus-moa"}` |
+| Davy Jones server control panel | `:3000` | ✅ Live — HTML panel serving |
+
+---
+
 ## Process Inventory (summary)
 
 No background processes registered in this Hermes session this cycle. System processes from prior observations:
@@ -56,10 +65,6 @@ No background processes registered in this Hermes session this cycle. System pro
 - Supporting: Codex, ollama, gortex, pinchtab, mempalace, cua-driver, llama-server
 - Browser/discord: chrome (10), DiscordPTB (6), ChatGPT (7)
 - Infrastructure: Docker Desktop, WSL, python (24+), node (4)
-
-**Listening ports:**
-- `:8000` — OBus MOA FastAPI backend (confirmed live)
-- `:3000` — Davy Jones server control panel (confirmed live)
 
 ---
 
@@ -74,12 +79,7 @@ No background processes registered in this Hermes session this cycle. System pro
 
 ## Key Observations
 
-1. **Source worktree branch pushed for first time** — `codex/autonomy-context-agents` now on origin. But the branch has 31 dirty files and extensive uncommitted feature work that hasn't been pushed as commits.
-
-2. **Main repo is fully in sync** — `eef2b96` matches origin/master. No action needed on master.
-
-3. **Worktree is 4 commits behind master** — missing report-refresh commits from 09:39–12:39 cycles.
-
-4. **Build pipeline idle** — last main-dir build Aug 25 10:46. Worktree had builds Aug 26 09:38 (fresh, larger EXEs).
-
-5. **Loop21 still running** despite 55 newer loop EXEs existing — live OBus instance unchanged.
+1. **Main repo pushed this cycle** — report refresh committed and pushed (`9bf99a7` → origin/master). In sync.
+2. **Source worktree branch already on origin** — pushed 13:41, nothing new to push this cycle. 70 dirty files, nothing staged.
+3. **Both services live** — OBus backend (`:8000`) and Davy Jones (`:3000`) responding.
+4. **Build pipeline idle** — no new EXEs in 27 hours.
