@@ -1,7 +1,7 @@
-# System Status Report - 2026-08-26 14:46 PDT
+# System Status Report - 2026-08-26 14:59 PDT
 
 **Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-26 14:46 PDT (UTC-07:00)  
+**Run Time:** 2026-08-26 14:59 PDT (UTC-07:00)  
 **Schedule:** every 10m
 
 ---
@@ -9,9 +9,9 @@
 ## Active Projects & Pushes
 
 ### obus-moa-exe (SgtSlummy) — MAIN
-- **Commit:** `8f6fb4c` — chore: refresh status and task reports for 14:46 cycle
+- **Commit:** `b0a1635` — chore: refresh status and task reports for 14:59 cycle
 - **Branch:** master → origin/master ✅
-- **Status:** **Pushed this cycle** — report refresh (3 files, 110 insertions, 29 deletions) committed and pushed. Now in sync with origin.
+- **Status:** **Pushed this cycle** — report refresh (2 files, 9 insertions, 9 deletions) committed and pushed. Now in sync with origin.
 
 ### obus-moa-exe (SgtSlummy) — SOURCE WORKTREE
 - **Branch:** `codex/autonomy-context-agents`
@@ -53,18 +53,19 @@
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ✅ Live — `{"status":"ok","service":"obus-moa"}` |
+| OBus MOA FastAPI backend | `:8000` | ✅ Live — HTML dashboard serving |
 | Davy Jones server control panel | `:3000` | ✅ Live — HTML panel serving |
 
 ---
 
 ## Process Inventory (summary)
 
-No background processes registered in this Hermes session this cycle. System processes from prior observations:
-- 20+ OBus.exe instances across various builds
-- Supporting: Codex, ollama, gortex, pinchtab, mempalace, cua-driver, llama-server
-- Browser/discord: chrome (10), DiscordPTB (6), ChatGPT (7)
-- Infrastructure: Docker Desktop, WSL, python (24+), node (4)
+- No background processes registered in this Hermes session this cycle.
+- System processes from prior observations:
+  - 20+ OBus.exe instances across various builds
+  - Supporting: Codex, ollama, gortex, pinchtab, mempalace, cua-driver, llama-server
+  - Browser/discord: chrome (10), DiscordPTB (6), ChatGPT (7)
+  - Infrastructure: Docker Desktop, WSL, python (24+), node (4)
 
 ---
 
@@ -79,7 +80,21 @@ No background processes registered in this Hermes session this cycle. System pro
 
 ## Key Observations
 
-1. **Main repo pushed this cycle** — report refresh committed and pushed (`8f6fb4c` → origin/master). In sync.
+1. **Main repo pushed this cycle** — report refresh committed and pushed (`b0a1635` → origin/master). In sync.
 2. **Source worktree branch already on origin** — pushed 13:41, nothing new to push this cycle. 70 dirty files, nothing staged.
 3. **Both services live** — OBus backend (`:8000`) and Davy Jones (`:3000`) responding.
 4. **Build pipeline idle** — no new EXEs in 27 hours.
+5. **No active jobs** — no background processes or build tasks running in this session.
+
+---
+
+## Active Jobs Summary
+
+| Job Type | Status | Notes |
+|----------|--------|-------|
+| Main repo push | ✅ Complete | `b0a1635` pushed to origin/master |
+| Source worktree push | ⚠️ No change | Branch on origin, 70 dirty files uncommitted |
+| Submodule pushes | ⚠️ Blocked | Permission/fork issues (all 3 submodules) |
+| Build pipeline | ⏸ Idle | No new EXEs in 27 hours |
+| OBus backend | ✅ Running | `:8000` live |
+| Davy Jones | ✅ Running | `:3000` live |
