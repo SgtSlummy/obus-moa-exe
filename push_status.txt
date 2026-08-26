@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-26 00:56 PDT (cron cycle)
+# Push Status Report - 2026-08-26 02:59 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-26 00:56 PDT
+**Run Time:** 2026-08-26 02:59 PDT
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `2ca9788` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 00:56 cycle`. Remote HEAD = local HEAD. |
+| obus-moa-exe (SgtSlummy) | `14c866c` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 02:59 cycle`. Remote HEAD = local HEAD. |
 | warp submodule (nvidia/warp + sgtfork) | `405e468` | v1.4.0-3531-g405e4682c | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator. 3 local commits preserved. Superproject pointer clean. |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD; upstream tracking only. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | — | ❌ **Push blocked** — 403, not a collaborator on Egonex-AI/Understand-Anything. 2 commits preserved. |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `2ca9788` on `origin/master` — **pushed this cycle**. Remote HEAD `2ca9788...` matches local HEAD exactly.
+**Main repo:** `14c866c` on `origin/master` — **pushed this cycle**. Remote HEAD `14c866c...` matches local HEAD exactly.
 
 ---
 
@@ -42,29 +42,27 @@
 ## Network
 
 - github.com: reachable (HTTPS 200)
-- Push to SgtSlummy/obus-moa-exe: ✅ `2ca9788` pushed this cycle
+- Push to SgtSlummy/obus-moa-exe: ✅ `14c866c` pushed this cycle
 - Push blocks are permission/fork-existence, not network
 
 ---
 
 ## Active Jobs / Processes
 
-**69 active processes** counted across the system (unchanged from prior cycles):
+**343 total processes** on system. Relevant OBus ecosystem processes:
 
-- **OBus.exe:** 9 instances
-- **ChatGPT/Codex.exe:** 12 instances
-- **python.exe:** 20+ instances
-- **Ollama:** 3 instances (ollama.exe, ollama app.exe, llama-server.exe ~89MB)
-- **gortex.exe:** 2 instances
-- **node.exe:** 4 instances
-- **chrome.exe:** 13 instances
-- **pinchtab-windows-amd64.exe:** 3 instances
-- **mempalace-mcp.exe:** 1 instance + mempalace python
-- **cua-driver.exe:** 1 instance
-- **codex-code-mode-host.exe:** 1 instance
-- **extension-host.exe:** 2 instances
+| Process | Instances | Notes |
+|---------|-----------|-------|
+| OBus.exe | 12 | Core application instances |
+| Codex.exe | 2 | Code review agent |
+| ollama | 2 | Local LLM runtime |
+| gortex.exe | 3 | Code analysis/graph tools |
+| pinchtab-windows-amd64.exe | 3 | Browser automation |
+| mempalace-mcp.exe | 1 | Memory palace coordination |
+| cua-driver.exe | 1 | Computer-use backend |
+| llama-server.exe | 1 | Llama inference server (~89MB) |
 
-**Process manager (background jobs):** empty — no active timed jobs tracked by Hermes
+**Process manager (background jobs):** empty — no active timed jobs tracked by Hermes  
 **No pending build/deploy tasks**
 
 ---
@@ -72,14 +70,14 @@
 ## Build Loops
 
 Latest EXEs:
-  - `dist-aui-loop76/OBus.exe` — 70.8MB, Aug 25 04:49
-  - `.hermes/package-certified/dist/OBus.exe` — 140.7MB, Aug 25 07:42
-  - `.hermes/package-final/dist/OBus.exe` — 140.7MB, Aug 25 07:22
+  - `dist-aui-loop76/OBus.exe` — 67.5MB, MD5 `78044600638ad983362443fdd0f65a14`, Aug 25 04:49
+  - `.hermes/package-certified/dist/OBus.exe` — 140.7MB, MD5 `fb8635347c6048765db356a6ff441d1a`, Aug 25 07:42
+  - `.hermes/package-final/dist/OBus.exe` — 140.7MB, MD5 `eaceb2f4f1de90fe6819c845a013453c`, Aug 25 07:22
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ `origin/master` pushed this cycle — `2ca9788` (status reports refresh).
+1. **Main repo:** ✅ `origin/master` pushed this cycle — `14c866c` (status reports refresh).
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
 3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
