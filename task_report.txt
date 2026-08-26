@@ -1,10 +1,10 @@
 Task: Continue OBus push. Status:
-- Main repo (obus-moa-exe): ✅ origin/master in sync (HEAD=8db00e8). **New commit 8db00e8 pushed this cycle** (prior cycle was cab38f1). Tracked files clean.
+- Main repo (obus-moa-exe): ✅ origin/master in sync (HEAD=e9a6cc2 = remote HEAD). Remote matches local exactly. Pushed in 21:14 cycle. Tracked files clean.
 - Warp submodule (nvidia/warp tracked, SgtSlummy fork mapped to sgtfork): Persistent local commit 405e468. Push blocked (fork does not exist / not collaborator on nvidia/warp). 3 local commits preserved (405e468, fee1347, e98ac07). Superproject clean this cycle — pointer matches working tree.
 - third_party/warpdotdev-warp: clean, detached HEAD at 21f413b, tracking upstream warpdotdev. Push blocked (detached HEAD).
 - Understand-Anything: 2 commits ahead (99e62b7, d07c457). Push blocked 403 (not collaborator on Egonex-AI/Understand-Anything). Local work preserved.
 - Tarot-Router (occultbus): clean, up to date.
 - Local diff: tracked files clean this cycle.
 - Network: github.com reachable (HTTP 200). Push blocks are permission/fork-existence.
-- Active processes: OBus.exe (multiple), python (Hermes/ollama/dev), ollama (2), gortex (2), node (multiple), pinchtab (3), mempalace-mcp, cua-driver.
+- Active processes: 69 total — OBus.exe (9 instances), ChatGPT/Codex (12), python (20+), Ollama (3), gortex (2), node (4), chrome (13), pinchtab (3), mempalace (2), cua-driver (1), codex-host (1), extension-host (2).
 - Latest EXEs: dist-aui-loop76/OBus.exe (Aug 25 04:49, 70.8MB), .hermes/package-certified/dist/OBus.exe (Aug 25 07:42, 140.7MB), .hermes/package-final/dist/OBus.exe (Aug 25 07:22, 140.7MB).

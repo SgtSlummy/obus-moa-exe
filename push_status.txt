@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 21:14 PDT (cron cycle)
+# Push Status Report - 2026-08-25 21:57 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 21:14 PDT
+**Run Time:** 2026-08-25 21:57 PDT
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `8db00e8` | master | ✅ **Up to date** — pushed this cycle (new commit `8db00e8`), origin/master in sync |
-| warp submodule (SgtSlummy/nvidia) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator |
-| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD; upstream tracking only |
-| Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
-| Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
+| obus-moa-exe (SgtSlummy) | `e9a6cc2` | master | ✅ **Up to date** — remote HEAD matches `e9a6cc2` (pushed 21:14 cycle). 0 commits ahead. |
+| warp submodule (nvidia/warp + sgtfork) | `405e468` | v1.4.0-3531-g405e4682c | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator. 3 local commits preserved. Superproject pointer clean. |
+| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD; upstream tracking only. |
+| Understand-Anything (Egonex-AI) | `99e62b7` | — | ❌ **Push blocked** — 403, not a collaborator on Egonex-AI/Understand-Anything. 2 commits preserved. |
+| Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `8db00e8` on `origin/master` — **pushed this cycle**. New commit `8db00e8` ("chore: refresh status and task reports for 21:00 cycle") is now in sync with origin. Prior cycle was `cab38f1`.
+**Main repo:** `e9a6cc2` on `origin/master` — **in sync**. Remote HEAD `e9a6cc2549dc279a3bf29ad01913f2bcc6e4e9f7` matches local HEAD exactly. Prior pushed commit was `8db00e8` (21:00 cycle). This cycle's local commit `e9a6cc2` ("chore: refresh status and task reports for 21:14 cycle") was pushed in the 21:14 cycle.
 
 ---
 
@@ -24,8 +24,8 @@
 
 | Submodule | Status |
 |-----------|--------|
-| warp | `405e468` (working tree) — local-only, push blocked (fork missing / not collaborator). 3 local commits preserved. Superproject pointer `405e468` matches working tree. |
-| Understand-Anything | `99e62b7` — 2 commits ahead (`d07c457`, `99e62b7`), push blocked (403). Local work preserved. |
+| warp | `405e468` (working tree) — local-only, push blocked (fork missing / not collaborator). 3 local commits preserved (`405e468`, `fee1347`, `e98ac07`). Superproject pointer `405e468` matches working tree. |
+| Understand-Anything | `-99e62b7` — 2 commits ahead (`d07c457`, `99e62b7`), push blocked (403). Local work preserved. |
 | third_party/warpdotdev-warp | `21f413b` — detached HEAD, clean, tracking upstream warpdotdev. |
 
 ---
@@ -34,7 +34,7 @@
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: **clean** — no dirty files, no new commits beyond `8db00e8`
+- Tracked files: **clean** — no dirty files, no new commits beyond pushed `e9a6cc2`
 - Untracked: `warp/` (excluded by .gitignore)
 
 ---
@@ -48,16 +48,29 @@
 
 ## Active Jobs / Processes
 
-- **OBus executable:** multiple instances running (PIDs: 11752, 18292, 19368, 22432, plus others)
-- **Python processes:** several active (Hermes agent, Ollama, dev tools)
-- **Ollama:** ollama.exe + ollama app.exe running
-- **Other active tools:** gortex.exe (2 instances), node.exe (multiple), pinchtab (3 instances), mempalace-mcp, cua-driver
+**69 active processes** counted across the system:
+
+- **OBus.exe:** 9 instances (PIDs: 3516, 4028, 7620, 11752, 14168, 18292, 19368, 22432, 25152, 26432 — some duplicates in temp/ci dirs)
+- **ChatGPT/Codex.exe:** 12 instances (OpenAI Codex, PIDs: 2972, 5092, 5804, 6540, 8952, 9696, 9752, 12412, 18136, 21372, 27228, 28956)
+- **python.exe:** 20+ instances (Hermes agent, warden-discord-bot, Ollama bridge, dev tools, uv tools)
+- **Ollama:** ollama.exe (PID 3144) + ollama app.exe (PID 20328) + llama-server.exe (PID 23428, ~89MB)
+- **gortex.exe:** 2 instances (PIDs: 19816, 25592)
+- **node.exe:** 4 instances (PIDs: 7284, 20864, 20908, 13016 node_repl)
+- **chrome.exe:** 13 instances
+- **pinchtab-windows-amd64.exe:** 3 instances (PIDs: 14636, 20624, 21472)
+- **mempalace-mcp.exe:** 1 instance (PID 20860) + mempalace python (PID 20408)
+- **cua-driver.exe:** 1 instance (PID 14056)
+- **codex-code-mode-host.exe:** 1 instance (PID 18136)
+- **extension-host.exe:** 2 instances (Codex plugins, PIDs: 17588, 23752)
+
+**Process manager (background jobs):** empty — no active timed jobs tracked by Hermes
+**No pending build/deploy tasks**
 
 ---
 
 ## Build Loops
 
-- Latest EXEs:
+Latest EXEs:
   - `dist-aui-loop76/OBus.exe` — 70.8MB, Aug 25 04:49
   - `dist-aui-loop75/OBus.exe` — 70.8MB, Aug 25 04:36
   - `dist-aui-loop74/OBus.exe` — 70.8MB, Aug 25 04:23
@@ -68,6 +81,6 @@
 
 ## Summary
 
-1. **Main repo:** ✅ `origin/master` in sync (HEAD = `8db00e8`, **new commit pushed this cycle**). Prior cycle was `cab38f1`.
+1. **Main repo:** ✅ `origin/master` in sync (HEAD = `e9a6cc2` = remote HEAD, **pushed in 21:14 cycle**). Prior pushed commit was `8db00e8`.
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
 3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
