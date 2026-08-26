@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `4319548` | master | ✅ **Up to date** — remote HEAD matches `4319548` (pushed 21:57 cycle). 0 commits ahead. |
+| obus-moa-exe (SgtSlummy) | `2ca9788` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 00:56 cycle`. Remote HEAD = local HEAD. |
 | warp submodule (nvidia/warp + sgtfork) | `405e468` | v1.4.0-3531-g405e4682c | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator. 3 local commits preserved. Superproject pointer clean. |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD; upstream tracking only. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | — | ❌ **Push blocked** — 403, not a collaborator on Egonex-AI/Understand-Anything. 2 commits preserved. |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `4319548` on `origin/master` — **in sync**. Remote HEAD `4319548fcb9cf9eead144dc97278b2a8a246a487` matches local HEAD exactly. Prior pushed commit was `4319548` (this cycle, 21:57 PDT). No new commits this cycle.
+**Main repo:** `2ca9788` on `origin/master` — **pushed this cycle**. Remote HEAD `2ca9788...` matches local HEAD exactly.
 
 ---
 
@@ -34,7 +34,7 @@
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: **clean** — no dirty files, no new commits beyond pushed `4319548`
+- Tracked files: **clean** — no dirty files beyond this cycle's commit
 - Untracked: `warp/` (excluded by .gitignore)
 
 ---
@@ -42,26 +42,27 @@
 ## Network
 
 - github.com: reachable (HTTPS 200)
-- All push blocks are permission/fork-existence, not network
+- Push to SgtSlummy/obus-moa-exe: ✅ `2ca9788` pushed this cycle
+- Push blocks are permission/fork-existence, not network
 
 ---
 
 ## Active Jobs / Processes
 
-**69 active processes** counted across the system:
+**69 active processes** counted across the system (unchanged from prior cycles):
 
-- **OBus.exe:** 9 instances (PIDs: 3516, 4028, 7620, 11752, 14168, 18292, 19368, 22432, 25152, 26432 — some duplicates in temp/ci dirs)
-- **ChatGPT/Codex.exe:** 12 instances (OpenAI Codex, PIDs: 2972, 5092, 5804, 6540, 8952, 9696, 9752, 12412, 18136, 21372, 27228, 28956)
-- **python.exe:** 20+ instances (Hermes agent, warden-discord-bot, Ollama bridge, dev tools, uv tools)
-- **Ollama:** ollama.exe (PID 3144) + ollama app.exe (PID 20328) + llama-server.exe (PID 23428, ~89MB)
-- **gortex.exe:** 2 instances (PIDs: 19816, 25592)
-- **node.exe:** 4 instances (PIDs: 7284, 20864, 20908, 13016 node_repl)
+- **OBus.exe:** 9 instances
+- **ChatGPT/Codex.exe:** 12 instances
+- **python.exe:** 20+ instances
+- **Ollama:** 3 instances (ollama.exe, ollama app.exe, llama-server.exe ~89MB)
+- **gortex.exe:** 2 instances
+- **node.exe:** 4 instances
 - **chrome.exe:** 13 instances
-- **pinchtab-windows-amd64.exe:** 3 instances (PIDs: 14636, 20624, 21472)
-- **mempalace-mcp.exe:** 1 instance (PID 20860) + mempalace python (PID 20408)
-- **cua-driver.exe:** 1 instance (PID 14056)
-- **codex-code-mode-host.exe:** 1 instance (PID 18136)
-- **extension-host.exe:** 2 instances (Codex plugins, PIDs: 17588, 23752)
+- **pinchtab-windows-amd64.exe:** 3 instances
+- **mempalace-mcp.exe:** 1 instance + mempalace python
+- **cua-driver.exe:** 1 instance
+- **codex-code-mode-host.exe:** 1 instance
+- **extension-host.exe:** 2 instances
 
 **Process manager (background jobs):** empty — no active timed jobs tracked by Hermes
 **No pending build/deploy tasks**
@@ -72,8 +73,6 @@
 
 Latest EXEs:
   - `dist-aui-loop76/OBus.exe` — 70.8MB, Aug 25 04:49
-  - `dist-aui-loop75/OBus.exe` — 70.8MB, Aug 25 04:36
-  - `dist-aui-loop74/OBus.exe` — 70.8MB, Aug 25 04:23
   - `.hermes/package-certified/dist/OBus.exe` — 140.7MB, Aug 25 07:42
   - `.hermes/package-final/dist/OBus.exe` — 140.7MB, Aug 25 07:22
 
@@ -81,6 +80,6 @@ Latest EXEs:
 
 ## Summary
 
-1. **Main repo:** ✅ `origin/master` in sync (HEAD = `4319548` = remote HEAD, **pushed in 21:57 cycle**). Working tree clean this cycle.
+1. **Main repo:** ✅ `origin/master` pushed this cycle — `2ca9788` (status reports refresh).
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
 3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
