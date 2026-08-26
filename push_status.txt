@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-26 03:27 PDT (cron cycle)
+# Push Status Report - 2026-08-26 07:31 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-26 03:27 PDT
+**Run Time:** 2026-08-26 07:31 PDT
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `a2d1ee6` | master | ✅ **Up to date** — clean tree, pushed (already current). No new commits. |
+| obus-moa-exe (SgtSlummy) | `d10c27e` | master | ✅ **Pushed** — new commit this cycle. Clean tree, pushed to origin. |
 | warp submodule (nvidia/warp + sgtfork) | `405e468` | v1.4.0-3531-g405e4682c | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist; nvidia/warp not collaborator. 3 local commits preserved. |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD, upstream tracking only; 403 on push. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ **Push blocked** — 403, not a collaborator. 2 commits preserved. |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `a2d1ee6` on `origin/master` — **pushed, up-to-date**. Remote HEAD matches local HEAD.
+**Main repo:** `d10c27e` on `origin/master` — **pushed this cycle**. Remote HEAD now matches local HEAD.
 
 ---
 
@@ -42,7 +42,7 @@
 ## Network
 
 - github.com: reachable (HTTPS 200)
-- Push to SgtSlummy/obus-moa-exe: ✅ up-to-date, nothing to push
+- Push to SgtSlummy/obus-moa-exe: ✅ **pushed** (d10c27e)
 - Push blocks are permission/fork issues, not network
 
 ---
@@ -53,15 +53,15 @@
 
 | Process | Instances | Notes |
 |---------|-----------|-------|
-| OBus.exe / Obus.exe | 17 | Core application instances (various sizes, 1.3MB–71MB) |
-| OBus-6dd1e0e.exe | 2 | Versioned variant (9MB, 35MB) |
+| OBus.exe / Obus.exe | 17 | Core application instances |
+| OBus-6dd1e0e.exe | 2 | Versioned variant |
 | Codex.exe + codex-code-mode-host.exe | 2 + 1 | Code review agent |
-| ollama + ollama app.exe | 2 | Local LLM runtime (~96MB app) |
-| gortex.exe | 3 | Code analysis/graph tools (14MB, 75MB, 661MB) |
-| pinchtab-windows-amd64.exe | 3 | Browser automation (~70MB each) |
+| ollama + ollama app.exe | 2 | Local LLM runtime |
+| gortex.exe | 3 | Code analysis/graph tools |
+| pinchtab-windows-amd64.exe | 3 | Browser automation |
 | mempalace-mcp.exe | 1 | Memory palace coordination |
 | cua-driver.exe | 1 | Computer-use backend |
-| llama-server.exe | 1 | Llama inference server (~366MB) |
+| llama-server.exe | 1 | Llama inference server |
 | python.exe | 24 | Various scripts/agents |
 
 **Process manager (background jobs):** empty — no active timed jobs tracked by Hermes  
@@ -71,10 +71,11 @@
 
 ## Build Loops
 
-Latest EXEs (all from Aug 25; none newer as of 03:27 Aug 26):
+No new EXE artifacts since Aug 25 10:46 (dist-onedrive-fix, 133.6MB).  
+Published EXE inventory:
 
-| Artifact | Size | MD5 (if known) | Modified |
-|----------|------|---------------|----------|
+| Artifact | Size | MD5 | Modified |
+|----------|------|-----|----------|
 | `dist-aui-loop76/OBus.exe` | 67.5MB | `78044600638ad983362443fdd0f65a14` | Aug 25 04:49 |
 | `dist-aui-release/OBus.exe` | 67.5MB | — | Aug 25 06:58 |
 | `dist-onedrive-fix/OBus.exe` | 133.6MB | — | Aug 25 10:46 |
@@ -83,14 +84,14 @@ Latest EXEs (all from Aug 25; none newer as of 03:27 Aug 26):
 | `.hermes/package-certified/dist/OBus.exe` | 140.7MB | `fb8635347c6048765db356a6ff441d1a` | Aug 25 07:42 |
 | `.hermes/package-final/dist/OBus.exe` | 140.7MB | `eaceb2f4f1de90fe6819c845a013453c` | Aug 25 07:22 |
 
-**No new build-loop EXEs produced since Aug 25 10:46** — 17+ hours without a fresh loop artifact.
+**No new build-loop EXEs produced since Aug 25 10:46** — 21+ hours without a fresh loop artifact.
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ Clean, pushed, up-to-date at `a2d1ee6`. Nothing to push this cycle.
+1. **Main repo:** ✅ Pushed this cycle — `d10c27e` on `origin/master`. Nothing left to push.
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
-3. **Build loops:** No new EXE artifacts produced since Aug 25 10:46 (dist-onedrive-fix, 133.6MB). Build pipeline appears idle.
+3. **Build loops:** No new EXE artifacts since Aug 25 10:46 (dist-onedrive-fix, 133.6MB). Build pipeline appears idle.
 4. **Processes:** OBus ecosystem fully running — 17 OBus instances, Codex, ollama, gortex, pinchtab, mempalace, cua-driver, llama-server all active.
 5. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
