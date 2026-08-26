@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `b4f7f24` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 20:50 cycle` |
+| obus-moa-exe (SgtSlummy) | `a38c425` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 20:50 cycle` |
 | warp submodule (SgtSlummy/nvidia) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator |
 | third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — 403, not a collaborator on warpdotdev/warp |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
 
-**Main repo:** `b4f7f24` pushed this cycle. `origin/master` in sync with local HEAD.
+**Main repo:** `a38c425` pushed this cycle. `origin/master` in sync with local HEAD.
 
 ---
 
@@ -48,14 +48,25 @@
 
 ## Active Jobs / Processes
 
-- **OBus executable:** multiple instances running (PIDs: 8836, 11752, 14168, 18292, 19368, 22432, 26240, 26432)
+- **OBus executable:** multiple instances running (PIDs: 8836, 11752, 14168, 18292, 19368, 22432, 26240, 26432, 7620, 23604)
 - **Python processes:** several active (Hermes agent, Ollama, dev tools)
 - **Other active tools:** gortex.exe (2 instances), node.exe (multiple), codex.exe (2 instances), llama-server.exe, chrome.exe (multiple), pinchtab, mempalace-mcp, cua-driver
 
 ---
 
+## Build Loops
+
+- Latest EXEs:
+  - `dist-aui-loop76/OBus.exe` — 70.8MB, Aug 25 04:49
+  - `dist-aui-loop75/OBus.exe` — 70.8MB, Aug 25 04:36
+  - `dist-aui-loop74/OBus.exe` — 70.8MB, Aug 25 04:23
+  - `.hermes/package-certified/dist/OBus.exe` — 140.7MB, Aug 25 07:42
+  - `.hermes/package-final/dist/OBus.exe` — 140.7MB, Aug 25 07:22
+
+---
+
 ## Summary
 
-1. **Main repo:** ✅ Pushed `b4f7f24` this cycle. `origin/master` in sync. Tracked files clean.
+1. **Main repo:** ✅ Pushed `a38c425` this cycle. `origin/master` in sync. Tracked files clean.
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
 3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.

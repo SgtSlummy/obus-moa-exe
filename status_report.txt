@@ -1,7 +1,7 @@
 # Cron Job: [bot:default] Continue
 
 **Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-25 20:38 PDT (UTC-07:00)  
+**Run Time:** 2026-08-25 20:50 PDT (UTC-07:00)  
 **Schedule:** every 10m
 
 ---
@@ -12,7 +12,7 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `b8826fd` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports` |
+| obus-moa-exe (SgtSlummy) | `a38c425` | master | ✅ **Pushed this cycle** — `chore: refresh status and task reports for 20:50 cycle` |
 
 **Total: 1 commit pushed this cycle.** Main repo had new status report updates from prior cycles' consolidation.
 
@@ -34,7 +34,7 @@
 
 | Submodule | Status |
 |-----------|--------|
-| warp | `405e468` (working tree) — **clean** in superproject this cycle (pointer `998aecf`). Local-only worktree commit persists but not recorded. |
+| warp | `405e468` (working tree) — **clean** in superproject this cycle (pointer matches). Local-only worktree commit persists but not recorded. |
 | Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403) |
 | third_party/warpdotdev-warp | `21f413b` — clean, tracking upstream warpdotdev |
 
@@ -45,15 +45,32 @@
 ### Network
 
 - github.com: reachable (HTTPS 200)
-- Push to SgtSlummy/obus-moa-exe: ✅ `b8826fd` pushed this cycle
+- Push to SgtSlummy/obus-moa-exe: ✅ `a38c425` pushed this cycle
 - Push blocked: warp (fork missing), warpdotdev-warp (403), Understand-Anything (403) — not network
 
 ### Active Jobs / Processes
 
-- **Background processes:** 1x python (Hermes agent PID 7939), 1x OBus executable (dist-aui-loop21/OBus PID 29263)
+- **Background processes:** 
+  - OBus.exe: 10 instances running (PIDs: 8836, 7620, 11752, 14168, 18292, 19368, 22432, 23604, 26240, 26432)
+  - python.exe: 15+ instances (Hermes agent, Ollama bridge, dev tools)
+  - gortex.exe: 2 instances (PIDs: 25592, 19960 — one large 703MB)
+  - node.exe: multiple instances (PIDs: 20908, 20864, 4124, 1320, 7284)
+  - codex.exe: 2 instances (PIDs: 20512, 24288 — total ~356MB)
+  - llama-server.exe: 1 instance (PID 23428, ~89MB)
+  - chrome.exe: 10+ instances
+  - pinchtab-windows-amd64.exe: 3 instances
+  - mempalace-mcp.exe: 2 instances
+  - cua-driver.exe: 1 instance
+
 - **Process manager (background jobs):** empty — no active timed jobs
 - **No pending build/deploy tasks**
 
+### Build Status
+
+- Latest AUI build loops: build-aui-loop74..76 completed (OBus.exe ~70.8MB each, Aug 25 04:23-04:49)
+- Latest packaged EXEs: .hermes/package-certified/dist/OBus.exe (140.7MB, Aug 25 07:42), .hermes/package-final/dist/OBus.exe (140.7MB, Aug 25 07:22)
+
 ### New This Cycle
 
-- Main repo: `b8826fd` pushed — consolidated status/task report updates from prior cycles into a single commit.
+- Main repo: `a38c425` pushed — consolidated status/task report updates from prior cycles into a single commit.
+- Active process inventory expanded: 65 related processes counted (up from prior cycle's smaller counts due to new tool instances).
