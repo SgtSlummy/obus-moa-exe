@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-25 21:00 PDT (cron cycle)
+# Push Status Report - 2026-08-25 21:14 PDT (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-25 21:00 PDT
+**Run Time:** 2026-08-25 21:14 PDT
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `cab38f1` | master | ✅ **Up to date** — nothing new to push this cycle |
+| obus-moa-exe (SgtSlummy) | `8db00e8` | master | ✅ **Up to date** — pushed this cycle (new commit `8db00e8`), origin/master in sync |
 | warp submodule (SgtSlummy/nvidia) | `405e468` | HEAD | ⚠️ **Push blocked** — SgtSlummy/warp fork does not exist (Repository not found); nvidia/warp not collaborator |
-| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — 403, not a collaborator on warpdotdev/warp |
+| third_party/warpdotdev-warp | `21f413b` | detached | ⚠️ **Push blocked** — detached HEAD; upstream tracking only |
 | Understand-Anything | `99e62b7` | — | ❌ Push blocked — 403, not a collaborator on Egonex-AI/Understand-Anything |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes |
 
-**Main repo:** `cab38f1` on `origin/master` — in sync. No new commits this cycle (prior cycle `a38c425` already pushed). Tracked files clean.
+**Main repo:** `8db00e8` on `origin/master` — **pushed this cycle**. New commit `8db00e8` ("chore: refresh status and task reports for 21:00 cycle") is now in sync with origin. Prior cycle was `cab38f1`.
 
 ---
 
@@ -25,8 +25,8 @@
 | Submodule | Status |
 |-----------|--------|
 | warp | `405e468` (working tree) — local-only, push blocked (fork missing / not collaborator). 3 local commits preserved. Superproject pointer `405e468` matches working tree. |
-| Understand-Anything | `-99e62b7` — 2 commits ahead, push blocked (403) |
-| third_party/warpdotdev-warp | `21f413b` — detached HEAD, clean, tracking upstream warpdotdev |
+| Understand-Anything | `99e62b7` — 2 commits ahead (`d07c457`, `99e62b7`), push blocked (403). Local work preserved. |
+| third_party/warpdotdev-warp | `21f413b` — detached HEAD, clean, tracking upstream warpdotdev. |
 
 ---
 
@@ -34,7 +34,7 @@
 
 `/c/Users/Hermes/Documents/obus-moa-exe`
 
-- Tracked files: **clean** — no dirty files, no new commits
+- Tracked files: **clean** — no dirty files, no new commits beyond `8db00e8`
 - Untracked: `warp/` (excluded by .gitignore)
 
 ---
@@ -48,9 +48,10 @@
 
 ## Active Jobs / Processes
 
-- **OBus executable:** multiple instances running (PIDs: 8836, 11752, 14168, 18292, 19368, 22432, 26240, 26432, 7620, 23604)
+- **OBus executable:** multiple instances running (PIDs: 11752, 18292, 19368, 22432, plus others)
 - **Python processes:** several active (Hermes agent, Ollama, dev tools)
-- **Other active tools:** gortex.exe (2 instances), node.exe (multiple), codex.exe (2 instances), llama-server.exe, chrome.exe (multiple), pinchtab, mempalace-mcp, cua-driver
+- **Ollama:** ollama.exe + ollama app.exe running
+- **Other active tools:** gortex.exe (2 instances), node.exe (multiple), pinchtab (3 instances), mempalace-mcp, cua-driver
 
 ---
 
@@ -67,6 +68,6 @@
 
 ## Summary
 
-1. **Main repo:** ✅ `origin/master` in sync (HEAD = `cab38f1`, no new commits this cycle). Prior cycle pushed `a38c425`.
+1. **Main repo:** ✅ `origin/master` in sync (HEAD = `8db00e8`, **new commit pushed this cycle**). Prior cycle was `cab38f1`.
 2. **Submodules:** All push blocks persistent and expected — no new action possible.
 3. **Network:** Healthy. Blocks are auth/fork issues, not connectivity.
