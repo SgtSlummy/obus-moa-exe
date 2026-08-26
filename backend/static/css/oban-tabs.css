@@ -1,0 +1,22 @@
+/*
+ * Force a fixed width for the OBus side sidebar so it does not collapse
+ * when the application re‑renders or routes change.  The component should
+ * still be hidden via the sidebarCollapsed attribute, but the element
+ * remains in the DOM so it is not re‑created on every navigation.
+ */
+#room-list {
+  min-width: 240px;
+  max-width: 240px;
+  overflow-y: auto;
+}
+body[data-sidebarCollapsed="true"] #room-list {
+  display: none;
+}
+/* ensure the main content takes remaining space */
+#main-content {
+  margin-left: 240px;
+  transition: margin-left 0.2s ease;
+}
+body[data-sidebarCollapsed="true"] #main-content {
+  margin-left: 0;
+}
