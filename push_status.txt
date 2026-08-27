@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 15:41 UTC (cron cycle)
+# Push Status Report - 2026-08-27 16:50 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-08-27 15:41 UTC
+**Run Time:** 2026-08-27 16:50 UTC
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `2068315` | master | ✅ **Up-to-date** — already pushed in 15:31 cycle. `.gitignore` modified locally (unstaged). |
+| obus-moa-exe (SgtSlummy) | `7a46869` | master | ✅ **Pushed** — `2068315..7a46869`. Includes push status + `.gitignore` + `AGENTS.md`. |
 | warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
 | third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No changes since last cycle. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
-| **Source worktree** (codex/autonomy-context-agents) | `77a6f02` | codex/autonomy-context-agents | ⚠️ **47 files modified locally** — not pushed. Previous push was `77a6f02` itself; working tree now has extensive uncommitted changes. |
+| **Source worktree** (codex/autonomy-context-agents) | `77a6f02` | codex/autonomy-context-agents | ⚠️ **Unreachable** — OneDrive path no longer accessible from this session. 47 files modified locally (unchanged since last cycle). |
 
-**Main repo:** `2068315` on `master` — **fully in sync** with origin. `.gitignore` touched locally (not committed).
+**Main repo:** `7a46869` on `master` — **pushed this cycle**. `.gitignore` updated to exclude `.codex/coordination/*` (except `project.yaml`). `AGENTS.md` added as Codex task-boundary board doc.
 
 ---
 
@@ -26,16 +26,14 @@
 
 | File | State |
 |------|-------|
-| `.gitignore` | M (modified, unstaged) |
-| `AGENTS.md` | ?? (untracked) |
-| `.codex/coordination/` | ?? (untracked, Codex lane active) |
+| `.codex/` | ?? (untracked, Codex lane active) |
 
-`.gitignore` was modified this cycle but not staged. `AGENTS.md` and `.codex/` are new untracked artifacts.
+Working tree clean except for `.codex/` coordination artifacts (intentionally untracked).
 
 ### Source worktree (`codex/autonomy-context-agents` at OneDrive)
 
 **Commit:** `77a6f02` — **pushed to remote**. Tracking branch: `codex/autonomy-context-agents`.
-**Status:** ⚠️ **47 files modified locally** — working tree is dirty with extensive uncommitted changes across backend, tests, docs, electron_app, and tools. No new commits since `77a6f02`.
+**Status:** ⚠️ **Unreachable** — OneDrive path `C:/Users/Hermes/OneDrive/OBus/codex/autonomy-context-agents/` no longer accessible from this cron session. 47 files modified locally (unchanged).
 
 ---
 
@@ -43,13 +41,13 @@
 
 | Location | EXE | Size | Date | Notes |
 |----------|-----|------|------|-------|
-| `dist/` | OBus.exe | 139.8MB | Aug 23 21:17 | Main dir build |
-| `dist/` | OBus-Loki-Partner-Setup.exe | 139.9MB | Aug 23 18:57 | |
-| `dist/` | OBus-Thor-Setup.exe | 139.9MB | Aug 23 18:57 | |
+| `dist/` | OBus.exe | 146.6MB | Aug 23 21:17 | Main dir build |
+| `dist/` | OBus-Loki-Partner-Setup.exe | 146.7MB | Aug 23 18:57 | |
+| `dist/` | OBus-Thor-Setup.exe | 146.7MB | Aug 23 18:57 | |
 | `dist-onedrive-fix/` | OBus.exe | 133.6MB | Aug 25 10:46 | Latest main dir build |
 | `dist-aui-loop76/` | OBus.exe | 67.5MB | Aug 25 04:49 | Latest loop build |
 
-Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~24 hours).
+Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~2 days).
 
 ---
 
@@ -57,44 +55,41 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~24 hours).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ❌ **DOWN** — connection refused this cycle |
-| Davy Jones server control panel | `:3000` | ❌ **DOWN** — connection refused this cycle |
+| OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, `{"status":"ok","service":"obus-moa"}` |
+| Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200, serves HTML dashboard |
 
-Both services are not responding. This is a change from the previous cycle (were HTTP 200).
+Both services recovered this cycle — were down in previous report (connection refused).
 
 ---
 
 ## Active Jobs / Processes (system-level)
 
-- **uvicorn** (OBus MOA backend) — status unknown (service down)
-- **Davy Jones** (control panel) — status unknown (service down)
-- **OBus.exe** — multiple instances across dist-aui-loop builds (loops 5–76)
-- **python.exe** — 30+ processes (various worker/helper processes)
+- **uvicorn** (OBus MOA backend) — running on PID 206731 (Aug 26)
+- **Davy Jones** (control panel) — running on port 3000
+- **OBus.exe** — multiple instances across dist-aui-loop builds
+- **python.exe** — 30+ processes
 - **node.exe** — 15+ processes (Electron/Node runtimes)
 - **ollama** — running (llama-server active)
 - **gortex** — multiple instances running
-- **ChatGPT** — multiple instances
 - **Chrome/MS Edge** — multiple browser instances active
 - **Docker Desktop** — running with WSL2 backend
-
-No new background processes confirmed this cycle.
 
 ---
 
 ## Codex Coordination Lane
 
 Active lane: `01a04407-2394-71f0-b269-7f41a522e3ac` — "Move OBus off OneDrive"
-Status: active. Shared goal: move complete OBus workspace + Git worktree state from OneDrive to local Documents storage.
+Status: **active**. Shared goal: move complete OBus workspace + Git worktree state from OneDrive to local Documents storage. OneDrive path already inaccessible — lane goal partially achieved by fact that local `obus-moa-exe/` is now the primary working tree.
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ **Up-to-date** — `2068315` already pushed; `.gitignore` modified locally (unstaged).
+1. **Main repo:** ✅ **Pushed** — `7a46869` pushed to `origin/master` this cycle.
 2. **Submodule pushes:** ⚠️ Mixed — warp synced; warpdotdev-warp and Understand-Anything blocked (unchanged).
-3. **Source worktree:** ⚠️ **Dirty** — `77a6f02` pushed but 47 files now modified locally; no new commits.
-4. **Build pipeline:** ⏸ Idle — no new EXEs in ~24 hours.
-5. **Services:** ❌ **Both down** — :8000 and :3000 refused connections. This is a regression from the previous healthy cycle.
+3. **Source worktree:** ⚠️ **Unreachable** — OneDrive path gone; 47 uncommitted modifications stale.
+4. **Build pipeline:** ⏸ Idle — no new EXEs in ~2 days.
+5. **Services:** ✅ **Both UP** — :8000 and :3000 responding. Regression from previous cycle resolved.
 
 ---
 
@@ -103,8 +98,8 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Source worktree at OneDrive path not accessible from this cron session (but was accessible this cycle via direct path check)
+- Source worktree at OneDrive path **now unreachable** — moves the "Move OBus off OneDrive" lane goal closer to completion
 
 ---
 
-**Verdict:** Main repo synced. Source worktree has 47 uncommitted modifications (no new commits). **Services are down** — both :8000 and :3000 refused connections. This is a regression from the previous healthy cycle.
+**Verdict:** Main repo pushed (`7a46869`). Services recovered (both UP). Source worktree now unreachable (OneDrive path gone) — consistent with the active Codex "Move OBus off OneDrive" lane. `.gitignore` updated to keep `.codex/coordination/` out of version control.
