@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 03:01 UTC (cron cycle)
+# Push Status Report - 2026-08-27 05:12 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-08-27 03:01 UTC
+**Run Time:** 2026-08-27 05:12 UTC
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `1aeaed4` | master | ✅ **Up to date** — Everything up-to-date. In sync with origin. |
+| obus-moa-exe (SgtSlummy) | `499bdf8` | master | ✅ **Up to date** — Everything up-to-date. In sync with origin. |
 | warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
 | third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No new changes. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `1aeaed4` on `origin/master` — **fully in sync** (0 behind/ahead). Push: ok.
+**Main repo:** `499bdf8` on `origin/master` — **fully in sync** (0 behind/ahead). Push: ok.
 
 ---
 
@@ -26,7 +26,6 @@
 |------|-------|
 | `status_report.txt` | M (modified) — refreshed this cycle |
 | `push_status.txt` | M (modified) — refreshed this cycle |
-| `cron_report_0351.md` | ?? (untracked) — new this cycle |
 | `electron_app/node_modules/` | ?? (untracked) |
 | `electron_app/package-lock.json` | ?? (untracked) |
 
@@ -54,35 +53,34 @@ Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~18 hours).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — uvicorn PID 1016, HTTP 200 |
-| Davy Jones server control panel | `:3000` | ✅ **Running** — DavyJonesHeartbeat PID 8836, HTTP 200 |
+| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — HTTP 200, HTML response confirmed |
+| Davy Jones server control panel | `:3000` | ✅ **Running** — HTTP 200, HTML response confirmed |
 
-Both services recovered this cycle.
+Both services healthy this cycle.
 
 ---
 
-## Active Jobs / Processes
+## Active Jobs / Processes (system-level, not Hermes-managed)
 
-- **System processes (relevant):**
-  - `llama-server.exe` (PID 5296) — 3.5 GB — local LLM inference active
-  - `codex.exe` (6+ instances) — active Codex CLI workflows
-  - `gortex.exe` (3 instances) — Gortex MCP tools active
-  - `OBus.exe` (14+ instances) — across multiple dist builds
-  - `pinchtab-windows-amd64.exe` (3 instances) — browser automation active
-  - `mempalace-mcp.exe` (2 instances) — MemPalace MCP active
-  - `uvicorn.exe` — OBus backend ASGI
-  - `DavyJonesHeartbeat.exe` — Davy Jones service
+- `llama-server.exe` (PID 5296) — 963 MB — local LLM inference active
+- `codex.exe` (6+ instances) — active Codex CLI workflows
+- `gortex.exe` (3 instances) — Gortex MCP tools active
+- `OBus.exe` (14+ instances) — across multiple dist builds
+- `pinchtab-windows-amd64.exe` (3 instances) — browser automation active
+- `mempalace-mcp.exe` (2 instances) — MemPalace MCP active
+- `uvicorn.exe` — OBus backend ASGI
+- `DavyJonesHeartbeat.exe` — Davy Jones service
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ **Up to date** — `1aeaed4` pushed; in sync (0 behind/ahead).
+1. **Main repo:** ✅ **Up to date** — `499bdf8` pushed; in sync (0 behind/ahead).
 2. **Source worktree:** ⚠️ No change — branch on origin. Worktree not accessible from this session.
 3. **Submodule pushes:** ⚠️ Mixed — warp synced; Understand-Anything and warpdotdev-warp blocked (unchanged).
 4. **Build pipeline:** ⏸ Idle — no new EXEs in ~18 hours.
-5. **Services:** ✅ Both recovered — :8000 and :3000 responding HTTP 200.
-6. **Active jobs:** Llama-server (3.5GB), Codex (6+ instances), Gortex (3), OBus (14+), PinchTab (3), MemPalace (2) all active.
+5. **Services:** ✅ Both healthy — :8000 and :3000 responding HTTP 200 with valid HTML.
+6. **Active jobs:** Llama-server (963MB), Codex (6+ instances), Gortex (3), OBus (14+), PinchTab (3), MemPalace (2) all active.
 
 ---
 

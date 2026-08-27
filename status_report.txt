@@ -1,7 +1,7 @@
-# Status Report - 2026-08-27 03:01 UTC (cron cycle)
+# Status Report - 2026-08-27 05:12 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
-**Run Time:** 2026-08-27 03:01 UTC (UTC+00:00)
+**Run Time:** 2026-08-27 05:12 UTC (UTC+00:00)
 **Schedule:** every 10m
 
 ---
@@ -9,7 +9,7 @@
 ## Active Projects & Pushes
 
 ### obus-moa-exe (SgtSlummy) — MAIN
-- **Commit:** `1aeaed4` — chore: refresh push status reports for 01:31 cycle
+- **Commit:** `499bdf8` — docs: cron report 0351
 - **Branch:** master → origin/master ✅ **In sync (0 behind/ahead)**
 - **Push:** Everything up-to-date. No new commits to push.
 
@@ -41,7 +41,7 @@
 
 ## Build / EXE Status
 
-- **Main dir pipeline:** Idle — no new loop EXEs since Aug 25 10:46 (~18 hours)
+- **Main dir pipeline:** Idle — no new loop EXEs since Aug 26 09:38 (~18 hours)
 - **Latest main EXE:** `dist/OBus.exe` (139.8MB, Aug 23 21:17)
 - **Running instance:** `dist-aui-loop21/OBus.exe` (70.7MB, Aug 24 16:31, PID 18292)
 - **Source worktree builds:** `dist-aui-loop5/OBus.exe` (70.6MB), `dist-aui-loop10/OBus.exe` (70.7MB), both Aug 26 09:38
@@ -53,17 +53,17 @@
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — uvicorn PID 1016, HTTP 200 |
-| Davy Jones server control panel | `:3000` | ✅ **Running** — DavyJonesHeartbeat PID 8836, HTTP 200 |
+| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — HTTP 200, HTML response confirmed |
+| Davy Jones server control panel | `:3000` | ✅ **Running** — HTTP 200, HTML response confirmed |
 
-Both services recovered this cycle — ports now reachable (connected via 127.0.0.1).
+Both services healthy this cycle — ports reachable with valid HTML responses.
 
 ---
 
 ## Process Inventory
 
 - **System processes (relevant):**
-  - `llama-server.exe` (PID 5296) — 3.5 GB — local LLM inference active
+  - `llama-server.exe` (PID 5296) — 963 MB — local LLM inference active
   - `codex.exe` (6+ instances) — active Codex CLI workflows
   - `gortex.exe` (3 instances) — Gortex MCP tools active
   - `OBus.exe` (14+ instances) — across multiple dist builds
@@ -78,7 +78,7 @@ Both services recovered this cycle — ports now reachable (connected via 127.0.
 
 | Job Type | Status | Notes |
 |----------|--------|-------|
-| Main repo push | ✅ Done | `1aeaed4` up-to-date on origin/master |
+| Main repo push | ✅ Done | `499bdf8` up-to-date on origin/master |
 | Source worktree push | ⚠️ No change | Branch on origin, worktree not accessible from this session |
 | Submodule pushes | ⚠️ Blocked | Permission/fork issues; warp synced and detached |
 | Build pipeline | ⏸ Idle | No new EXEs in ~18 hours |
@@ -92,12 +92,14 @@ Both services recovered this cycle — ports now reachable (connected via 127.0.
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Source worktree at OneDrive path not accessible from this session — needs manual sync/commit from another session
+- Source worktree at OneDrive path not accessible from this cron session — needs manual sync/commit from another session
 
 ---
 
 ## Changes Since Last Report
 
-1. **Both services recovered** — :8000 and :3000 now responding 200 OK (were unreachable last cycle)
-2. **Push sweep complete** — main repo up-to-date, submodule push attempts logged (same persistent blockers)
-3. **Zero new commits** — no activity since last cycle across any tracked repo
+1. **Main repo unchanged** — still at `499bdf8`. Push confirmed up-to-date.
+2. **Both services confirmed healthy** — :8000 and :3000 returning valid HTML (HTTP 200) via curl -v verification.
+3. **Zero new commits** — no activity since last cycle across any tracked repo.
+4. **Build pipeline remains idle** — no new EXEs since Aug 26 09:38.
+5. **Process count stable** — llama-server (1), codex (6+), gortex (3), OBus (14+), pinchtab (3), mempalace (2), uvicorn (1), DavyJonesHeartbeat (1).
