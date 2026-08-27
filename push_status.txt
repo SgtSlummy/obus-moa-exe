@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 00:54 UTC (cron cycle)
+# Push Status Report - 2026-08-27 01:31 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71  
 **Schedule:** every 10m  
-**Run Time:** 2026-08-27 00:54 UTC
+**Run Time:** 2026-08-27 01:31 UTC
 
 ---
 
@@ -10,65 +10,73 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `9964bd3` | master | ✅ **Push succeeded** — up to date, everything already in sync. |
-| warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. Personal fork `sgtfork` available. No drift. |
-| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD, upstream tracking only; 403 on push. No new changes this cycle. |
-| Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead of origin (stale, unchanged). |
+| obus-moa-exe (SgtSlummy) | `f0b327e` | master | ✅ **Pushed this cycle** — `9964bd3` → `f0b327e` (chore: refresh push status reports for 00:54 cycle). In sync with origin. |
+| warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
+| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD, upstream tracking only; 403 on push. No new changes. |
+| Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
-**Main repo:** `9964bd3` on `origin/master` — **fully in sync** (0 behind/ahead). Push: ok (up-to-date).
-
-**Source worktree:** `77a6f02` on `origin/codex/autonomy-context-agents` — **in sync** (0 behind/ahead). Push: ok (up-to-date). Branch already on origin.
+**Main repo:** `f0b327e` on `origin/master` — **fully in sync** (0 behind/ahead). Push: ok.
 
 ---
 
-## Source Worktree — Branch Status
+## Active Worktree — Uncommitted Changes
 
-| Repo | Branch | Status |
-|------|--------|--------|
-| obus-moa-exe (source-worktree) | `codex/autonomy-context-agents` | ✅ **In sync with origin** — `77a6f02` matches `origin/codex/autonomy-context-agents` (0 behind/ahead). 31 dirty files (unstaged) + extensive untracked feature work. |
+| File | State |
+|------|-------|
+| `status_report.txt` | M (modified) — needs refresh |
+| `cron_report_0346.md` | ?? (untracked) |
+| `cron_report_0348.md` | ?? (untracked) |
+| `electron_app/node_modules/` | ?? (untracked) |
+| `electron_app/package-lock.json` | ?? (untracked) |
 
-**Source worktree location:** `C:/Users/Hermes/OneDrive/OBus-Thor-Loki-Paired/source-worktree`
-
----
-
-## Active Worktree — Uncommitted Changes (31 dirty + 200+ untracked)
-
-The worktree has extensive uncommitted feature work across:
-
-- **Backend:** autonomy, flow-studio, codex-policy, context-policy, execution-policy, terminal API/runtime, parity matrix, guided ritual UI, route attachments UI, desktop picker
-- **Static assets:** agent-visuals, heritage-workbench, plan, runtime, workspace, index.html, guided-ritual CSS/JS, flow_studio.html, vendor/
-- **Tests:** 10 test files modified + new tests for codex_policy, context_policy, flow_studio, guided_ritual, parity_matrix, terminal contracts
-- **Docs/data:** AGENTIC_RUNTIME.md, flow_studio_design_qa.md, obus-codex-comparison.md, codex-comparison-manifest.json, design-qa.md, Start-Loki-Agentic.ps1
-- **Tools:** smoke_local_terminal.py, smoke_terminal_api.py, smoke_xterm_ui.cjs
-- **Build artifacts:** 200+ directories of package/smoke/pytest outputs
-
-**None of this work has been committed or pushed to the branch.** It's all modified/unstaged or untracked.
+**Source worktree** (`codex/autonomy-context-agents`): `77a6f02` — **in sync** with origin (0 behind/ahead). Branch on origin. 31 dirty files + extensive untracked feature work. Nothing staged.
 
 ---
 
-## Build Loops
+## Build / EXE Status
 
-### Main directory — idle ~38 hours
-Last build: `dist-onedrive-fix/OBus.exe` (133.6MB, Aug 25 10:46). Running instance: `dist-aui-loop21/OBus.exe` (PID 18292).
+| Location | EXE | Size | Date | Notes |
+|----------|-----|------|------|-------|
+| `dist-onedrive-fix/` | OBus.exe | 133.6MB | Aug 25 10:46 | Latest main dir build |
+| `dist-aui-loop21/` | OBus.exe | 70.7MB | Aug 24 16:31 | Running instance (PID 18292) |
+| `dist-aui-loop5/` | OBus.exe | 70.6MB | Aug 26 09:38 | Source worktree build |
+| `dist-aui-loop10/` | OBus.exe | 70.7MB | Aug 26 09:38 | Source worktree build |
 
-### Source worktree — built Aug 26 09:38
-- `dist-aui-loop10/OBus.exe` — 70.7MB
-- `dist-aui-loop5/OBus.exe` — 70.6MB
+Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~16 hours).
 
 ---
 
-## Network Status
+## Services
 
-✅ **Network restored** — GitHub push succeeded this cycle after previous "cannot resolve github.com" error. Connectivity confirmed.
+| Service | Port | Status |
+|---------|------|--------|
+| OBus MOA FastAPI backend | `:8000` | ✅ Live |
+| Davy Jones server control panel | `:3000` | ✅ Live |
+
+---
+
+## Active Jobs / Processes
+
+- **Hermes session processes:** None registered this cycle.
+- **System processes:** No active OBus/Codex/ollama/gortex/pinchtab/llama processes detected in this session.
+- **Background jobs:** No active build/deploy tasks.
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ **Push succeeded** — `9964bd3` matches origin/master. No new commits.
-2. **Source worktree branch:** ✅ **Push succeeded** — `77a6f02` matches origin/codex/autonomy-context-agents. Branch on origin.
-3. **Source worktree commits:** ❌ **Nothing committed** — 31 dirty files + extensive untracked feature work remains uncommitted.
-4. **Submodule pushes:** ⚠️ **Mixed** — warp synced (no push needed); Understand-Anything and warpdotdev-warp blocked (unchanged).
-5. **Build pipeline:** Idle — no new main-dir EXEs in ~38 hours.
-6. **Network:** ✅ **Restored** — push operations succeeded this cycle.
+1. **Main repo:** ✅ **Pushed this cycle** — `f0b327e` → origin/master. In sync (0 behind/ahead).
+2. **Source worktree branch:** ⚠️ No change — `77a6f02` in sync with origin, branch on origin. 31 dirty files remain uncommitted.
+3. **Submodule pushes:** ⚠️ Mixed — warp synced; Understand-Anything and warpdotdev-warp blocked (unchanged).
+4. **Build pipeline:** ⏸ Idle — no new EXEs in ~16 hours.
+5. **Services:** Both ✅ live.
+6. **Active jobs:** None running in this Hermes session.
+
+---
+
+## Persistent Blockers (unchanged)
+
+- warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
+- warpdotdev-warp: detached HEAD, 403 on push
+- Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
