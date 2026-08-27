@@ -27,3 +27,6 @@ dist-aui-*/
 .hermes/audits/
 .hermes/package-loop*/
 .hermes/package-loop*/home/
+
+.codex/coordination/*
+!.codex/coordination/project.yaml

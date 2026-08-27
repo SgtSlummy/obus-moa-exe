@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 15:31 UTC (cron cycle)
+# Push Status Report - 2026-08-27 15:41 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-08-27 15:31 UTC
+**Run Time:** 2026-08-27 15:41 UTC
 
 ---
 
@@ -10,12 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `87f7a18` | master | ✅ **Up-to-date** — already pushed in 15:21 cycle. No new commits. |
+| obus-moa-exe (SgtSlummy) | `2068315` | master | ✅ **Up-to-date** — already pushed in 15:31 cycle. `.gitignore` modified locally (unstaged). |
 | warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
 | third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No changes since last cycle. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
+| **Source worktree** (codex/autonomy-context-agents) | `77a6f02` | codex/autonomy-context-agents | ⚠️ **47 files modified locally** — not pushed. Previous push was `77a6f02` itself; working tree now has extensive uncommitted changes. |
 
-**Main repo:** `87f7a18` on `master` — **fully in sync** with origin. No new commits this cycle.
+**Main repo:** `2068315` on `master` — **fully in sync** with origin. `.gitignore` touched locally (not committed).
 
 ---
 
@@ -25,15 +26,16 @@
 
 | File | State |
 |------|-------|
-| `electron_app/node_modules/` | ?? (untracked) |
-| `electron_app/package-lock.json` | ?? (untracked) |
+| `.gitignore` | M (modified, unstaged) |
+| `AGENTS.md` | ?? (untracked) |
+| `.codex/coordination/` | ?? (untracked, Codex lane active) |
 
-No source files modified. Node_modules is an artifact (Electron build deps).
+`.gitignore` was modified this cycle but not staged. `AGENTS.md` and `.codex/` are new untracked artifacts.
 
 ### Source worktree (`codex/autonomy-context-agents` at OneDrive)
-**Commit:** `77a6f02` — **2 commits ahead** of main (`51353dc`), **fully pushed to origin**.
-**Branch:** `codex/autonomy-context-agents` (local + `remote-only` tracking).
-**Status:** ✅ Commits pushed; only pytest checkpoint artifacts remain untracked.
+
+**Commit:** `77a6f02` — **pushed to remote**. Tracking branch: `codex/autonomy-context-agents`.
+**Status:** ⚠️ **47 files modified locally** — working tree is dirty with extensive uncommitted changes across backend, tests, docs, electron_app, and tools. No new commits since `77a6f02`.
 
 ---
 
@@ -55,17 +57,17 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~24 hours).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — HTTP 200 |
-| Davy Jones server control panel | `:3000` | ✅ **Running** — HTTP 200 |
+| OBus MOA FastAPI backend | `:8000` | ❌ **DOWN** — connection refused this cycle |
+| Davy Jones server control panel | `:3000` | ❌ **DOWN** — connection refused this cycle |
 
-Both services healthy — confirmed via curl this cycle.
+Both services are not responding. This is a change from the previous cycle (were HTTP 200).
 
 ---
 
 ## Active Jobs / Processes (system-level)
 
-- **uvicorn** (OBus MOA backend) — running
-- **Davy Jones** (control panel) — listening on :3000
+- **uvicorn** (OBus MOA backend) — status unknown (service down)
+- **Davy Jones** (control panel) — status unknown (service down)
 - **OBus.exe** — multiple instances across dist-aui-loop builds (loops 5–76)
 - **python.exe** — 30+ processes (various worker/helper processes)
 - **node.exe** — 15+ processes (Electron/Node runtimes)
@@ -75,17 +77,24 @@ Both services healthy — confirmed via curl this cycle.
 - **Chrome/MS Edge** — multiple browser instances active
 - **Docker Desktop** — running with WSL2 backend
 
-No new background processes started this cycle.
+No new background processes confirmed this cycle.
+
+---
+
+## Codex Coordination Lane
+
+Active lane: `01a04407-2394-71f0-b269-7f41a522e3ac` — "Move OBus off OneDrive"
+Status: active. Shared goal: move complete OBus workspace + Git worktree state from OneDrive to local Documents storage.
 
 ---
 
 ## Summary
 
-1. **Main repo:** ✅ **Up-to-date** — `87f7a18` already pushed; no new commits.
+1. **Main repo:** ✅ **Up-to-date** — `2068315` already pushed; `.gitignore` modified locally (unstaged).
 2. **Submodule pushes:** ⚠️ Mixed — warp synced; warpdotdev-warp and Understand-Anything blocked (unchanged).
-3. **Source worktree:** ✅ **Resolved** — `codex/autonomy-context-agents` commits pushed; only pytest artifacts remain.
+3. **Source worktree:** ⚠️ **Dirty** — `77a6f02` pushed but 47 files now modified locally; no new commits.
 4. **Build pipeline:** ⏸ Idle — no new EXEs in ~24 hours.
-5. **Services:** ✅ Both healthy — :8000 and :3000 responding HTTP 200.
+5. **Services:** ❌ **Both down** — :8000 and :3000 refused connections. This is a regression from the previous healthy cycle.
 
 ---
 
@@ -94,10 +103,8 @@ No new background processes started this cycle.
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Source worktree at OneDrive path not accessible from this cron session
-
-None of these changed this cycle.
+- Source worktree at OneDrive path not accessible from this cron session (but was accessible this cycle via direct path check)
 
 ---
 
-**Verdict:** Main repo fully synced (no new commits this cycle). Source worktree resolved — commits pushed. Services running. Build idle. All clear, no blockers active this cycle.
+**Verdict:** Main repo synced. Source worktree has 47 uncommitted modifications (no new commits). **Services are down** — both :8000 and :3000 refused connections. This is a regression from the previous healthy cycle.
