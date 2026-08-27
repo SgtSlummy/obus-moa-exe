@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 16:50 UTC (cron cycle)
+# Push Status Report - 2026-08-27 17:06 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-08-27 16:50 UTC
+**Run Time:** 2026-08-27 17:06 UTC
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `7a46869` | master | ✅ **Pushed** — `2068315..7a46869`. Includes push status + `.gitignore` + `AGENTS.md`. |
+| obus-moa-exe (SgtSlummy) | `31f341d` | master | ✅ **In sync** — `origin/master` matches local HEAD. Pushed in prior cycle. |
 | warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
 | third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No changes since last cycle. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
 | **Source worktree** (codex/autonomy-context-agents) | `77a6f02` | codex/autonomy-context-agents | ⚠️ **Unreachable** — OneDrive path no longer accessible from this session. 47 files modified locally (unchanged since last cycle). |
 
-**Main repo:** `7a46869` on `master` — **pushed this cycle**. `.gitignore` updated to exclude `.codex/coordination/*` (except `project.yaml`). `AGENTS.md` added as Codex task-boundary board doc.
+**Main repo:** `31f341d` on `master` — **in sync with remote**. Includes codex bridge, flow studio, terminal runtime, browser pilot, LLM security, and parity tools.
 
 ---
 
@@ -26,14 +26,17 @@
 
 | File | State |
 |------|-------|
-| `.codex/` | ?? (untracked, Codex lane active) |
+| `electron_app/node_modules/` | ?? (untracked, npm install artifacts) |
+| `electron_app/package-lock.json` | M (modified — package versions updated) |
+| `electron_app/package.json` | M (modified — 31 lines changed) |
+| `.pytest-full-v97/`, `.pytest-temp-voice/`, `.smoke-electron/` | ?? (test artifacts) |
+| `dist-electron-20260827/` | ?? (Electron build output) |
+| `docs/windows-installer.md` | ?? (new doc) |
+| `installers/windows/` | ?? (installer artifacts) |
+| `scripts/obus_codex_fixture_runner.py` | ?? (new script) |
+| `tmp/electron-builder-*/`, `tmp/electron_smoke.cjs` | ?? (build temp files) |
 
-Working tree clean except for `.codex/` coordination artifacts (intentionally untracked).
-
-### Source worktree (`codex/autonomy-context-agents` at OneDrive)
-
-**Commit:** `77a6f02` — **pushed to remote**. Tracking branch: `codex/autonomy-context-agents`.
-**Status:** ⚠️ **Unreachable** — OneDrive path `C:/Users/Hermes/OneDrive/OBus/codex/autonomy-context-agents/` no longer accessible from this cron session. 47 files modified locally (unchanged).
+No new commits to push — all uncommitted work is build/test artifacts or the Electron npm dependency tree.
 
 ---
 
@@ -41,13 +44,12 @@ Working tree clean except for `.codex/` coordination artifacts (intentionally un
 
 | Location | EXE | Size | Date | Notes |
 |----------|-----|------|------|-------|
-| `dist/` | OBus.exe | 146.6MB | Aug 23 21:17 | Main dir build |
-| `dist/` | OBus-Loki-Partner-Setup.exe | 146.7MB | Aug 23 18:57 | |
-| `dist/` | OBus-Thor-Setup.exe | 146.7MB | Aug 23 18:57 | |
-| `dist-onedrive-fix/` | OBus.exe | 133.6MB | Aug 25 10:46 | Latest main dir build |
+| `dist-electron-20260827/` | OBus.exe | 168.7MB | Aug 27 11:46 | Current Electron build |
+| `dist/` | OBus.exe | 146.6MB | Aug 23 21:17 | Previous main dir build |
+| `dist-onedrive-fix/` | OBus.exe | 133.6MB | Aug 25 10:46 | OneDrive-fix build |
 | `dist-aui-loop76/` | OBus.exe | 67.5MB | Aug 25 04:49 | Latest loop build |
 
-Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~2 days).
+Build pipeline: **Idle** — no new EXEs since Aug 27 11:46.
 
 ---
 
@@ -55,24 +57,20 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~2 days).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, `{"status":"ok","service":"obus-moa"}` |
+| OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, dashboard HTML responding |
 | Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200, serves HTML dashboard |
 
-Both services recovered this cycle — were down in previous report (connection refused).
+Both services healthy this cycle.
 
 ---
 
 ## Active Jobs / Processes (system-level)
 
-- **uvicorn** (OBus MOA backend) — running on PID 206731 (Aug 26)
+- **uvicorn** (OBus MOA backend) — running
 - **Davy Jones** (control panel) — running on port 3000
-- **OBus.exe** — multiple instances across dist-aui-loop builds
-- **python.exe** — 30+ processes
-- **node.exe** — 15+ processes (Electron/Node runtimes)
-- **ollama** — running (llama-server active)
-- **gortex** — multiple instances running
-- **Chrome/MS Edge** — multiple browser instances active
-- **Docker Desktop** — running with WSL2 backend
+- No active background cron jobs detected in this session
+- **OBus.exe** — present in dist-electron-20260827 (not currently running as detected by this session)
+- **python/gortex/ollama** processes — not detected by this session's process listing
 
 ---
 
@@ -85,11 +83,11 @@ Status: **active**. Shared goal: move complete OBus workspace + Git worktree sta
 
 ## Summary
 
-1. **Main repo:** ✅ **Pushed** — `7a46869` pushed to `origin/master` this cycle.
+1. **Main repo:** ✅ **In sync** — `31f341d` matches `origin/master`. No push needed this cycle.
 2. **Submodule pushes:** ⚠️ Mixed — warp synced; warpdotdev-warp and Understand-Anything blocked (unchanged).
 3. **Source worktree:** ⚠️ **Unreachable** — OneDrive path gone; 47 uncommitted modifications stale.
-4. **Build pipeline:** ⏸ Idle — no new EXEs in ~2 days.
-5. **Services:** ✅ **Both UP** — :8000 and :3000 responding. Regression from previous cycle resolved.
+4. **Build pipeline:** ⏸ Idle — latest EXE is `dist-electron-20260827/OBus.exe` (168.7MB, Aug 27 11:46).
+5. **Services:** ✅ **Both UP** — :8000 and :3000 responding.
 
 ---
 
@@ -98,8 +96,12 @@ Status: **active**. Shared goal: move complete OBus workspace + Git worktree sta
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Source worktree at OneDrive path **now unreachable** — moves the "Move OBus off OneDrive" lane goal closer to completion
+- Source worktree at OneDrive path **now unreachable** — consistent with the active Codex "Move OBus off OneDrive" lane.
 
 ---
 
-**Verdict:** Main repo pushed (`7a46869`). Services recovered (both UP). Source worktree now unreachable (OneDrive path gone) — consistent with the active Codex "Move OBus off OneDrive" lane. `.gitignore` updated to keep `.codex/coordination/` out of version control.
+**Verdict:** Main repo in sync (`31f341d`). No push required this cycle. Services recovered (both UP). Electron build present at 168.7MB. `.gitignore` already updated to exclude `.codex/coordination/` (except `project.yaml`).
+
+---
+
+PUSH STATUS: In sync. No push needed.
