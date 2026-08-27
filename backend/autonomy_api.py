@@ -9,14 +9,26 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from backend.agent_harness import TERMINAL_STATES
 from backend.autonomy import ObjectiveScheduler
+from backend.execution_policy import classify_major_risk
 from backend.harness_api import _authorize, runtime
 
 router = APIRouter(prefix="/api/harness", tags=["harness-autonomy"])
+
+
+def _task_is_active(task_id: str) -> bool:
+    try:
+        return str(runtime.store.get_task(task_id).get("state") or "") not in TERMINAL_STATES
+    except KeyError:
+        return False
+
+
 objective_scheduler = ObjectiveScheduler(
     runtime.store.path,
     runtime.submit,
     poll_seconds=float(os.environ.get("OBUS_OBJECTIVE_POLL_SECONDS", "1")),
+    task_active=_task_is_active,
 )
 if os.environ.get("OBUS_PROACTIVE_OBJECTIVES", "1").strip().lower() not in {"0", "false", "no", "off"}:
     objective_scheduler.start()
@@ -52,9 +64,21 @@ def list_objectives(request: Request, authorization: Annotated[str | None, Heade
 def create_objective(payload: ObjectiveCreate, request: Request,
                      authorization: Annotated[str | None, Header()] = None):
     _authorize(request, authorization)
-    workspace = Path(payload.workspace).expanduser() if payload.workspace else Path.cwd()
-    workspace = workspace.resolve()
-    workspace.mkdir(parents=True, exist_ok=True)
+    risks = classify_major_risk(payload.objective)
+    if risks:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Major-risk objectives cannot run on a schedule. Start a one-time task from the local desktop instead.",
+                "risks": risks,
+            },
+        )
+    try:
+        workspace = (Path(payload.workspace).expanduser() if payload.workspace else Path.cwd()).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail="Scheduled workspace must already exist") from exc
+    if not workspace.is_dir():
+        raise HTTPException(status_code=400, detail="Scheduled workspace must be a directory")
     return objective_scheduler.create(payload.name.strip(), payload.objective.strip(), workspace,
                                       payload.interval_seconds, payload.provider, payload.priority, payload.enabled)
 
@@ -65,6 +89,8 @@ def set_objective_enabled(objective_id: str, payload: ObjectiveEnabled, request:
     _authorize(request, authorization)
     try:
         return objective_scheduler.set_enabled(objective_id, payload.enabled)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="objective not found") from exc
 

@@ -19,7 +19,7 @@ from backend.process_utils import MAX_SUBPROCESS_OUTPUT_BYTES, run_bounded_subpr
 MAX_PERSISTENT_AGENTS = 30
 MAX_AGENT_STEPS = 8
 MAX_AGENT_HISTORY = 50
-MAX_PARALLEL_AGENT_RUNS = 8
+MAX_PARALLEL_AGENT_RUNS = 20
 
 def normalized_room_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(value).casefold()).strip("-") or "room"
@@ -66,7 +66,7 @@ class PersistentAgentRunRequest(StrictModel):
 
 class RuntimeOrchestratorRequest(StrictModel):
     objective: str = Field(min_length=1, max_length=12000)
-    max_agents: int = Field(default=6, ge=1, le=MAX_PERSISTENT_AGENTS)
+    max_agents: int = Field(default=8, ge=1, le=MAX_PERSISTENT_AGENTS)
     execute: bool = True
 
 

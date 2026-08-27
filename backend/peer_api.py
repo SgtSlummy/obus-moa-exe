@@ -11,7 +11,25 @@ from backend.harness_api import runtime
 from backend.peer_sync import PeerSyncStore, is_tailscale_address
 
 router = APIRouter(prefix="/api/peers", tags=["peers"])
-peer_store = PeerSyncStore(runtime.store.path)
+
+# Peer sync is optional to the local desktop app.  A Windows account can lack
+# an available DPAPI profile (for example, in a restricted launch context).
+# Keep that security boundary fail-closed: peer operations become unavailable,
+# but the primary local application must still be able to start.  In
+# particular, never replace DPAPI with a plaintext or portable key on Windows.
+try:
+    peer_store: PeerSyncStore | None = PeerSyncStore(runtime.store.path)
+except OSError:
+    peer_store = None
+
+
+def _require_peer_store() -> PeerSyncStore:
+    if peer_store is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Peer synchronization is unavailable because secure local key storage could not be initialized.",
+        )
+    return peer_store
 
 
 class PairRequest(BaseModel):
@@ -36,9 +54,10 @@ def _tailscale_only(request: Request) -> str:
 
 
 def _verify(envelope: SignedEnvelope) -> dict[str, Any]:
+    store = _require_peer_store()
     try:
-        return peer_store.verify(envelope.peer_id, envelope.timestamp, envelope.nonce,
-                                 envelope.payload, envelope.signature)
+        return store.verify(envelope.peer_id, envelope.timestamp, envelope.nonce,
+                            envelope.payload, envelope.signature)
     except (KeyError, PermissionError, ValueError) as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
@@ -46,14 +65,15 @@ def _verify(envelope: SignedEnvelope) -> dict[str, Any]:
 @router.get("/identity")
 def peer_identity(request: Request):
     _tailscale_only(request)
-    return peer_store.identity_public()
+    return _require_peer_store().identity_public()
 
 
 @router.post("/pair", status_code=201)
 def pair_peer(payload: PairRequest, request: Request):
     _tailscale_only(request)
+    store = _require_peer_store()
     try:
-        return peer_store.pair(payload.name.strip(), payload.public_key, payload.pairing_key)
+        return store.pair(payload.name.strip(), payload.public_key, payload.pairing_key)
     except PermissionError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     except ValueError as exc:
@@ -63,14 +83,15 @@ def pair_peer(payload: PairRequest, request: Request):
 @router.get("")
 def list_peers(request: Request):
     _tailscale_only(request)
-    return {"peers": peer_store.peers()}
+    return {"peers": _require_peer_store().peers()}
 
 
 @router.delete("/{peer_id}")
 def revoke_peer(peer_id: str, request: Request):
     _tailscale_only(request)
+    store = _require_peer_store()
     try:
-        return peer_store.revoke(peer_id)
+        return store.revoke(peer_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="peer not found") from exc
 
@@ -100,6 +121,7 @@ def submit_peer_task(envelope: SignedEnvelope, request: Request):
 def sync_peer_lessons(envelope: SignedEnvelope, request: Request):
     _tailscale_only(request)
     _verify(envelope)
+    store = _require_peer_store()
     lessons = envelope.payload.get("lessons") or []
     if not isinstance(lessons, list) or len(lessons) > 1000:
         raise HTTPException(status_code=422, detail="lessons must be a list of at most 1000 items")
@@ -108,7 +130,7 @@ def sync_peer_lessons(envelope: SignedEnvelope, request: Request):
         if not isinstance(lesson, dict):
             raise HTTPException(status_code=422, detail="each lesson must be an object")
         try:
-            results.append(peer_store.ingest_lesson(lesson, envelope.signature))
+            results.append(store.ingest_lesson(lesson, envelope.signature))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"results": results}
@@ -117,4 +139,4 @@ def sync_peer_lessons(envelope: SignedEnvelope, request: Request):
 @router.get("/sync/lessons")
 def list_synced_lessons(request: Request):
     _tailscale_only(request)
-    return {"lessons": peer_store.synced_lessons()}
+    return {"lessons": _require_peer_store().synced_lessons()}

@@ -9,8 +9,13 @@ import obus_launcher
 class HeadlessRuntimeTests(unittest.TestCase):
     def test_launcher_recognizes_headless_mode(self):
         self.assertTrue(obus_launcher.headless_requested(["--headless"]))
+        self.assertTrue(obus_launcher.headless_requested(["--serve"]))
         self.assertFalse(obus_launcher.headless_requested([]))
         self.assertTrue(obus_launcher.INSTANCE_MUTEX_NAME.endswith(str(obus_launcher.APP_PORT)))
+
+    def test_headless_source_does_not_reuse_an_unrelated_health_endpoint(self):
+        source = Path(obus_launcher.__file__).read_text(encoding="utf-8")
+        self.assertIn("if not headless and wait_for_server(HEALTH_URL", source)
 
     def test_headless_secondary_launch_never_opens_the_ui(self):
         with patch.object(obus_launcher, "acquire_single_instance", return_value=False), \

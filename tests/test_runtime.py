@@ -5,7 +5,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -277,7 +277,8 @@ class RuntimeContractTests(unittest.TestCase):
         }
         with patch.object(backend, "get_ollama_status", return_value=ollama):
             payload = self.client.get("/api/dashboard").json()
-        self.assertEqual(payload["usage"]["context_window"], 32768)
+        # Dashboard reports the configured safe usable slice, not the raw model ceiling.
+        self.assertEqual(payload["usage"]["context_window"], int(32768 * 0.95))
         self.assertEqual(payload["usage"]["last"]["total_tokens"], 250)
         self.assertEqual(payload["usage"]["totals"]["calls"], 5)
 
@@ -500,10 +501,19 @@ class RuntimeContractTests(unittest.TestCase):
         launcher_source = (Path(__file__).parents[1] / "obus_launcher.py").read_text(encoding="utf-8")
         self.assertNotIn("8080", launcher_source)
         self.assertNotIn("?build=", launcher_source)
+        ready_response = Mock()
+        ready_response.read.return_value = b'{"status":"ok","service":"obus-moa"}'
         with patch.object(obus_launcher.urllib.request, "urlopen") as open_mock:
-            open_mock.side_effect = [OSError("not ready"), object()]
+            open_mock.side_effect = [OSError("not ready"), ready_response]
             self.assertTrue(obus_launcher.wait_for_server(obus_launcher.HEALTH_URL, attempts=2, delay=0))
             self.assertEqual(open_mock.call_count, 2)
+
+    def test_launcher_rejects_an_unrelated_listener_on_the_obus_health_port(self):
+        unrelated = Mock()
+        unrelated.read.return_value = b'{"status":"ok","service":"different-local-app"}'
+        with patch.object(obus_launcher.urllib.request, "urlopen", return_value=unrelated):
+            self.assertEqual(obus_launcher.obus_health_state(obus_launcher.HEALTH_URL), "unexpected")
+            self.assertFalse(obus_launcher.wait_for_server(obus_launcher.HEALTH_URL, attempts=1, delay=0))
 
     def test_launcher_uses_standalone_window_and_system_tray(self):
         edge = Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe")
@@ -517,6 +527,17 @@ class RuntimeContractTests(unittest.TestCase):
         spec = (Path(__file__).parents[1] / "OBus.spec").read_text(encoding="utf-8")
         self.assertIn("pystray._win32", spec)
         self.assertIn("obus_emblem.ico", spec)
+
+    def test_desktop_activation_urls_and_client_pages_are_allowlisted(self):
+        self.assertEqual(obus_launcher.desktop_page_url(), obus_launcher.APP_URL)
+        self.assertEqual(obus_launcher.desktop_page_url("runtime"), f"{obus_launcher.APP_URL}?page=runtime")
+        self.assertEqual(obus_launcher.desktop_page_url("runs"), f"{obus_launcher.APP_URL}?page=runs")
+        self.assertEqual(obus_launcher.desktop_page_url("hardening"), obus_launcher.APP_URL)
+        html = self.client.get("/").text
+        self.assertIn("const desktopActivationPages=new Set(['dashboard','runtime','runs'])", html)
+        self.assertIn("async function applyDesktopPageActivation()", html)
+        self.assertIn("if(!desktopActivationPages.has(page))return", html)
+        self.assertIn("await applyDesktopPageActivation()", html)
 
     def test_launcher_enforces_one_backend_and_tray_owner(self):
         with patch.object(obus_launcher, "_create_windows_mutex", return_value=(123, False)):
@@ -653,6 +674,89 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(payload["state"], "disabled")
         self.assertTrue(payload["verified"])
         self.assertFalse(payload["connected"])
+
+    def test_local_auto_aid_adopts_a_sole_installed_model_without_broader_setup_changes(self):
+        state = backend.load_state()
+        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
+        local.update(model="gpt-oss:20b", state="staged", verified=False, approved=False, active=False)
+        state["settings"]["selected_model"] = "gpt-oss:20b"
+        state["settings"]["workspace_root"] = str(Path(self.tempdir.name).resolve())
+        backend.save_state(state)
+        local_status = {
+            "connected": True, "models": ["qwen3:8b"], "running_models": [],
+            "model_contexts": {"qwen3:8b": 65_536}, "runtime_contexts": {},
+        }
+
+        with patch.object(backend, "get_ollama_status", return_value=local_status):
+            response = self.client.post("/api/providers/local-ollama/auto-aid")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["model"], "qwen3:8b")
+        self.assertEqual(payload["source"], "sole installed")
+        self.assertEqual(payload["context_window"], 65_536)
+        self.assertTrue(payload["connected"])
+        self.assertFalse(payload["workspace_changed"])
+        self.assertFalse(payload["credentials_changed"])
+        self.assertFalse(payload["remote_access_changed"])
+        persisted = backend.load_state()
+        persisted_local = next(key for key in persisted["keys"] if key["id"] == "key-local-ollama")
+        self.assertEqual(persisted_local["model"], "qwen3:8b")
+        self.assertEqual(persisted["settings"]["selected_model"], "qwen3:8b")
+        self.assertEqual(persisted["settings"]["workspace_root"], str(Path(self.tempdir.name).resolve()))
+
+    def test_local_auto_aid_refuses_to_guess_between_unconfigured_local_models(self):
+        state = backend.load_state()
+        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
+        local["model"] = "gpt-oss:20b"
+        state["settings"]["selected_model"] = "gpt-oss:20b"
+        backend.save_state(state)
+        local_status = {
+            "connected": True, "models": ["phi4:latest", "qwen3:8b"], "running_models": [],
+            "model_contexts": {}, "runtime_contexts": {},
+        }
+
+        with patch.object(backend, "get_ollama_status", return_value=local_status):
+            response = self.client.post("/api/providers/local-ollama/auto-aid")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["reason"], "model_choice_required")
+        persisted = backend.load_state()
+        self.assertEqual(next(key for key in persisted["keys"] if key["id"] == "key-local-ollama")["model"], "gpt-oss:20b")
+
+    def test_local_auto_aid_preflight_is_read_only_and_only_recommends_deterministic_setup(self):
+        state = backend.load_state()
+        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
+        local.update(model="gpt-oss:20b", state="staged", verified=False, approved=False, active=False)
+        state["settings"]["selected_model"] = "gpt-oss:20b"
+        backend.save_state(state)
+        status = {"connected": True, "models": ["qwen3:8b"], "running_models": [], "model_contexts": {"qwen3:8b": 65_536}, "runtime_contexts": {}}
+
+        plan = backend.local_ollama_auto_aid_preflight(state, status)
+
+        self.assertTrue(plan["safe"])
+        self.assertTrue(plan["auto_apply"])
+        self.assertEqual(plan["model"], "qwen3:8b")
+        self.assertEqual(plan["context_window"], 65_536)
+        self.assertEqual(next(key for key in state["keys"] if key["id"] == "key-local-ollama")["model"], "gpt-oss:20b")
+
+    def test_dashboard_exposes_only_deterministic_local_auto_aid(self):
+        state = backend.load_state()
+        local = next(key for key in state["keys"] if key["id"] == "key-local-ollama")
+        local.update(model="gpt-oss:20b", state="staged", verified=False, approved=False, active=False)
+        state["settings"]["selected_model"] = "gpt-oss:20b"
+        backend.save_state(state)
+        status = {"connected": True, "models": ["qwen3:8b"], "running_models": [], "model_contexts": {"qwen3:8b": 65_536}, "runtime_contexts": {}}
+
+        with patch.object(backend, "get_ollama_status", return_value=status):
+            payload = self.client.get("/api/dashboard").json()
+
+        self.assertTrue(payload["local_auto_aid"]["safe"])
+        self.assertTrue(payload["local_auto_aid"]["auto_apply"])
+        self.assertEqual(payload["local_auto_aid"]["model"], "qwen3:8b")
 
     def test_missing_authorization_reference_never_calls_live_probe(self):
         with patch.dict(os.environ, {}, clear=False):
@@ -988,6 +1092,28 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(response.json()["engine"], "offline-planner")
             self.assertIn("Offline planning mode", response.json()["final"])
 
+    def test_route_accepts_a_large_prompt_with_the_model_aware_budget(self):
+        prompt = "Review this local implementation detail and retain the complete context. " * 1_000
+        with patch.object(backend, "get_ollama_status", return_value={"connected": False, "models": []}):
+            prepared, budget = backend.prepare_route_prompt(prompt)
+            response = self.client.post("/api/route/run", json={"prompt": prompt, "rag_enabled": False})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(prepared, prompt.strip())
+        self.assertGreater(len(prepared), 4_000)
+        self.assertGreater(budget["prompt_token_budget"], 4_000)
+
+    def test_route_context_budget_rejects_input_that_would_exhaust_a_small_model(self):
+        status = {"connected": True, "models": ["gpt-oss:20b"], "model_contexts": {"gpt-oss:20b": 2_048}}
+        with patch.object(backend, "get_ollama_status", return_value=status):
+            budget = self.client.get("/api/route/context-budget?model=gpt-oss%3A20b")
+            response = self.client.post("/api/route/plan", json={"prompt": "x" * 6_000, "model": "gpt-oss:20b"})
+
+        self.assertEqual(budget.status_code, 200)
+        self.assertEqual(budget.json()["context_window"], 2_048)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"]["context_window"], 2_048)
+
     def test_adversarial_room_executes_triage_before_attack(self):
         with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):
             created = self.client.post("/api/rooms", json={
@@ -1130,6 +1256,30 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(overflow.status_code, 409)
         self.assertEqual(len(self.client.get("/api/runtime/agents").json()), 30)
 
+    def test_runtime_refuses_major_risk_persistent_agents_before_recording_them(self):
+        response = self.client.post("/api/runtime/agents", json={
+            "name": "Unsafe agent", "card_id": "card-magician",
+            "objective": "Run Clear-Disk before investigating the deployment", "auto_start": True,
+        })
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("boot_firmware_or_disk_layout", response.json()["detail"]["risks"])
+        self.assertEqual(self.client.get("/api/runtime/agents").json(), [])
+
+    def test_runtime_refuses_major_risk_follow_up_before_queuing_a_run(self):
+        spawned = self.client.post("/api/runtime/agents", json={
+            "name": "Safe researcher", "card_id": "card-hermit", "objective": "Inspect release readiness",
+        }).json()
+
+        response = self.client.post(
+            f"/api/runtime/agents/{spawned['id']}/run",
+            json={"prompt": "Raise the GPU power limit before reporting results"},
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("hardware_safety_controls", response.json()["detail"]["risks"])
+        self.assertEqual(self.client.get(f"/api/runtime/agents/{spawned['id']}").json()["status"], "idle")
+
     def test_persistent_agent_executes_in_background_and_keeps_history(self):
         spawned = self.client.post("/api/runtime/agents", json={
             "name": "Persistent Hermit", "card_id": "card-hermit",
@@ -1162,6 +1312,10 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(agent["run_count"], 1)
         self.assertEqual(len(agent["history"]), 2)
         self.assertEqual(agent["history"][0]["provider"], "Local Ollama")
+        self.assertGreater(agent["context_window"], 0)
+        self.assertGreater(agent["context_input_tokens_estimate"], 0)
+        self.assertLessEqual(agent["context_input_tokens_estimate"], agent["context_window"])
+        self.assertEqual(agent["context_usage_source"], "sanitized prompt estimate")
         serialized = json.dumps(agent).lower()
         self.assertNotIn("api_key", serialized)
         self.assertNotIn("bearer ", serialized)
@@ -1189,6 +1343,62 @@ class RuntimeContractTests(unittest.TestCase):
         backend.save_state(state)
         agents = self.client.get("/api/runtime/agents").json()
         self.assertEqual(agents[0]["status"], "interrupted")
+        self.assertEqual(agents[0]["interruption"]["reason"], "runtime_restart_or_worker_interruption")
+
+    def test_interrupted_agent_requires_an_explicit_safe_resume(self):
+        state = backend.load_state()
+        state["persistent_agents"] = [{
+            "id": "agent-interrupted", "name": "Interrupted", "card_id": "card-hermit",
+            "objective": "Inspect release readiness", "status": "interrupted", "provider_mode": "auto",
+            "key_id": None, "max_steps": 1, "history": [], "run_count": 0,
+            "created_at": "now", "updated_at": "now",
+        }]
+        backend.save_state(state)
+        started = []
+
+        def fake_start(agent_id, prompt=None, *, resume=False):
+            started.append((agent_id, prompt, resume))
+            return {"id": agent_id, "status": "queued"}
+
+        with patch.object(backend, "_start_persistent_agent", side_effect=fake_start):
+            response = self.client.post("/api/runtime/agents/agent-interrupted/resume")
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(started[0][0], "agent-interrupted")
+        self.assertTrue(started[0][2])
+        self.assertIn("inspect the current workspace", started[0][1].lower())
+        self.assertIn("do not repeat", started[0][1].lower())
+
+    def test_safe_resume_starts_at_the_first_unconfirmed_agent_step(self):
+        self.assertEqual(list(backend._agent_run_steps({"max_steps": 4, "last_completed_step": 2}, resume=True)), [3, 4])
+        self.assertEqual(list(backend._agent_run_steps({"max_steps": 4, "last_completed_step": 2}, resume=False)), [1, 2, 3, 4])
+        self.assertEqual(list(backend._agent_run_steps({"max_steps": 4, "last_completed_step": 99}, resume=True)), [])
+
+    def test_safe_resume_rejects_an_agent_that_was_not_interrupted(self):
+        spawned = self.client.post("/api/runtime/agents", json={
+            "name": "Idle researcher", "card_id": "card-hermit", "objective": "Inspect release readiness",
+        }).json()
+
+        response = self.client.post(f"/api/runtime/agents/{spawned['id']}/resume")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("Only an interrupted agent", response.json()["detail"])
+
+    def test_safe_resume_keeps_the_major_risk_gate_after_an_interruption(self):
+        state = backend.load_state()
+        state["persistent_agents"] = [{
+            "id": "agent-major-risk", "name": "Unsafe resume", "card_id": "card-hermit",
+            "objective": "Format the entire disk after the interruption", "status": "interrupted",
+            "provider_mode": "auto", "key_id": None, "max_steps": 1, "history": [], "run_count": 0,
+            "created_at": "now", "updated_at": "now",
+        }]
+        backend.save_state(state)
+
+        response = self.client.post("/api/runtime/agents/agent-major-risk/resume")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("bulk_or_irrecoverable_deletion", response.json()["detail"]["risks"])
+        self.assertEqual(self.client.get("/api/runtime/agents/agent-major-risk").json()["status"], "interrupted")
 
     def test_primary_local_orchestrator_can_create_agents_rooms_and_forum(self):
         plan = {
@@ -1212,6 +1422,16 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/runtime/agents").json()), 2)
         self.assertEqual(len(self.client.get("/api/rooms").json()), 2)
         self.assertEqual(len(self.client.get("/api/forum/threads").json()), 1)
+
+    def test_orchestrator_refuses_major_risk_execution_before_model_planning(self):
+        with patch.object(backend, "PRIMARY_ORCHESTRATOR_COMPLETE") as complete:
+            response = self.client.post("/api/runtime/orchestrate", json={
+                "objective": "Flash the BIOS firmware before the deployment", "max_agents": 2, "execute": True,
+            })
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("boot_firmware_or_disk_layout", response.json()["detail"]["risks"])
+        complete.assert_not_called()
 
     def test_codex_is_the_default_primary_agent(self):
         state = backend.normalize_state({})
@@ -1260,6 +1480,194 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(payload["aggregate"]["model"], "gpt-5.6-luna")
         self.assertEqual(payload["stages"], ["local", "aggregate"])
 
+    def test_local_image_route_never_calls_remote_aggregate_or_returns_image_bytes(self):
+        state = backend.load_state()
+        state["aggregator_key_id"] = "key-codex-oauth"
+        state["aggregation_explicit"] = True
+        backend.save_state(state)
+        image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlFqP8AAAAASUVORK5CYII="
+        local_calls = []
+        aggregate = Mock(return_value="REMOTE MUST NOT RUN")
+
+        def local(prompt, model, plan, images):
+            local_calls.append((prompt, model, images))
+            return "LOCAL VISION ANSWER", {"calls": 1, "prompt_tokens": 3, "completion_tokens": 5}
+
+        statuses = [
+            {"id": "key-local-ollama", "connected": True},
+            {"id": "key-codex-oauth", "connected": True},
+        ]
+        request = {
+            "prompt": "Describe this image", "model": "llama3.2:latest", "rag_enabled": False,
+            "confirm_remote_execution": True,
+            "images": [{"name": "pixel.png", "mime_type": "image/png", "data_base64": image_base64}],
+        }
+        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}), \
+             patch.object(backend, "provider_statuses", return_value=statuses), \
+             patch.object(backend, "build_moa_router_command") as router, \
+             patch.object(backend, "generate_with_ollama", side_effect=local), \
+             patch.object(backend, "AGGREGATE_WITH_KEY", aggregate):
+            planned = self.client.post("/api/route/plan", json=request)
+            response = self.client.post("/api/route/run", json=request)
+
+        self.assertEqual(planned.status_code, 200)
+        self.assertEqual(planned.json()["image_input"]["mode"], "local_only")
+        self.assertNotIn(image_base64, json.dumps(planned.json()))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["engine"], "ollama-vision-single")
+        self.assertEqual(payload["aggregate"]["status"], "skipped-local-image")
+        self.assertFalse(payload["execution_scope"]["remote_prompt_transfer"])
+        self.assertTrue(payload["execution_scope"]["image_input_local_only"])
+        self.assertEqual(payload["image_input"]["attachments"][0]["name"], "pixel.png")
+        self.assertNotIn(image_base64, json.dumps(payload))
+        self.assertEqual(len(local_calls), 1)
+        self.assertEqual(local_calls[0][2][0]["data_base64"], image_base64)
+        router.assert_not_called()
+        aggregate.assert_not_called()
+
+    def test_explicit_web_research_fetches_only_a_user_entered_public_text_page(self):
+        class Headers(dict):
+            def get_content_charset(self):
+                return "utf-8"
+
+        class Response:
+            headers = Headers({"Content-Type": "text/html; charset=utf-8"})
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self, _limit):
+                return b"<html><script>ignore me</script><body>Public <b>research</b> text</body></html>"
+
+        public_address = [(None, None, None, None, ("93.184.216.34", 443))]
+        with patch.object(backend.socket, "getaddrinfo", return_value=public_address), patch.object(
+            backend._WEB_RESEARCH_OPENER, "open", return_value=Response()
+        ) as opener:
+            response = self.client.post("/api/research/fetch", json={"url": "https://example.com/docs?q=obus"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["url"], "https://example.com/docs?q=obus")
+        self.assertEqual(payload["persistence"], "none")
+        self.assertIn("Public research text", payload["content"])
+        self.assertNotIn("ignore me", payload["content"])
+        opener.assert_called_once()
+
+    def test_explicit_web_research_rejects_private_addresses_before_connecting(self):
+        private_address = [(None, None, None, None, ("127.0.0.1", 443))]
+        with patch.object(backend.socket, "getaddrinfo", return_value=private_address), patch.object(
+            backend._WEB_RESEARCH_OPENER, "open"
+        ) as opener:
+            response = self.client.post("/api/research/fetch", json={"url": "https://localhost/private"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("local, private", response.json()["detail"])
+        opener.assert_not_called()
+
+    def test_explicit_web_research_rejects_carrier_grade_networks_before_connecting(self):
+        cgnat_address = [(None, None, None, None, ("100.64.0.1", 443))]
+        with patch.object(backend.socket, "getaddrinfo", return_value=cgnat_address), patch.object(
+            backend._WEB_RESEARCH_OPENER, "open"
+        ) as opener:
+            response = self.client.post("/api/research/fetch", json={"url": "https://research.example"})
+
+        self.assertEqual(response.status_code, 400)
+        opener.assert_not_called()
+
+    def test_browser_pilot_exposes_only_an_optional_explicit_read_only_observation(self):
+        observed = {
+            "url": "https://example.com/",
+            "mode": "explicit-read-only",
+            "persistence": "none",
+            "snapshot": "e1:link Example",
+            "notice": "Untrusted page data shown for review only.",
+        }
+        with patch.object(backend.browser_pilot, "status", return_value={"available": True, "mode": "explicit-read-only"}), patch.object(
+            backend.browser_pilot, "observe", return_value=observed
+        ) as observe:
+            capabilities = self.client.get("/api/desktop/capabilities")
+            response = self.client.post("/api/browser-pilot/observe", json={"url": "https://example.com/"})
+
+        self.assertEqual(capabilities.status_code, 200)
+        self.assertEqual(capabilities.json()["browser_pilot"]["mode"], "explicit-read-only")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), observed)
+        observe.assert_called_once_with("https://example.com/")
+
+    def test_browser_pilot_surfaces_rejected_or_unavailable_targets_without_navigation(self):
+        with patch.object(backend.browser_pilot, "observe", side_effect=ValueError("Browser pilot accepts a public HTTPS URL only.")):
+            rejected = self.client.post("/api/browser-pilot/observe", json={"url": "http://example.com"})
+        with patch.object(backend.browser_pilot, "observe", side_effect=RuntimeError("Install PinchTab separately.")):
+            unavailable = self.client.post("/api/browser-pilot/observe", json={"url": "https://example.com"})
+
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIn("public HTTPS", rejected.json()["detail"])
+        self.assertEqual(unavailable.status_code, 409)
+        self.assertIn("PinchTab", unavailable.json()["detail"])
+
+    def test_route_can_explicitly_continue_a_redacted_prior_receipt_without_replaying_it(self):
+        receipt_file = Path(self.tempdir.name) / "receipts.json"
+        parent_id = "run-0000000000000001"
+        parent_result = "Prior route result: inspect the local service logs before changing configuration."
+        captured = []
+
+        def local(prompt, model, plan):
+            captured.append(prompt)
+            return "FOLLOW-UP RESULT", {"calls": 1, "prompt_tokens": 5, "completion_tokens": 7}
+
+        with patch.object(backend, "RECEIPT_FILE", receipt_file), \
+             patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}), \
+             patch.object(backend, "build_moa_router_command", return_value=None), \
+             patch.object(backend, "generate_with_ollama", side_effect=local):
+            backend.persist_receipt(receipt_file, {
+                "id": parent_id, "created_at": "2026-01-01T00:00:00+00:00", "status": "complete",
+                "routing_policy": "local-first", "prompt_sha256": "a" * 64, "final": parent_result,
+            })
+            plan = self.client.post("/api/route/plan", json={
+                "prompt": "What should I verify next?", "model": "llama3.2:latest", "rag_enabled": False,
+                "parent_receipt_id": parent_id,
+            })
+            response = self.client.post("/api/route/run", json={
+                "prompt": "What should I verify next?", "model": "llama3.2:latest", "rag_enabled": False,
+                "parent_receipt_id": parent_id,
+            })
+            child = self.client.get(f"/api/runs/{response.json()['receipt']['id']}").json()
+            listing = self.client.get("/api/runs").json()
+
+        self.assertEqual(plan.status_code, 200)
+        self.assertEqual(plan.json()["continuation"]["parent_receipt_id"], parent_id)
+        self.assertNotIn(parent_result, json.dumps(plan.json()))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["continuation"]["parent_receipt_id"], parent_id)
+        self.assertIn(parent_result, captured[0])
+        self.assertEqual(child.get("id"), payload["receipt"]["id"], json.dumps(child))
+        self.assertIn("continuation", child, json.dumps(child))
+        self.assertEqual(child["continuation"]["parent_receipt_id"], parent_id)
+        self.assertNotIn(parent_result, json.dumps(child))
+        self.assertEqual(listing[0]["parent_receipt_id"], parent_id)
+
+    def test_route_continuation_requires_an_existing_receipt(self):
+        response = self.client.post("/api/route/plan", json={
+            "prompt": "Continue safely", "parent_receipt_id": "run-0000000000000001",
+        })
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_route_image_rejects_bad_magic_without_execution(self):
+        response = self.client.post("/api/route/plan", json={
+            "prompt": "Inspect this", "images": [{
+                "name": "not-a-png.png", "mime_type": "image/png", "data_base64": "aGVsbG8=",
+            }],
+        })
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("does not match", response.json()["detail"])
+
     def test_local_orchestrator_clamps_agent_steps_to_safety_limit(self):
         raw = json.dumps({"agents": [{"name": "A", "card_id": "card-hermit", "objective": "Research", "max_steps": 100}], "rooms": [], "forums": []})
         plan = backend.parse_orchestrator_plan(raw, 2)
@@ -1275,6 +1683,328 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("Persistent Agents", html)
         self.assertIn("maximum 30", html)
+        self.assertIn('id="route-context-meter"', html)
+        self.assertIn("loadRouteContextBudget", html)
+
+    def test_route_composer_has_bounded_local_attachment_staging(self):
+        html = self.client.get("/").text
+        asset = self.client.get("/static/aui/route-attachments.js")
+
+        self.assertIn('id="route-attachment-input"', html)
+        self.assertIn('id="route-attachment-list"', html)
+        self.assertIn('id="route-screen-capture"', html)
+        self.assertIn("initExplicitWebResearch", html)
+        self.assertIn("initWebResearchDialog", html)
+        self.assertIn("web-research-dialog", html)
+        self.assertIn("Fetch for review", html)
+        self.assertIn("Use as local reference", html)
+        self.assertIn("button.id='route-browser-pilot'", html)
+        self.assertIn("dialog.id='browser-pilot-dialog'", html)
+        self.assertIn("Open isolated observation", html)
+        self.assertIn("/api/browser-pilot/observe", html)
+        self.assertIn("cannot click, type, use credentials", html)
+        self.assertIn("window.OBusRefreshBrowserPilot=refreshAvailability", html)
+        self.assertIn("function initializeApp(){window.OBusRefreshBrowserPilot?.();", html)
+        self.assertIn("/api/research/fetch", html)
+        self.assertIn("user_approved_web_research", html)
+        self.assertIn("Remote aggregation is disabled", html)
+        self.assertIn("/static/aui/route-attachments.js", html)
+        self.assertIn("OBusRouteAttachments", html)
+        self.assertEqual(asset.status_code, 200)
+        self.assertIn("MAX_ATTACHMENTS = 8", asset.text)
+        self.assertIn("MAX_ATTACHMENT_BYTES = 512 * 1024", asset.text)
+        self.assertIn("getDisplayMedia", asset.text)
+        self.assertIn("Screen capture staged locally", asset.text)
+        self.assertIn("stream?.getTracks?.().forEach", asset.text)
+        self.assertIn('input?.addEventListener("paste", stagePastedImages)', asset.text)
+        self.assertIn("Pasted image staged locally", asset.text)
+        self.assertIn("Plain-text paste retains the browser's normal", asset.text)
+        self.assertIn("MAX_IMAGE_ATTACHMENTS = 4", asset.text)
+        self.assertIn("imagePayload", asset.text)
+        self.assertIn("never remote", asset.text)
+        self.assertIn("image/png,image/jpeg,image/webp", html)
+        self.assertIn("Images and captures are sent only to the selected local Ollama model", html)
+        self.assertIn('id="run-continue-selected"', html)
+        self.assertIn('id="run-clear-continuation"', html)
+        self.assertIn("continueSelectedRunReceipt", html)
+        self.assertIn("parent_receipt_id", html)
+
+    def test_global_status_header_is_home_only(self):
+        html = self.client.get("/").text
+
+        dashboard_start = html.index('data-page-panel="dashboard"')
+        header_start = html.index('id="home-status-header"')
+        workspace_start = html.index('data-page-panel="workspace"')
+
+        self.assertLess(dashboard_start, header_start)
+        self.assertLess(header_start, workspace_start)
+        self.assertIn("document.body.dataset.guidedPage=name", html)
+        self.assertIn("const homeHeader=$('#home-status-header')", html)
+        self.assertIn("homeHeader.setAttribute('aria-hidden',String(!isHome))", html)
+        self.assertIn("homeHeader.hidden=!isHome", html)
+        self.assertIn('data-guided-page="dashboard"', html)
+        self.assertIn('body[data-guided-page]:not([data-guided-page="dashboard"]) #home-status-header{display:none!important}', html)
+        self.assertIn("if(name==='dashboard')", html)
+
+    def test_sidebar_task_switcher_reopens_existing_autonomous_work_without_replay(self):
+        html = self.client.get("/").text
+
+        self.assertIn('id="sidebar-task-switcher"', html)
+        self.assertIn('id="sidebar-task-current"', html)
+        self.assertIn("function renderSidebarTaskSwitcher", html)
+        self.assertIn("openSidebarAutonomousTask", html)
+        self.assertIn("await openHomeAutonomousHistoryTask(taskId)", html)
+
+    def test_autonomous_task_result_continuation_stays_local_and_requires_a_new_follow_up(self):
+        html = self.client.get("/").text
+
+        self.assertIn('id="home-autonomous-continue"', html)
+        self.assertIn("function continueAutonomousTaskResult", html)
+        self.assertIn("bounded redacted local task result", html)
+        self.assertIn("remote aggregation is disabled", html)
+        self.assertIn("no task has been rerun", html)
+
+    def test_home_setup_assistant_surfaces_safe_local_readiness_actions(self):
+        html = self.client.get("/").text
+
+        for control_id in ("home-setup-assistant", "home-setup-status", "home-setup-checks", "home-setup-auto", "home-setup-workspace", "home-setup-details"):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("function renderHomeSetup(data)", html)
+        self.assertIn("function chooseHomeSetupWorkspace()", html)
+        self.assertIn("renderHomeSetup(data)", html)
+        self.assertIn("autoAidLocalSetup($('#home-setup-auto'))", html)
+        self.assertIn("/api/providers/local-ollama/auto-aid", html)
+        self.assertIn("local_auto_aid", html)
+        self.assertIn("localAutoAidAttempted", html)
+        self.assertIn("OBus finished safe local model setup", html)
+        self.assertIn("Auto-configure local model", html)
+        self.assertIn("never downloads a model, chooses a folder, copies a credential, or enables remote access", html)
+        self.assertIn("state.workspaceController?.pickRoot?.()", html)
+
+    def test_native_workspace_picker_is_explicit_and_persists_only_a_selected_safe_root(self):
+        selected_root = Path(self.tempdir.name)
+        with patch.object(backend.desktop_picker, "native_workspace_picker_status", return_value={"available": True, "platform": "windows", "reason": "ready"}), patch.object(
+            backend.desktop_picker, "select_local_workspace_directory", return_value=selected_root
+        ) as picker:
+            capabilities = self.client.get("/api/desktop/capabilities")
+            chosen = self.client.post("/api/desktop/select-workspace")
+
+        self.assertEqual(capabilities.status_code, 200)
+        self.assertTrue(capabilities.json()["native_workspace_picker"]["available"])
+        self.assertEqual(chosen.status_code, 200)
+        self.assertTrue(chosen.json()["selected"])
+        self.assertEqual(chosen.json()["workspace"]["root"], str(selected_root.resolve()))
+        self.assertEqual(backend.get_settings(backend.load_state())["workspace_root"], str(selected_root.resolve()))
+        picker.assert_called_once_with()
+
+    def test_native_workspace_picker_does_not_change_the_workspace_when_cancelled(self):
+        with patch.object(backend.desktop_picker, "native_workspace_picker_status", return_value={"available": True, "platform": "windows", "reason": "ready"}), patch.object(
+            backend.desktop_picker, "select_local_workspace_directory", return_value=None
+        ):
+            chosen = self.client.post("/api/desktop/select-workspace")
+
+        self.assertEqual(chosen.status_code, 200)
+        self.assertFalse(chosen.json()["selected"])
+        self.assertIsNone(backend.get_settings(backend.load_state())["workspace_root"])
+
+    def test_recent_workspaces_are_bounded_reopened_only_on_click_and_forgettable(self):
+        first = Path(self.tempdir.name) / "project-one"
+        second = Path(self.tempdir.name) / "project-two"
+        first.mkdir()
+        second.mkdir()
+        self.assertEqual(self.client.put("/api/settings", json={"workspace_root": str(first)}).status_code, 200)
+        self.assertEqual(self.client.put("/api/settings", json={"workspace_root": str(second)}).status_code, 200)
+
+        recent = self.client.get("/api/workspace/recent")
+        self.assertEqual(recent.status_code, 200)
+        self.assertEqual([item["root"] for item in recent.json()["items"]], [str(second.resolve()), str(first.resolve())])
+
+        reopened = self.client.post("/api/workspace/recent/select", json={"root": str(first)})
+        self.assertEqual(reopened.status_code, 200)
+        self.assertEqual(backend.get_settings(backend.load_state())["workspace_root"], str(first.resolve()))
+        self.assertEqual(self.client.get("/api/workspace/recent").json()["items"][0]["root"], str(first.resolve()))
+
+        removed = self.client.request("DELETE", "/api/workspace/recent", json={"root": str(second)})
+        self.assertEqual(removed.status_code, 200)
+        self.assertTrue(removed.json()["removed"])
+        self.assertEqual([item["root"] for item in removed.json()["items"]], [str(first.resolve())])
+
+    def test_recent_workspace_reopen_revalidates_the_explicit_path(self):
+        forbidden = Path(self.tempdir.name) / ".ssh"
+        forbidden.mkdir()
+        rejected = self.client.post("/api/workspace/recent/select", json={"root": str(forbidden)})
+
+        self.assertEqual(rejected.status_code, 409)
+        self.assertIsNone(backend.get_settings(backend.load_state())["workspace_root"])
+
+    def test_quick_task_uses_the_current_workspace_and_ready_provider_defaults(self):
+        workspace = Path(self.tempdir.name) / "quick-project"
+        workspace.mkdir()
+        submitted = {}
+
+        def submit(objective, task_workspace, source, priority, max_attempts, provider):
+            submitted.update({"objective": objective, "workspace": task_workspace, "source": source, "priority": priority, "max_attempts": max_attempts, "provider": provider})
+            return {"id": "quick-task", "objective": objective, "workspace": str(task_workspace), "source": source, "priority": priority, "max_attempts": max_attempts, "provider": provider}
+
+        with patch.object(backend, "_workspace_root", return_value=str(workspace)), patch.object(
+            backend.harness_runtime.providers, "capabilities", return_value={"default": "codex", "available": ["ollama"]}
+        ), patch.object(backend.harness_runtime, "submit", side_effect=submit):
+            response = self.client.post("/api/desktop/quick-task", json={"objective": "Inspect this workspace, fix the focused defect, and verify it."})
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(submitted["workspace"], workspace.resolve())
+        self.assertEqual(submitted["source"], "local")
+        self.assertEqual(submitted["provider"], "ollama")
+        self.assertEqual(submitted["max_attempts"], 3)
+        self.assertEqual(submitted["priority"], 50)
+        self.assertEqual(response.json()["launch_mode"], "safe_defaults")
+
+    def test_quick_parallel_team_uses_a_bounded_local_only_executor(self):
+        workspace = Path(self.tempdir.name) / "parallel-project"
+        workspace.mkdir()
+        submitted = {}
+
+        async def execute(request):
+            submitted.update({
+                "prompt": request.prompt,
+                "mode": request.mode,
+                "max_agents": request.max_agents,
+                "local_only": request.local_only,
+            })
+            return {"executed": True, "task_ledger_id": "task-local", "parallel_limit": request.max_agents, "created_agents": []}
+
+        with patch.object(backend, "_workspace_root", return_value=str(workspace)), patch.object(
+            backend, "get_settings", return_value={"max_parallel_agents": 7}
+        ), patch.object(backend, "execute_planned_team", side_effect=execute):
+            response = self.client.post("/api/desktop/quick-team", json={"objective": "Inspect this workspace and compare three safe implementation approaches."})
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(submitted["mode"], "collaborative")
+        self.assertEqual(submitted["max_agents"], 3)
+        self.assertTrue(submitted["local_only"])
+        self.assertEqual(response.json()["launch_mode"], "safe_parallel_defaults")
+        self.assertTrue(response.json()["defaults"]["local_only"])
+
+    def test_quick_task_preserves_major_risk_in_local_approval_without_submitting(self):
+        workspace = Path(self.tempdir.name) / "quick-project"
+        workspace.mkdir()
+        approval = {"id": "approval-0123456789abcdef"}
+        with patch.object(backend, "_workspace_root", return_value=str(workspace)), patch.object(
+            backend.harness_runtime.providers, "capabilities", return_value={"default": "codex", "available": ["codex"]}
+        ), patch.object(backend.harness_runtime.store, "ensure_approval", return_value=approval) as ensure, patch.object(backend.harness_runtime, "submit") as submit:
+            response = self.client.post("/api/desktop/quick-task", json={"objective": "Recursively delete the entire backup history."})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"]["approval_id"], approval["id"])
+        self.assertIn("no task or parallel team was started", response.json()["detail"]["message"])
+        self.assertEqual(response.json()["detail"]["approval"]["workspace"], str(workspace.resolve()))
+        self.assertEqual(response.json()["detail"]["approval"]["provider"], "codex")
+        ensure.assert_called_once()
+        submit.assert_not_called()
+
+    def test_quick_parallel_team_preserves_major_risk_without_executing(self):
+        workspace = Path(self.tempdir.name) / "quick-project"
+        workspace.mkdir()
+        approval = {"id": "approval-0123456789abcdef"}
+        with patch.object(backend, "_workspace_root", return_value=str(workspace)), patch.object(
+            backend.harness_runtime.providers, "capabilities", return_value={"default": "ollama", "available": ["ollama"]}
+        ), patch.object(backend.harness_runtime.store, "ensure_approval", return_value=approval) as ensure, patch.object(backend, "execute_planned_team") as execute:
+            response = self.client.post("/api/desktop/quick-team", json={"objective": "Recursively delete the entire backup history."})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"]["approval_id"], approval["id"])
+        self.assertEqual(response.json()["detail"]["approval"]["workspace"], str(workspace.resolve()))
+        self.assertEqual(response.json()["detail"]["approval"]["provider"], "ollama")
+        ensure.assert_called_once()
+        execute.assert_not_called()
+
+    def test_quick_task_requires_a_configured_workspace_and_ready_provider(self):
+        no_workspace = self.client.post("/api/desktop/quick-task", json={"objective": "Inspect the project."})
+        self.assertEqual(no_workspace.status_code, 409)
+
+        workspace = Path(self.tempdir.name) / "quick-project"
+        workspace.mkdir()
+        with patch.object(backend, "_workspace_root", return_value=str(workspace)), patch.object(
+            backend.harness_runtime.providers, "capabilities", return_value={"default": "codex", "available": []}
+        ):
+            no_provider = self.client.post("/api/desktop/quick-task", json={"objective": "Inspect the project."})
+        self.assertEqual(no_provider.status_code, 409)
+        self.assertIn("No local task provider is ready", no_provider.json()["detail"])
+
+    def test_quick_task_ui_exposes_a_durable_local_major_risk_approval_queue(self):
+        html = self.client.get("/").text
+        runtime = self.client.get("/static/aui/runtime.js")
+
+        self.assertIn('id="harness-task-quick"', html)
+        self.assertIn('id="route-autonomous-btn"', html)
+        self.assertIn('id="route-parallel-autonomous-btn"', html)
+        self.assertIn('id="home-autonomous-monitor"', html)
+        self.assertIn('id="home-autonomous-cancel"', html)
+        self.assertIn('id="home-autonomous-resume"', html)
+        self.assertIn('id="home-autonomous-history"', html)
+        self.assertIn('id="home-autonomous-history-list"', html)
+        self.assertIn("$('#cancel-latest').onclick=()=>cancelActiveRoute().catch(error=>toast(error.message,true))", html)
+        self.assertIn('id="harness-task-approval-status"', html)
+        self.assertIn('id="harness-approval-list"', html)
+        self.assertIn("Local approval queue", html)
+        self.assertIn("Major-risk work always needs", html)
+        self.assertIn("Autonomous run uses the typed goal only", html)
+        self.assertIn("startHomeAutonomousTaskMonitor", html)
+        self.assertIn("launchParallelAutonomousFromComposer", html)
+        self.assertIn("cancelHomeAutonomousTask", html)
+        self.assertIn("resumeHomeAutonomousTask", html)
+        self.assertIn("explicit safe resume available", html)
+        self.assertIn("/resume`,{method:'POST'}", html)
+        self.assertIn("restoreHomeAutonomousTaskMonitor", html)
+        self.assertIn("api('/api/harness/tasks?limit=1')", html)
+        self.assertIn("api('/api/harness/tasks?limit=6')", html)
+        self.assertIn("history.tasks?.[0]", html)
+        self.assertIn("openHomeAutonomousHistoryTask", html)
+        self.assertIn("OBus did not replay the task", html)
+        self.assertIn("pollCursorParam:'after'", html)
+        self.assertIn("homeAutonomousEventDetails", html)
+        self.assertIn("'provider.tool'", html)
+        self.assertIn("'workspace.verified'", html)
+        self.assertIn("payload.status==='running'", html)
+        self.assertIn("Opened the exact local task selected from the system tray", html)
+        self.assertIn("openHomeAutonomousHistoryTask(taskId)", html)
+        self.assertIn("search_workspace:'Searching codebase'", html)
+        self.assertIn("edit_file:'Applying exact code edit'", html)
+        self.assertIn("'provider.verification'", html)
+        self.assertIn("Local verification ${status}${exitCode}", html)
+        self.assertIn("'provider.configured'", html)
+        self.assertIn("Independent workspace verification passed", html)
+        self.assertEqual(runtime.status_code, 200)
+        self.assertIn("launchQuickTask", runtime.text)
+        self.assertIn("loadApprovals", runtime.text)
+        self.assertIn("decideApproval", runtime.text)
+        self.assertIn("stageMajorRiskApproval", runtime.text)
+        self.assertIn("pendingHarnessApprovalDraft", runtime.text)
+        self.assertIn("retainedDraftMatchesApproval", runtime.text)
+        self.assertIn("Approve & start", runtime.text)
+        self.assertIn("Starting the exact guarded task", runtime.text)
+        self.assertIn("approvalDecisionBusy", runtime.text)
+        self.assertIn("/api/harness/approvals", runtime.text)
+        self.assertIn("/api/desktop/quick-task", runtime.text)
+        self.assertIn("/api/desktop/quick-team", html)
+        self.assertIn("requestedObjective", runtime.text)
+        self.assertIn("startedMessage", runtime.text)
+        self.assertIn("OBus preserved this exact major-risk task", html)
+        self.assertIn("OBus preserved this exact major-risk team request", html)
+
+    def test_workspace_ui_exposes_native_picker_only_through_the_local_bridge(self):
+        html = self.client.get("/").text
+        workspace = self.client.get("/static/aui/workspace.js")
+
+        self.assertIn('id="workspace-root-picker"', html)
+        self.assertIn('id="workspace-recents"', html)
+        self.assertIn('/static/aui/workspace-recents.css', html)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertIn("refreshNativePicker", workspace.text)
+        self.assertIn("/api/desktop/capabilities", workspace.text)
+        self.assertIn("/api/desktop/select-workspace", workspace.text)
+        self.assertIn("loadRecentWorkspaces", workspace.text)
+        self.assertIn("/api/workspace/recent/select", workspace.text)
 
     def test_forum_question_and_room_configuration_invalidate_stale_round_state(self):
         with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["llama3.2:latest"]}):

@@ -1,6 +1,7 @@
 """Durable autonomous task kernel for the OBus Warden runtime."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -15,8 +16,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-TERMINAL_STATES = {"succeeded", "failed", "cancelled"}
+from .codex_policy import build_codex_exec_command
+from .secret_safety import redact_text
+
+TERMINAL_STATES = {"succeeded", "failed", "cancelled", "interrupted"}
 TASK_STATES = {"queued", "planning", "running", "verifying", "repairing", *TERMINAL_STATES}
+RESUME_AFTER_INTERRUPTION_INSTRUCTION = (
+    "This task was explicitly resumed after OBus restarted. Before taking any action, inspect the current "
+    "workspace and the visible task history/checkpoint. Do not repeat or assume any uncertain side effect. "
+    "Once a safe point is verified, continue ordinary local inspection, focused workspace edits, and local "
+    "verification autonomously; do not ask for confirmation between those routine steps. Pause and clearly "
+    "request approval before any destructive, external, credential-handling, or hardware-affecting action."
+)
 
 
 def utc_now() -> str:
@@ -66,8 +77,19 @@ class HarnessStore:
                     content TEXT NOT NULL, active INTEGER NOT NULL, created_at TEXT NOT NULL,
                     FOREIGN KEY(task_id) REFERENCES harness_tasks(id)
                 );
+                CREATE TABLE IF NOT EXISTS harness_approvals (
+                    id TEXT PRIMARY KEY, objective_sha256 TEXT NOT NULL,
+                    objective_preview TEXT NOT NULL, workspace TEXT NOT NULL,
+                    risks TEXT NOT NULL, provider TEXT NOT NULL, model TEXT,
+                    priority INTEGER NOT NULL, max_attempts INTEGER NOT NULL,
+                    status TEXT NOT NULL, requested_at TEXT NOT NULL,
+                    decided_at TEXT, decision_note TEXT, consumed_at TEXT,
+                    task_id TEXT,
+                    FOREIGN KEY(task_id) REFERENCES harness_tasks(id)
+                );
                 CREATE INDEX IF NOT EXISTS idx_harness_events_task ON harness_events(task_id, sequence);
                 CREATE INDEX IF NOT EXISTS idx_harness_tasks_state ON harness_tasks(state, priority, created_at);
+                CREATE INDEX IF NOT EXISTS idx_harness_approvals_state ON harness_approvals(status, requested_at);
                 """
             )
             columns = {row[1] for row in connection.execute("PRAGMA table_info(harness_tasks)")}
@@ -75,11 +97,22 @@ class HarnessStore:
                 connection.execute("ALTER TABLE harness_tasks ADD COLUMN provider TEXT NOT NULL DEFAULT 'codex'")
             if "model" not in columns:
                 connection.execute("ALTER TABLE harness_tasks ADD COLUMN model TEXT")
-            connection.execute(
-                "UPDATE harness_tasks SET state='queued', updated_at=? "
-                "WHERE state IN ('planning','running','verifying','repairing')",
-                (utc_now(),),
-            )
+            interrupted = connection.execute(
+                "SELECT id FROM harness_tasks WHERE state IN ('queued','planning','running','verifying','repairing') "
+                "AND cancel_requested=0"
+            ).fetchall()
+            if interrupted:
+                now = utc_now()
+                connection.execute(
+                    "UPDATE harness_tasks SET state='interrupted',updated_at=?,error=? "
+                    "WHERE state IN ('queued','planning','running','verifying','repairing') AND cancel_requested=0",
+                    (now, "OBus restarted before this task completed. Inspect and resume explicitly."),
+                )
+                connection.executemany(
+                    "INSERT INTO harness_events(task_id,event_type,payload,created_at) VALUES(?,?,?,?)",
+                    [(row["id"], "task.interrupted", json.dumps({"reason": "runtime-restarted", "resume": "explicit-only"}), now)
+                     for row in interrupted],
+                )
 
     def create_task(self, objective: str, workspace: Path, source: str, priority: int, max_attempts: int,
                     provider: str = "codex", model: str | None = None) -> dict[str, Any]:
@@ -196,6 +229,105 @@ class HarnessStore:
             ).fetchall()
         return [dict(row) | {"active": bool(row["active"])} for row in rows]
 
+    @staticmethod
+    def _approval(row: sqlite3.Row) -> dict[str, Any]:
+        approval = dict(row)
+        approval["risks"] = json.loads(approval.pop("risks"))
+        return approval
+
+    def ensure_approval(self, objective: str, workspace: Path, risks: list[str], provider: str,
+                        model: str | None, priority: int, max_attempts: int) -> dict[str, Any]:
+        """Create or reuse one local, single-use approval request without retaining the full objective."""
+
+        objective_sha256 = hashlib.sha256(objective.encode("utf-8")).hexdigest()
+        risk_json = json.dumps(sorted(set(risks)), ensure_ascii=False)
+        workspace_text = str(workspace.resolve())
+        with self._connection() as connection:
+            existing = connection.execute(
+                "SELECT * FROM harness_approvals WHERE objective_sha256=? AND workspace=? AND risks=? "
+                "AND provider=? AND COALESCE(model,'')=COALESCE(?, '') AND priority=? AND max_attempts=? "
+                "AND status IN ('pending','approved') ORDER BY requested_at DESC LIMIT 1",
+                (objective_sha256, workspace_text, risk_json, provider, model, priority, max_attempts),
+            ).fetchone()
+            if existing is not None:
+                return self._approval(existing)
+            approval_id = "approval-" + uuid.uuid4().hex[:16]
+            now = utc_now()
+            connection.execute(
+                "INSERT INTO harness_approvals(id,objective_sha256,objective_preview,workspace,risks,provider,model,"
+                "priority,max_attempts,status,requested_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (approval_id, objective_sha256, redact_text(objective, 1200), workspace_text, risk_json, provider, model,
+                 priority, max_attempts, "pending", now),
+            )
+        return self.get_approval(approval_id)
+
+    def get_approval(self, approval_id: str) -> dict[str, Any]:
+        with self._connection() as connection:
+            row = connection.execute("SELECT * FROM harness_approvals WHERE id=?", (approval_id,)).fetchone()
+        if row is None:
+            raise KeyError(approval_id)
+        return self._approval(row)
+
+    def list_approvals(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT * FROM harness_approvals ORDER BY requested_at DESC LIMIT ?", (max(1, min(limit, 500)),)
+            ).fetchall()
+        return [self._approval(row) for row in rows]
+
+    def decide_approval(self, approval_id: str, decision: str, note: str | None = None) -> dict[str, Any]:
+        if decision not in {"approved", "rejected"}:
+            raise ValueError("approval decision must be approved or rejected")
+        with self._connection() as connection:
+            cursor = connection.execute(
+                "UPDATE harness_approvals SET status=?,decided_at=?,decision_note=? WHERE id=? AND status='pending'",
+                (decision, utc_now(), note or None, approval_id),
+            )
+        if cursor.rowcount == 0:
+            existing = self.get_approval(approval_id)
+            raise ValueError(f"approval is already {existing['status']}")
+        return self.get_approval(approval_id)
+
+    def consume_approval(self, approval_id: str, objective: str, workspace: Path, risks: list[str], provider: str,
+                         model: str | None, priority: int, max_attempts: int) -> dict[str, Any]:
+        """Consume an approved record only when it exactly matches the submitted one-time task."""
+
+        objective_sha256 = hashlib.sha256(objective.encode("utf-8")).hexdigest()
+        risk_json = json.dumps(sorted(set(risks)), ensure_ascii=False)
+        workspace_text = str(workspace.resolve())
+        with self._connection() as connection:
+            row = connection.execute("SELECT * FROM harness_approvals WHERE id=?", (approval_id,)).fetchone()
+            if row is None:
+                raise KeyError(approval_id)
+            approval = self._approval(row)
+            expected = {
+                "objective_sha256": objective_sha256, "workspace": workspace_text, "risks": sorted(set(risks)),
+                "provider": provider, "model": model, "priority": priority, "max_attempts": max_attempts,
+            }
+            actual = {field: approval.get(field) for field in expected}
+            if actual != expected:
+                raise ValueError("approval does not match the current objective or task configuration")
+            if approval["status"] != "approved":
+                raise ValueError(f"approval is {approval['status']}; approve it locally before starting this task")
+            connection.execute(
+                "UPDATE harness_approvals SET status='consumed',consumed_at=? WHERE id=? AND status='approved'",
+                (utc_now(), approval_id),
+            )
+        return self.get_approval(approval_id)
+
+    def release_approval(self, approval_id: str) -> None:
+        """Restore an unused approval if task creation fails after an exact-match claim."""
+
+        with self._connection() as connection:
+            connection.execute(
+                "UPDATE harness_approvals SET status='approved',consumed_at=NULL WHERE id=? AND status='consumed' AND task_id IS NULL",
+                (approval_id,),
+            )
+
+    def attach_approval_task(self, approval_id: str, task_id: str) -> None:
+        with self._connection() as connection:
+            connection.execute("UPDATE harness_approvals SET task_id=? WHERE id=? AND status='consumed'", (task_id, approval_id))
+
 
 from backend.autonomy import ProviderRegistry
 from backend.recovery import RecoveryManager
@@ -212,6 +344,7 @@ class AgentHarnessRuntime:
         self.recovery = RecoveryManager(database)
         self.providers = ProviderRegistry()
         self.runner = runner or self.providers.run
+        self.runtime_config_resolver: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None
         self.max_workers = max(1, max_workers)
         self._lock = threading.Lock()
         self._threads: dict[str, threading.Thread] = {}
@@ -231,12 +364,46 @@ class AgentHarnessRuntime:
         self._start(task["id"])
         return task
 
+    def _task_with_runtime_config(self, task: dict[str, Any]) -> dict[str, Any]:
+        """Resolve transient provider settings without persisting secrets or widening authority."""
+
+        configured = dict(task)
+        if self.runtime_config_resolver is None:
+            return configured
+        try:
+            proposal = self.runtime_config_resolver(dict(task)) or {}
+        except Exception:
+            return configured
+        if not isinstance(proposal, dict):
+            return configured
+        model = proposal.get("model")
+        if isinstance(model, str) and model.strip():
+            configured["model"] = model.strip()[:256]
+        try:
+            context_window = int(proposal.get("context_window") or 0)
+        except (TypeError, ValueError):
+            context_window = 0
+        if 2_048 <= context_window <= 2_000_000:
+            configured["context_window"] = context_window
+        return configured
+
     def resume_queued(self) -> None:
         for task in reversed(self.store.list_tasks(500)):
             if task["state"] == "queued" and not task["cancel_requested"]:
                 self._start(task["id"])
 
-    def _start(self, task_id: str) -> None:
+    def resume(self, task_id: str) -> dict[str, Any]:
+        """Resume a previously interrupted ordinary task only after a new local UI action."""
+
+        task = self.store.get_task(task_id)
+        if task["state"] != "interrupted" or task["cancel_requested"]:
+            raise ValueError("only an interrupted task without a cancellation request can be resumed")
+        resumed = self.store.transition(task_id, "queued", error=None, finished_at=None)
+        self.store.add_event(task_id, "task.resume_requested", {"explicit": True, "safe_reinspection": True})
+        self._start(task_id, resumed=True)
+        return self.store.get_task(task_id)
+
+    def _start(self, task_id: str, resumed: bool = False) -> None:
         with self._lock:
             if task_id in self._threads and self._threads[task_id].is_alive():
                 return
@@ -244,15 +411,15 @@ class AgentHarnessRuntime:
             if active >= self.max_workers:
                 return
             cancellation = threading.Event()
-            thread = threading.Thread(target=self._worker_entry, args=(task_id, cancellation), daemon=True,
+            thread = threading.Thread(target=self._worker_entry, args=(task_id, cancellation, resumed), daemon=True,
                                       name=f"obus-harness-{task_id[:8]}")
             self._cancellations[task_id] = cancellation
             self._threads[task_id] = thread
             thread.start()
 
-    def _worker_entry(self, task_id: str, cancellation: threading.Event) -> None:
+    def _worker_entry(self, task_id: str, cancellation: threading.Event, resumed: bool = False) -> None:
         try:
-            self._execute(task_id, cancellation)
+            self._execute(task_id, cancellation, resumed)
         finally:
             with self._lock:
                 self._threads.pop(task_id, None)
@@ -262,7 +429,7 @@ class AgentHarnessRuntime:
                     self._start(queued["id"])
                     break
 
-    def _execute(self, task_id: str, cancellation: threading.Event) -> None:
+    def _execute(self, task_id: str, cancellation: threading.Event, resumed: bool = False) -> None:
         task = self.store.get_task(task_id)
         if task["cancel_requested"]:
             self.store.transition(task_id, "cancelled", finished_at=utc_now())
@@ -279,25 +446,43 @@ class AgentHarnessRuntime:
                 "checkpoint_id": checkpoint["id"], "files": checkpoint["files_copied"],
                 "bytes": checkpoint["bytes_copied"], "skipped": checkpoint["files_skipped"],
             })
-            provider = str(task.get("provider") or "codex")
-            action_id = self.store.start_action(task_id, f"{provider}.unrestricted", {
+            runtime_task = self._task_with_runtime_config(task)
+            if resumed:
+                runtime_task["resumed_after_interruption"] = True
+                self.store.add_event(task_id, "task.resumed", {"explicit": True, "safe_reinspection": True})
+            provider = str(runtime_task.get("provider") or "codex")
+            if runtime_task.get("context_window"):
+                self.store.add_event(task_id, "provider.configured", {
+                    "provider": provider, "model": runtime_task.get("model"),
+                    "context_window": runtime_task["context_window"],
+                })
+            action_id = self.store.start_action(task_id, f"{provider}.guarded-autonomous", {
                 "objective": task["objective"], "workspace": task["workspace"], "attempt": attempt,
-                "provider": provider, "model": task.get("model"), "checkpoint_id": checkpoint["id"],
+                "provider": provider, "model": runtime_task.get("model"),
+                "context_window": runtime_task.get("context_window"), "checkpoint_id": checkpoint["id"],
             })
             try:
-                result = self.runner(task | {"attempt": attempt}, cancellation,
+                result = self.runner(runtime_task | {"attempt": attempt}, cancellation,
                                      lambda kind, payload: self.store.add_event(task_id, kind, payload))
                 if cancellation.is_set():
                     raise InterruptedError("task cancelled")
+                verification = self.recovery.verify_workspace(checkpoint["id"])
+                self.store.add_event(task_id, "workspace.verified", verification)
+                if verification["status"] == "failed":
+                    raise RuntimeError(verification.get("reason") or "workspace verification failed")
                 checkpoint_receipt = self.recovery.complete(checkpoint["id"])
                 self.store.finish_action(task_id, action_id, "succeeded", {
-                    "result": result[-8000:], "checkpoint": checkpoint_receipt,
+                    "result": result[-8000:], "checkpoint": checkpoint_receipt, "verification": verification,
                 })
                 self.store.transition(task_id, "verifying", attempt=attempt)
                 lesson = self.store.promote_lesson(task_id, task["objective"], result[-16000:])
+                self.store.add_event(task_id, "task.completed", {"lesson_id": lesson["id"]})
+                # A terminal state is the public signal that no more durable work is
+                # pending for this task.  Keep it as the final write: otherwise a
+                # caller that observes "succeeded" can tear down its workspace while
+                # this worker still owns the SQLite database on Windows.
                 self.store.transition(task_id, "succeeded", attempt=attempt, result=result,
                                       finished_at=utc_now(), error=None)
-                self.store.add_event(task_id, "task.completed", {"lesson_id": lesson["id"]})
                 return
             except InterruptedError as exc:
                 rollback = self.recovery.rollback(checkpoint["id"])
@@ -350,13 +535,16 @@ class AgentHarnessRuntime:
         with tempfile.NamedTemporaryFile(prefix="obus-harness-", suffix=".txt", delete=False) as handle:
             output_path = Path(handle.name)
         prompt = task["objective"]
+        if task.get("resumed_after_interruption"):
+            prompt = f"{RESUME_AFTER_INTERRUPTION_INSTRUCTION}\n\nObjective:\n{prompt}"
         if int(task["attempt"]) > 1:
             prompt += "\n\nPrevious autonomous attempt failed. Diagnose the current workspace state, repair it, verify the result, and finish the objective."
-        command = [executable, "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox",
-                   "--color", "never", "--output-last-message", str(output_path)]
-        if model:
-            command.extend(["-m", model])
-        command.append(prompt)
+        command = build_codex_exec_command(
+            executable,
+            prompt,
+            model=model or None,
+            output_path=output_path,
+        )
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         emit("codex.started", {"command": executable, "model": model or "default"})
         process = subprocess.Popen(command, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -382,6 +570,6 @@ class AgentHarnessRuntime:
     def health(self) -> dict[str, Any]:
         with self._lock:
             active = sum(thread.is_alive() for thread in self._threads.values())
-        return {"status": "ready", "mode": "unrestricted", "authority": "administrator",
+        return {"status": "ready", "mode": "guarded-autonomous", "authority": "workspace-write",
                 "active_tasks": active, "max_workers": self.max_workers, "database": str(self.store.path),
                 "provider_default": "codex", "providers": self.providers.capabilities()}

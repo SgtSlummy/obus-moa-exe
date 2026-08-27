@@ -45,7 +45,27 @@ class MemoryHub:
 
     @staticmethod
     def _file_meta(path: Path) -> dict[str, Any]:
-        return {"present": path.is_file(), "path": str(path)}
+        try:
+            return {"present": path.is_file(), "path": str(path)}
+        except OSError:
+            # External local-memory owners may deny metadata access. Their
+            # status must remain visible without preventing OBus itself from
+            # rendering its desktop dashboard.
+            return {"present": False, "path": str(path), "error": "unreadable"}
+
+    @staticmethod
+    def _is_file(path: Path) -> bool:
+        try:
+            return path.is_file()
+        except OSError:
+            return False
+
+    @staticmethod
+    def _is_dir(path: Path) -> bool:
+        try:
+            return path.is_dir()
+        except OSError:
+            return False
 
     @staticmethod
     def _read_text_bounded(path: Path, limit: int = 2_000_000) -> str:
@@ -59,7 +79,7 @@ class MemoryHub:
         result = self._file_meta(self.obus_memory)
         chunks = 0
         characters = 0
-        if self.obus_memory.is_file():
+        if result["present"]:
             try:
                 value = json.loads(self._read_text_bounded(self.obus_memory))
                 if isinstance(value, list):
@@ -74,7 +94,7 @@ class MemoryHub:
         result = self._file_meta(self.hermes_memory)
         lines = 0
         characters = 0
-        if self.hermes_memory.is_file():
+        if result["present"]:
             try:
                 text = self._read_text_bounded(self.hermes_memory)
                 lines = len(text.splitlines())
@@ -87,10 +107,11 @@ class MemoryHub:
     def _mempalace_status(self) -> dict[str, Any]:
         local_cli = Path.home() / ".local" / "bin" / "mempalace.exe"
         source_cli = self.mempalace_root / ".venv" / "Scripts" / "python.exe"
-        cli = shutil.which("mempalace") or (str(local_cli) if local_cli.is_file() else None) or (str(source_cli) if source_cli.is_file() else None)
-        indexed = (self.mempalace_palace / "chroma.sqlite3").is_file()
+        cli = shutil.which("mempalace") or (str(local_cli) if self._is_file(local_cli) else None) or (str(source_cli) if self._is_file(source_cli) else None)
+        indexed = self._is_file(self.mempalace_palace / "chroma.sqlite3")
+        present = self._is_dir(self.mempalace_root)
         return {
-            "present": self.mempalace_root.is_dir(),
+            "present": present,
             "installed": bool(cli),
             "cli": cli,
             "palace": str(self.mempalace_palace),
@@ -101,7 +122,10 @@ class MemoryHub:
     def _mem0_status(self) -> dict[str, Any]:
         result = self._file_meta(self.mem0_db)
         result.update({"status": "artifact_only", "history": 0, "messages": 0, "package_installed": False})
-        if not self.mem0_db.is_file():
+        if not result["present"]:
+            if result.get("error"):
+                result["status"] = "unreadable"
+                return result
             result["status"] = "not_present"
             return result
         try:
@@ -117,16 +141,17 @@ class MemoryHub:
 
     def _tarot_status(self) -> dict[str, Any]:
         result = self._file_meta(self.tarot_db)
-        result["status"] = "ready" if result["present"] else "not_present"
+        result["status"] = "ready" if result["present"] else ("unreadable" if result.get("error") else "not_present")
         return result
 
     def _mythos_status(self) -> dict[str, Any]:
         cli = shutil.which("mythos")
+        source_present = self._is_dir(self.mythos_root)
         return {
-            "source_present": self.mythos_root.is_dir(),
+            "source_present": source_present,
             "cli_present": bool(cli),
             "source": str(self.mythos_root),
-            "status": "ready" if self.mythos_root.is_dir() and cli else "partial",
+            "status": "ready" if source_present and cli else "partial",
             "mcp_boundary": bool(cli),
         }
 
@@ -140,19 +165,21 @@ class MemoryHub:
                 connected = True
         except (OSError, urllib.error.URLError):
             pass
+        router_present = self._is_file(router)
+        runner_present = self._is_file(runner)
         return {
-            "router_present": router.is_file(),
-            "runner_present": runner.is_file(),
+            "router_present": router_present,
+            "runner_present": runner_present,
             "ollama_connected": connected,
             "endpoint": "http://127.0.0.1:11434",
-            "status": "ready" if router.is_file() and connected else "partial",
+            "status": "ready" if router_present and connected else "partial",
         }
 
     def _mempalace_search(self, query: str, limit: int) -> list[dict[str, Any]]:
         local_cli = Path.home() / ".local" / "bin" / "mempalace.exe"
         source_cli = self.mempalace_root / ".venv" / "Scripts" / "python.exe"
-        cli = shutil.which("mempalace") or (str(local_cli) if local_cli.is_file() else None) or (str(source_cli) if source_cli.is_file() else None)
-        if not cli or not (self.mempalace_palace / "chroma.sqlite3").is_file():
+        cli = shutil.which("mempalace") or (str(local_cli) if self._is_file(local_cli) else None) or (str(source_cli) if self._is_file(source_cli) else None)
+        if not cli or not self._is_file(self.mempalace_palace / "chroma.sqlite3"):
             return []
         executable_name = Path(cli).name.lower()
         command = [str(cli)]
@@ -188,7 +215,7 @@ class MemoryHub:
         return results[: max(1, limit)]
 
     def _tarot_search(self, query: str, limit: int) -> list[dict[str, Any]]:
-        if not self.tarot_db.is_file():
+        if not self._is_file(self.tarot_db):
             return []
         try:
             connection = sqlite3.connect(f"file:{self.tarot_db}?mode=ro", uri=True)

@@ -60,16 +60,23 @@ python -m pip_audit
 
 The two pytest commands are intentionally separate because the repository root launcher and desktop launcher module share a name.
 
+For a release-facing OBus-versus-Codex comparison, use the versioned parity
+matrix described in [docs/obus-codex-comparison.md](docs/obus-codex-comparison.md):
+
+```powershell
+python scripts/obus_codex_comparison.py --plan
+```
+
 ## Production build
 
 Build without installing or changing Desktop/Start Menu state:
 
 ```powershell
 python -m pip install pyinstaller
-.\tools\obus_launcher\build_and_install.ps1 -SkipInstall -PythonPath python
+.\tools\obus_launcher\build_and_install.ps1 -SkipInstall
 ```
 
-The verified artifact is written to `tools/obus_launcher/dist/Obus.exe` and its SHA-256 is printed. Omit `-SkipInstall` to install the executable and Start Menu shortcut using the project `.venv`. The packaged app remains in the Windows notification area; its menu opens Obus, toggles per-user **Start with Windows**, and exits the launcher-owned backend cleanly.
+The build script uses the first available project runtime—`.build-venv` then `.venv`—rather than whatever Python happens to be on `PATH`. Pass the full path with `-PythonPath` only when deliberately building from another fully provisioned project environment. The verified artifact is written to `tools/obus_launcher/dist/Obus.exe` and its SHA-256 is printed. Omit `-SkipInstall` to install the executable and Start Menu shortcut. The packaged app remains in the Windows notification area; its menu opens Obus, toggles per-user **Start with Windows**, and exits the launcher-owned backend cleanly.
 
 Tagging a release with `v*` invokes the release workflow, reruns all gates, builds the executable, optionally Authenticode-signs it, verifies the signature, and publishes the executable and checksum. A trusted public build requires the repository signing secrets described in [docs/release.md](docs/release.md).
 

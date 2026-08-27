@@ -37,6 +37,8 @@ python -m pip install pyinstaller
 .\tools\obus_launcher\build_and_install.ps1
 ```
 
+The script builds the complete root `OBus.spec` from a project runtime, preferring `.build-venv` and then `.venv`; it never falls back to an arbitrary `python` found on `PATH`. Use `-PythonPath` only with the full path to a project environment that already has OBus's dependencies installed.
+
 ## Uninstall
 
 Choose **Exit** from the tray, turn off **Start with Windows** first, and delete the installed executable and Start Menu shortcut. Runtime data is intentionally retained; remove the `OCCULTBUS_HOME` directory only when you explicitly want to erase Obus state.

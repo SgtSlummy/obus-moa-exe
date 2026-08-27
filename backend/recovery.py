@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
@@ -13,7 +14,14 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from backend.secret_safety import redact_text
+from backend.workspace_context import _is_secret_name
+
 EXCLUDED_DIRS = {".git", ".venv", ".venv-build", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache"}
+MAX_CHANGE_FILES = 100
+MAX_CHANGE_SCAN_FILES = 1000
+MAX_CHANGE_FILE_BYTES = 128 * 1024
+MAX_CHANGE_DIFF_BYTES = 192 * 1024
 
 
 class RecoveryManager:
@@ -71,6 +79,24 @@ class RecoveryManager:
                     continue
                 files.append(path)
         return files
+
+    def _bounded_workspace_files(self, workspace: Path, limit: int = MAX_CHANGE_SCAN_FILES) -> tuple[list[Path], bool]:
+        """Collect a finite discovery slice for change review without a full project walk."""
+
+        files: list[Path] = []
+        cap = max(1, min(int(limit), MAX_CHANGE_SCAN_FILES))
+        for current, directories, names in os.walk(workspace, followlinks=False):
+            current_path = Path(current)
+            directories[:] = [name for name in directories if name not in EXCLUDED_DIRS
+                               and not self._excluded(current_path / name)]
+            for name in names:
+                path = current_path / name
+                if self._excluded(path) or path.is_symlink() or not path.is_file():
+                    continue
+                if len(files) >= cap:
+                    return files, True
+                files.append(path)
+        return files, False
 
     @staticmethod
     def _metadata(path: Path) -> dict[str, Any]:
@@ -138,6 +164,241 @@ class RecoveryManager:
                     (max(1, min(limit, 500)),),
                 ).fetchall()
         return [self.get(row["id"]) for row in rows]
+
+    @staticmethod
+    def _safe_relative(workspace: Path, value: str) -> str | None:
+        relative = Path(str(value or "").replace("\\", "/"))
+        if not relative.parts or relative.is_absolute() or ".." in relative.parts:
+            return None
+        if any(_is_secret_name(part) for part in relative.parts):
+            return None
+        candidate = (workspace / relative).resolve(strict=False)
+        if candidate != workspace and workspace not in candidate.parents:
+            return None
+        return relative.as_posix()
+
+    @staticmethod
+    def _safe_text(data: bytes) -> str | None:
+        if len(data) > MAX_CHANGE_FILE_BYTES or b"\x00" in data:
+            return None
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+        if redact_text(text, limit=max(MAX_CHANGE_FILE_BYTES, len(text) + 1)) != text.strip():
+            return None
+        return text
+
+    def _current_path(self, workspace: Path, relative: str) -> Path | None:
+        candidate = workspace / relative
+        try:
+            if not candidate.exists() or candidate.is_symlink() or not candidate.is_file():
+                return None
+            resolved = candidate.resolve(strict=True)
+        except OSError:
+            return None
+        if resolved != workspace and workspace not in resolved.parents:
+            return None
+        return resolved
+
+    def _change_item(self, workspace: Path, relative: str, before: dict[str, Any] | None,
+                     current: Path | None) -> dict[str, Any] | None:
+        if before is None and current is None:
+            return None
+        if before is None:
+            size = current.stat().st_size if current else 0
+            return {
+                "path": relative, "status": "added", "before_size": None, "after_size": size,
+                "diff_available": size <= MAX_CHANGE_FILE_BYTES,
+                "reason": None if size <= MAX_CHANGE_FILE_BYTES else "New file exceeds the bounded diff limit.",
+            }
+        if current is None:
+            return {
+                "path": relative, "status": "deleted", "before_size": int(before.get("size") or 0), "after_size": None,
+                "diff_available": bool(before.get("snapshot")) and int(before.get("size") or 0) <= MAX_CHANGE_FILE_BYTES,
+                "reason": None if before.get("snapshot") and int(before.get("size") or 0) <= MAX_CHANGE_FILE_BYTES else "The checkpoint cannot provide a bounded text baseline.",
+            }
+        size = current.stat().st_size
+        if size > MAX_CHANGE_FILE_BYTES or int(before.get("size") or 0) > MAX_CHANGE_FILE_BYTES:
+            return {
+                "path": relative, "status": "unreviewable", "before_size": int(before.get("size") or 0), "after_size": size,
+                "diff_available": False, "reason": "File exceeds the bounded change-review limit.",
+            }
+        try:
+            after = self._metadata(current)
+        except OSError:
+            return {
+                "path": relative, "status": "unreviewable", "before_size": int(before.get("size") or 0), "after_size": size,
+                "diff_available": False, "reason": "Current file could not be safely inspected.",
+            }
+        if after["sha256"] == before.get("sha256"):
+            return None
+        return {
+            "path": relative, "status": "modified", "before_size": int(before.get("size") or 0), "after_size": size,
+            "diff_available": bool(before.get("snapshot")),
+            "reason": None if before.get("snapshot") else "The checkpoint did not retain a text baseline for this file.",
+        }
+
+    def task_changes(self, task_id: str, limit: int = MAX_CHANGE_FILES) -> dict[str, Any]:
+        """Return a bounded, read-only manifest of changes since a task's latest checkpoint."""
+
+        checkpoints = self.list(task_id, limit=1)
+        if not checkpoints:
+            raise KeyError(task_id)
+        checkpoint = checkpoints[0]
+        workspace = Path(checkpoint["workspace"]).resolve()
+        if not workspace.is_dir():
+            return {
+                "task_id": task_id, "checkpoint": self._checkpoint_public(checkpoint), "changes": [],
+                "counts": {}, "truncated": False, "read_only": True,
+                "reason": "The task workspace is no longer available for review.",
+            }
+        max_items = max(1, min(int(limit), MAX_CHANGE_FILES))
+        baseline = {
+            relative: metadata for raw_relative, metadata in checkpoint["manifest"].items()
+            if (relative := self._safe_relative(workspace, raw_relative)) is not None
+        }
+        changes: list[dict[str, Any]] = []
+        truncated = False
+        baseline_checked = 0
+        for relative, metadata in baseline.items():
+            if baseline_checked >= MAX_CHANGE_SCAN_FILES or len(changes) >= max_items:
+                truncated = True
+                break
+            baseline_checked += 1
+            item = self._change_item(workspace, relative, metadata, self._current_path(workspace, relative))
+            if item is not None:
+                changes.append(item)
+        current_files, discovery_truncated = self._bounded_workspace_files(workspace)
+        truncated = truncated or discovery_truncated
+        for path in current_files:
+            try:
+                relative = self._safe_relative(workspace, path.relative_to(workspace).as_posix())
+            except ValueError:
+                continue
+            if relative is None or relative in baseline:
+                continue
+            item = self._change_item(workspace, relative, None, path)
+            if item is not None:
+                changes.append(item)
+                if len(changes) >= max_items:
+                    truncated = True
+                    break
+        changes.sort(key=lambda item: (item["status"], item["path"]))
+        if len(changes) > max_items:
+            changes = changes[:max_items]
+            truncated = True
+        counts: dict[str, int] = {}
+        for item in changes:
+            counts[item["status"]] = counts.get(item["status"], 0) + 1
+        return {
+            "task_id": task_id, "checkpoint": self._checkpoint_public(checkpoint), "changes": changes,
+            "counts": counts, "truncated": truncated, "read_only": True,
+            "reason": None if changes else "No safe, bounded workspace changes were found since this checkpoint.",
+        }
+
+    @staticmethod
+    def _checkpoint_public(checkpoint: dict[str, Any]) -> dict[str, Any]:
+        skipped = checkpoint.get("files_skipped")
+        if skipped is None:
+            skipped = sum(1 for metadata in checkpoint.get("manifest", {}).values() if not metadata.get("snapshot"))
+        return {
+            "id": checkpoint["id"], "status": checkpoint["status"], "created_at": checkpoint["created_at"],
+            "completed_at": checkpoint.get("completed_at"), "files_copied": checkpoint["files_copied"],
+            "files_skipped": skipped, "bytes_copied": checkpoint["bytes_copied"],
+        }
+
+    def task_change_diff(self, task_id: str, relative_path: str) -> dict[str, Any]:
+        """Return one selected, redacted unified diff without touching the workspace."""
+
+        summary = self.task_changes(task_id)
+        change = next((item for item in summary["changes"] if item["path"] == relative_path), None)
+        if change is None:
+            raise ValueError("Selected file is not available in this task's bounded change manifest")
+        if not change["diff_available"]:
+            return {"path": relative_path, "status": change["status"], "diff_available": False,
+                    "truncated": False, "diff": None, "reason": change.get("reason") or "No safe text diff is available."}
+        checkpoint = self.get(summary["checkpoint"]["id"])
+        workspace = Path(checkpoint["workspace"]).resolve()
+        snapshot = Path(checkpoint["snapshot_path"]).resolve()
+        if snapshot.parent != self.root.resolve():
+            raise RuntimeError("checkpoint snapshot escaped the recovery root")
+        baseline = snapshot / relative_path
+        current = self._current_path(workspace, relative_path)
+        try:
+            before = self._safe_text(baseline.read_bytes()) if baseline.is_file() else ""
+            after = self._safe_text(current.read_bytes()) if current else ""
+        except OSError:
+            before = after = None
+        if before is None or after is None:
+            return {"path": relative_path, "status": change["status"], "diff_available": False,
+                    "truncated": False, "diff": None, "reason": "File content is binary, secret-like, or exceeds the bounded review limit."}
+        diff = "".join(difflib.unified_diff(
+            before.splitlines(keepends=True), after.splitlines(keepends=True),
+            fromfile=f"before/{relative_path}", tofile=f"after/{relative_path}", lineterm="\n",
+        ))
+        truncated = len(diff.encode("utf-8", errors="replace")) > MAX_CHANGE_DIFF_BYTES
+        return {"path": relative_path, "status": change["status"], "diff_available": True,
+                "truncated": truncated, "diff": redact_text(diff, MAX_CHANGE_DIFF_BYTES),
+                "reason": "Diff truncated to the bounded review limit." if truncated else None}
+
+    def verify_workspace(self, checkpoint_id: str) -> dict[str, Any]:
+        """Check only this checkpoint's bounded text diffs before committing it.
+
+        The validation is independent of the agent's claim of success and does
+        not depend on a repository being clean or even using Git. It deliberately
+        excludes secret-like, binary, and oversized files, which remain available
+        to the existing change-review manifest but are never read into this check.
+        """
+
+        checkpoint = self.get(checkpoint_id)
+        receipt: dict[str, Any] = {
+            "checkpoint_id": checkpoint_id,
+            "kind": "checkpoint-diff-check",
+            "read_only": True,
+            "status": "passed",
+            "checks": [],
+        }
+        try:
+            changes = self.task_changes(checkpoint["task_id"])["changes"]
+            workspace = Path(checkpoint["workspace"]).resolve()
+            snapshot = Path(checkpoint["snapshot_path"]).resolve()
+            if snapshot.parent != self.root.resolve():
+                raise RuntimeError("checkpoint snapshot escaped the recovery root")
+            for change in changes:
+                path = str(change["path"])
+                if not change.get("diff_available"):
+                    receipt["checks"].append({"path": path, "passed": True, "skipped": True,
+                                              "reason": change.get("reason") or "No safe text diff is available."})
+                    continue
+                relative = self._safe_relative(workspace, path)
+                current = self._current_path(workspace, relative) if relative else None
+                baseline = snapshot / relative if relative else None
+                try:
+                    before = self._safe_text(baseline.read_bytes()) if baseline and baseline.is_file() else ""
+                    after = self._safe_text(current.read_bytes()) if current else ""
+                except OSError:
+                    before = after = None
+                if before is None or after is None:
+                    receipt["checks"].append({"path": path, "passed": True, "skipped": True,
+                                              "reason": "No safe text diff is available."})
+                    continue
+                trailing = sum(
+                    1 for line in difflib.unified_diff(before.splitlines(), after.splitlines(), lineterm="")
+                    if line.startswith("+") and not line.startswith("+++") and line[1:].rstrip(" \t") != line[1:]
+                )
+                receipt["checks"].append({"path": path, "passed": trailing == 0,
+                                          "trailing_whitespace_lines": trailing})
+        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+            receipt["status"] = "skipped"
+            receipt["reason"] = f"Checkpoint diff verification was unavailable: {type(exc).__name__}"
+            return receipt
+
+        failures = [check for check in receipt["checks"] if not check["passed"]]
+        receipt["status"] = "failed" if failures else "passed"
+        if failures:
+            receipt["reason"] = "Checkpoint diff contains trailing whitespace introduced by this task."
+        return receipt
 
     def complete(self, checkpoint_id: str) -> dict[str, Any]:
         receipt = {"checkpoint_id": checkpoint_id, "disposition": "committed", "completed_at": time.time()}

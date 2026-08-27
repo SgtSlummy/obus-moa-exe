@@ -8,6 +8,9 @@ class AUIPackagingContractTests(unittest.TestCase):
         self.assertIn('"backend.aui"', spec)
         self.assertIn('"backend.aui_events"', spec)
         self.assertIn('destination = Path("backend/static") / rp.parent', spec)
+        self.assertIn("OPTIONAL_HIDDEN_IMPORTS", spec)
+        self.assertIn("optional_module_available", spec)
+        self.assertIn("hiddenimports.extend", spec)
 
 
 if __name__ == "__main__":

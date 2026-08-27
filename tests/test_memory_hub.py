@@ -9,6 +9,45 @@ from backend.memory_hub import MemoryHub
 
 
 class MemoryHubTests(unittest.TestCase):
+    def test_external_memory_permission_error_is_reported_without_breaking_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hub = MemoryHub(
+                obus_memory=root / "obus-memory.json",
+                hermes_memory=root / "MEMORY.md",
+                mempalace_root=root / "missing-mempalace",
+                mempalace_palace=root / "empty-palace",
+                mem0_db=root / "missing.db",
+                tarot_db=root / "missing.sqlite3",
+                mythos_root=root / "mythos",
+                moa_root=root / "moa",
+            )
+            with mock.patch.object(Path, "is_file", side_effect=PermissionError("denied")):
+                report = hub._hermes_status()
+
+            self.assertEqual(report["status"], "error")
+            self.assertEqual(report["error"], "unreadable")
+            self.assertFalse(report["present"])
+
+    def test_optional_directory_probe_permission_error_degrades_to_partial_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hub = MemoryHub(
+                obus_memory=root / "obus-memory.json",
+                hermes_memory=root / "MEMORY.md",
+                mempalace_root=root / "mempalace",
+                mempalace_palace=root / "palace",
+                mem0_db=root / "missing.db",
+                tarot_db=root / "missing.sqlite3",
+                mythos_root=root / "mythos",
+                moa_root=root / "moa",
+            )
+            with mock.patch.object(Path, "is_dir", side_effect=PermissionError("denied")):
+                report = hub._mythos_status()
+
+            self.assertFalse(report["source_present"])
+            self.assertEqual(report["status"], "partial")
+
     def test_reports_each_local_memory_source_without_exposing_contents(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

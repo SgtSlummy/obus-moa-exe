@@ -74,10 +74,9 @@ class IntegratedDashboardTests(unittest.TestCase):
         self.assertIn("Analyze this service", captured["prompt"])
         self.assertEqual(response.json()["final"], "LOCAL")
 
-    def test_local_voice_endpoint_refuses_unconfigured_models_without_downloads(self):
+    def test_local_voice_endpoint_rejects_malformed_audio_before_transcription(self):
         response = self.client.post("/api/voice/transcribe", json={"audio_base64": "AAAA", "mime_type": "audio/webm"})
-        self.assertEqual(response.status_code, 503)
-        self.assertIn("OBUS_LOCAL_STT_MODEL_PATH", response.json()["detail"])
+        self.assertEqual(response.status_code, 400)
         self.assertNotIn("download", response.json()["detail"].lower())
 
     def test_build_spec_includes_local_voice_runtime_dependencies(self):

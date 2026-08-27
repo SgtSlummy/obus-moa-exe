@@ -52,6 +52,49 @@ def test_checkpoint_skips_oversized_files_without_destroying_them(tmp_path: Path
     assert large.read_bytes() == b"changed"
 
 
+def test_task_change_manifest_and_selected_diff_are_bounded_and_secret_safe(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / "app.py"
+    source.write_text("print('before')\n", encoding="utf-8")
+    deleted = workspace / "old.txt"
+    deleted.write_text("old\n", encoding="utf-8")
+    manager = RecoveryManager(tmp_path / "state" / "harness.sqlite3")
+    checkpoint = manager.create("task-diff", workspace)
+
+    source.write_text("print('after')\n", encoding="utf-8")
+    deleted.unlink()
+    (workspace / "new.py").write_text("print('new')\n", encoding="utf-8")
+    (workspace / ".env").write_text("API_KEY=super-secret\n", encoding="utf-8")
+
+    summary = manager.task_changes("task-diff")
+    by_path = {item["path"]: item for item in summary["changes"]}
+    assert by_path["app.py"]["status"] == "modified"
+    assert by_path["old.txt"]["status"] == "deleted"
+    assert by_path["new.py"]["status"] == "added"
+    assert ".env" not in by_path
+    diff = manager.task_change_diff("task-diff", "app.py")
+    assert diff["diff_available"] is True
+    assert "-print('before')" in diff["diff"]
+    assert "+print('after')" in diff["diff"]
+
+
+def test_workspace_verification_checks_only_checkpoint_changes_without_writing(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / "source.py"
+    source.write_text("print('before')\n", encoding="utf-8")
+    manager = RecoveryManager(tmp_path / "state" / "harness.sqlite3")
+    checkpoint = manager.create("task-verify", workspace)
+    source.write_text("print('after')   \n", encoding="utf-8")
+    receipt = manager.verify_workspace(checkpoint["id"])
+
+    assert receipt["status"] == "failed"
+    assert receipt["read_only"] is True
+    assert receipt["checks"] == [{"path": "source.py", "passed": False, "trailing_whitespace_lines": 1}]
+    assert source.read_text(encoding="utf-8") == "print('after')   \n"
+
+
 def test_failure_fingerprint_opens_circuit_after_three_matches(tmp_path: Path) -> None:
     manager = RecoveryManager(tmp_path / "state" / "harness.sqlite3")
     failure = RuntimeError("same deterministic failure")

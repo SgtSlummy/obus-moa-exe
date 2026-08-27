@@ -442,6 +442,123 @@ textarea::-webkit-resizer {
   color: var(--parchment);
 }
 
+.workspace-editor {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 18rem;
+  max-block-size: min(72vh, 50rem);
+  resize: vertical;
+  overflow: auto;
+  border: 1px solid var(--verdigris);
+  border-radius: var(--space-3);
+  background: var(--ink);
+  color: var(--parchment-soft);
+  font: 0.82rem/1.55 var(--font-code);
+  padding: var(--space-3);
+  tab-size: 2;
+}
+
+.workspace-editor:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus);
+}
+
+.workspace-risk-approval {
+  color: var(--brass);
+  font-size: 0.78rem;
+}
+
+.terminal-session-strip {
+  display: flex;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  border-block-end: 1px solid var(--rule);
+  background: var(--ink-high);
+}
+
+.terminal-session-tabs {
+  display: flex;
+  min-width: 0;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.terminal-session-tab-wrap {
+  display: inline-flex;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--space-2);
+  background: var(--ink-soft);
+}
+
+.terminal-session-tab {
+  display: inline-flex;
+  min-width: 8rem;
+  max-width: 15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 0;
+  border-radius: calc(var(--space-2) - 1px) 0 0 calc(var(--space-2) - 1px);
+  background: transparent;
+  color: var(--parchment-muted);
+  cursor: pointer;
+  font: 0.78rem/1.25 var(--font-code);
+  padding: var(--space-2) var(--space-3);
+}
+
+.terminal-session-tab span,
+.terminal-session-tab small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-session-tab small {
+  color: var(--parchment-muted);
+  font-size: 0.68rem;
+}
+
+.terminal-session-tab.active {
+  background: color-mix(in srgb, var(--verdigris) 14%, var(--ink-soft));
+  color: var(--parchment);
+}
+
+.terminal-session-tab.active small {
+  color: var(--verdigris);
+}
+
+.terminal-session-tab:focus-visible,
+.terminal-session-close:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 0;
+  box-shadow: var(--focus);
+}
+
+.terminal-session-close {
+  inline-size: 1.9rem;
+  border: 0;
+  border-inline-start: 1px solid var(--rule);
+  border-radius: 0 calc(var(--space-2) - 1px) calc(var(--space-2) - 1px) 0;
+  background: transparent;
+  color: var(--parchment-muted);
+  cursor: pointer;
+  font: 1.1rem/1 var(--font-ui);
+}
+
+.terminal-session-close:hover {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.terminal-session-empty {
+  color: var(--parchment-muted);
+  font: 0.76rem/1.4 var(--font-code);
+  padding: var(--space-2) 0;
+}
+
 .metric {
   min-width: 0;
   border-color: var(--rule);

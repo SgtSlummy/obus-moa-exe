@@ -67,6 +67,16 @@ class RunReceiptTests(unittest.TestCase):
             self.assertIn("two", markdown)
             self.assertNotIn("private_messages", markdown)
 
+    def test_receipt_persistence_returns_latest_and_keeps_chronological_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipts.json"
+            first = persist_receipt(path, {"id": "first", "final": "first result"})
+            second = persist_receipt(path, {"id": "second", "final": "second result"})
+
+            self.assertEqual(first["id"], "first")
+            self.assertEqual(second["id"], "second")
+            self.assertEqual([item["id"] for item in load_receipts(path)], ["first", "second"])
+
     def test_offline_route_returns_and_persists_receipt_end_to_end(self):
         from fastapi.testclient import TestClient
         import backend.main as backend

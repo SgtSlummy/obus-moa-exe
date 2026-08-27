@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from fastapi import HTTPException
 
+import backend.peer_api as peer_api
 from backend.peer_sync import PeerSyncStore, canonical_json, encode_key, is_tailscale_address
 
 
@@ -112,3 +114,11 @@ def test_legacy_plaintext_identity_is_migrated(tmp_path: Path) -> None:
     assert migrated["private_key"].startswith(("dpapi:", "portable:"))
     assert migrated["private_key"] != legacy
     assert store.sign({"migration": "verified"})
+
+
+def test_peer_api_fails_closed_when_secure_identity_store_is_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(peer_api, "peer_store", None)
+    with pytest.raises(HTTPException) as error:
+        peer_api._require_peer_store()
+    assert error.value.status_code == 503
+    assert "secure local key storage" in str(error.value.detail)
