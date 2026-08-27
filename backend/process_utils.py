@@ -61,25 +61,21 @@ def run_bounded_subprocess(
     budget_lock = threading.Lock()
 
     def drain(stream, target: bytearray) -> None:
-        try:
-            while True:
-                chunk = stream.read(65536)
-                if not chunk:
-                    return
-                with budget_lock:
-                    if len(chunk) > budget[0]:
-                        overflow.set()
-                        terminate_process_tree(process)
-                        return
-                    budget[0] -= len(chunk)
-                if len(target) + len(chunk) > limit:
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                return
+            with budget_lock:
+                if len(chunk) > budget[0]:
                     overflow.set()
                     terminate_process_tree(process)
                     return
-                target.extend(chunk)
-        except (OSError, ValueError):
-            # The parent closes pipes after the child exits or is terminated.
-            return
+                budget[0] -= len(chunk)
+            if len(target) + len(chunk) > limit:
+                overflow.set()
+                terminate_process_tree(process)
+                return
+            target.extend(chunk)
 
     threads = [
         threading.Thread(target=drain, args=(process.stdout, stdout), daemon=True),
@@ -101,12 +97,6 @@ def run_bounded_subprocess(
     finally:
         for thread in threads:
             thread.join(timeout=2)
-        for stream in (process.stdout, process.stderr):
-            if stream is not None:
-                try:
-                    stream.close()
-                except OSError:
-                    pass
     if timeout_error is not None:
         raise timeout_error
     if len(stdout) + len(stderr) > limit or overflow.is_set():

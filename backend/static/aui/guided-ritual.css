@@ -845,11 +845,6 @@ body.guided-ritual [data-page-panel="settings"] .row p {
 
 @media (max-width: 960px) { .guided-task-switcher { display: none !important; } }
 
-@media (max-width: 760px) {
-  body.guided-ritual .nav,
-  body.guided-ritual .guided-advanced-nav > div { grid-template-columns: minmax(0, 1fr); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   body.guided-ritual *,
   body.guided-ritual *::before,

@@ -720,8 +720,9 @@ def main(args: list[str] | None = None):
     print("=" * 50)
 
     if not acquire_single_instance():
-        if not headless and wait_for_server(HEALTH_URL, attempts=120, delay=0.05):
-            ensure_app_window(APP_URL)
+        if wait_for_server(HEALTH_URL, attempts=120, delay=0.05):
+            if not headless:
+                ensure_app_window(APP_URL)
         return
     
     # Desktop launches may reuse an existing local dashboard. Headless/portal

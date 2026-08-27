@@ -476,13 +476,9 @@ class AgentHarnessRuntime:
                 })
                 self.store.transition(task_id, "verifying", attempt=attempt)
                 lesson = self.store.promote_lesson(task_id, task["objective"], result[-16000:])
-                self.store.add_event(task_id, "task.completed", {"lesson_id": lesson["id"]})
-                # A terminal state is the public signal that no more durable work is
-                # pending for this task.  Keep it as the final write: otherwise a
-                # caller that observes "succeeded" can tear down its workspace while
-                # this worker still owns the SQLite database on Windows.
                 self.store.transition(task_id, "succeeded", attempt=attempt, result=result,
                                       finished_at=utc_now(), error=None)
+                self.store.add_event(task_id, "task.completed", {"lesson_id": lesson["id"]})
                 return
             except InterruptedError as exc:
                 rollback = self.recovery.rollback(checkpoint["id"])

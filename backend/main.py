@@ -2358,7 +2358,7 @@ def auto_aid_local_voice_model(state: dict) -> dict:
     """Select one deterministic existing local model without downloading or enabling remote voice."""
 
     configured_path, configured_source = _configured_local_voice_model(state)
-    if configured_path and configured_source != "bundled-offline":
+    if configured_path:
         return {
             "success": True, "safe": True, "auto_apply": False, "configured": True,
             "model": Path(configured_path).name, "source": configured_source,
@@ -2370,19 +2370,6 @@ def auto_aid_local_voice_model(state: dict) -> dict:
             "message": "This OBus runtime does not include local Faster-Whisper support, so no voice model was selected.",
         }
     candidates = _local_voice_model_candidates()
-    # The bundled offline model makes voice available out of the box, but it
-    # must not turn a user's own local-model choice into an ambiguous list.
-    # Prefer explicitly discovered local models; use the bundle only when it
-    # is the sole available candidate.
-    local_candidates = [item for item in candidates if item["source"] != "Bundled offline voice model"]
-    if local_candidates:
-        candidates = local_candidates
-    elif configured_path:
-        return {
-            "success": True, "safe": True, "auto_apply": False, "configured": True,
-            "model": Path(configured_path).name, "source": configured_source,
-            "message": "Local voice is already configured; no download, cloud access, or task submission was performed.",
-        }
     if not candidates:
         return {
             "success": False, "safe": True, "auto_apply": False, "configured": False,
@@ -2422,22 +2409,17 @@ def local_voice_status(state: dict | None = None) -> dict:
 
 def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
     """Transcribe one browser recording with a pre-existing local Faster-Whisper model."""
+    model_path, _model_source = _configured_local_voice_model(load_state())
+    if not model_path or not Path(model_path).exists():
+        raise RuntimeError("Use Auto-set up voice or configure OBUS_LOCAL_STT_MODEL_PATH with an already available local Faster-Whisper model before using voice.")
+    if not faster_whisper_available():
+        raise RuntimeError("Local Faster-Whisper support is unavailable in this OBus runtime.")
     try:
         audio = base64.b64decode(audio_base64, validate=True)
     except (ValueError, TypeError) as exc:
         raise ValueError("Voice input was not valid base64 audio.") from exc
     if not audio or len(audio) > 8 * 1024 * 1024:
         raise ValueError("Voice recordings must be between 1 byte and 8 MiB.")
-    is_webm = mime_type in {"audio/webm", "audio/webm;codecs=opus"}
-    is_wav = mime_type in {"audio/wav", "audio/x-wav", "audio/wave"}
-    valid_container = (is_webm and audio.startswith(b"\x1a\x45\xdf\xa3")) or (is_wav and audio[:4] == b"RIFF" and audio[8:12] == b"WAVE")
-    if not valid_container:
-        raise ValueError("Voice input does not match its declared audio container.")
-    model_path, _model_source = _configured_local_voice_model(load_state())
-    if not model_path or not Path(model_path).exists():
-        raise RuntimeError("Use Auto-set up voice or configure OBUS_LOCAL_STT_MODEL_PATH with an already available local Faster-Whisper model before using voice.")
-    if not faster_whisper_available():
-        raise RuntimeError("Local Faster-Whisper support is unavailable in this OBus runtime.")
     suffix = ".webm" if mime_type in {"audio/webm", "audio/webm;codecs=opus"} else ".wav"
     temp_name = ""
     try:
@@ -5522,9 +5504,6 @@ async def update_machine_setup(update: MachineSetupUpdate):
 
 @app.post("/api/voice/transcribe")
 async def transcribe_voice(request: VoiceTranscriptionRequest):
-    voice = local_voice_status()
-    if not voice.get("ready"):
-        raise HTTPException(status_code=503, detail=str(voice.get("reason") or "Local voice is not configured."))
     try:
         transcript = await asyncio.to_thread(transcribe_local_audio, request.audio_base64, request.mime_type)
     except ValueError as exc:
