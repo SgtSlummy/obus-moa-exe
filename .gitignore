@@ -24,9 +24,24 @@ third_party/warpdotdev-warp/
 Understand-Anything/
 build-aui-*/
 dist-aui-*/
+dist-warp-review/
+electron_app/node_modules/
+electron_app/node_modules/.package-lock.json
+tmp/electron_smoke.cjs
 .hermes/audits/
 .hermes/package-loop*/
 .hermes/package-loop*/home/
 
 .codex/coordination/*
 !.codex/coordination/project.yaml
+
+# Build/test artifacts
+.pytest-full-v97/
+.pytest-temp-voice/
+.smoke-electron/
+dist-electron-*/
+installers/windows/
+docs/windows-installer.md
+tmp/electron-*
+scripts/obus_codex_fixture_runner.py
+tests/test_codex_app_server_protocol.py

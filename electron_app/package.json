@@ -4,12 +4,42 @@
   "description": "Electron wrapper for OBus",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64"
   },
-  "author": "Your Name",
+  "author": "OBus",
   "license": "MIT",
-  "dependencies": {
-    "electron": "^28.3.3"
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.obus.desktop",
+    "productName": "OBus",
+    "icon": "../assets/obus_emblem.ico",
+    "directories": {
+      "output": "../installers/windows"
+    },
+    "extraResources": [
+      {
+        "from": "../dist/OBus.exe",
+        "to": "backend/OBus.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "OBus-Setup-${version}-x64.${ext}"
+    }
   },
   "keywords": [],
   "type": "commonjs"

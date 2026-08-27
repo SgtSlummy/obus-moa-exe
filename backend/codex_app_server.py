@@ -222,7 +222,7 @@ class CodexAppServer:
     def start_thread(self, workspace: Path, model: str | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {
             "cwd": str(workspace),
-            "sandbox": "workspaceWrite",
+            "sandbox": "workspace-write",
             "approvalPolicy": "on-request",
             "serviceName": "obus",
         }
@@ -242,7 +242,7 @@ class CodexAppServer:
         params: dict[str, Any] = {
             "threadId": thread_id,
             "cwd": str(workspace),
-            "sandbox": "workspaceWrite",
+            "sandbox": "workspace-write",
             "approvalPolicy": "on-request",
             "serviceName": "obus",
         }
