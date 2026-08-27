@@ -1,8 +1,8 @@
-# Push Status Report - 2026-08-27 02:45 UTC (cron cycle)
+# Push Status Report - 2026-08-27 03:01 UTC (cron cycle)
 
-**Job ID:** 893c7df0ef71  
-**Schedule:** every 10m  
-**Run Time:** 2026-08-27 02:45 UTC
+**Job ID:** 893c7df0ef71
+**Schedule:** every 10m
+**Run Time:** 2026-08-27 03:01 UTC
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `1aeaed4` | master | ✅ **Up to date** — already pushed; `Everything up-to-date`. In sync with origin. |
+| obus-moa-exe (SgtSlummy) | `1aeaed4` | master | ✅ **Up to date** — Everything up-to-date. In sync with origin. |
 | warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ **Synced** — matches `origin/main`. No drift. |
-| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD, upstream tracking only; 403 on push. No new changes. |
+| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No new changes. |
 | Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
 | Tarot-Router (occultbus) | — | main | ✅ Up to date — no changes. |
 
@@ -25,12 +25,12 @@
 | File | State |
 |------|-------|
 | `status_report.txt` | M (modified) — refreshed this cycle |
-| `cron_report_0348.md` | ?? (untracked) — new this cycle |
 | `push_status.txt` | M (modified) — refreshed this cycle |
+| `cron_report_0351.md` | ?? (untracked) — new this cycle |
 | `electron_app/node_modules/` | ?? (untracked) |
 | `electron_app/package-lock.json` | ?? (untracked) |
 
-**Source worktree** (`codex/autonomy-context-agents`): `77a6f02` — **in sync** with origin (0 behind/ahead). Branch on origin. 31 dirty files + extensive untracked feature work. Nothing staged.
+**Source worktree** (`codex/autonomy-context-agents`): `77a6f02` — **in sync** on origin. Not accessible from this session (OneDrive path). 31 dirty files + untracked artifacts locally.
 
 ---
 
@@ -46,7 +46,7 @@
 | `dist-aui-loop5/` | OBus.exe | 70.6MB | Aug 26 09:38 | Source worktree build |
 | `dist-aui-loop10/` | OBus.exe | 70.7MB | Aug 26 09:38 | Source worktree build |
 
-Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~17 hours).
+Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~18 hours).
 
 ---
 
@@ -54,14 +54,15 @@ Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~17 hours).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ⚠️ Process alive (uvicorn PID 1016) but port unreachable |
-| Davy Jones server control panel | `:3000` | ⚠️ Process alive (DavyJonesHeartbeat PID 8836) but port unreachable |
+| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — uvicorn PID 1016, HTTP 200 |
+| Davy Jones server control panel | `:3000` | ✅ **Running** — DavyJonesHeartbeat PID 8836, HTTP 200 |
+
+Both services recovered this cycle.
 
 ---
 
 ## Active Jobs / Processes
 
-- **Hermes session processes:** None registered this cycle.
 - **System processes (relevant):**
   - `llama-server.exe` (PID 5296) — 3.5 GB — local LLM inference active
   - `codex.exe` (6+ instances) — active Codex CLI workflows
@@ -77,11 +78,11 @@ Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~17 hours).
 ## Summary
 
 1. **Main repo:** ✅ **Up to date** — `1aeaed4` pushed; in sync (0 behind/ahead).
-2. **Source worktree branch:** ⚠️ No change — `77a6f02` in sync, branch on origin. 31 dirty files remain uncommitted.
+2. **Source worktree:** ⚠️ No change — branch on origin. Worktree not accessible from this session.
 3. **Submodule pushes:** ⚠️ Mixed — warp synced; Understand-Anything and warpdotdev-warp blocked (unchanged).
-4. **Build pipeline:** ⏸ Idle — no new EXEs in ~17 hours.
-5. **Services:** ⚠️ Both process alive but ports unreachable (regression from last cycle).
-6. **Active jobs:** Code llama-server (3.5GB), Codex (6+ instances), Gortex (3), OBus (14+), PinchTab (3), MemPalace (2) all active in system.
+4. **Build pipeline:** ⏸ Idle — no new EXEs in ~18 hours.
+5. **Services:** ✅ Both recovered — :8000 and :3000 responding HTTP 200.
+6. **Active jobs:** Llama-server (3.5GB), Codex (6+ instances), Gortex (3), OBus (14+), PinchTab (3), MemPalace (2) all active.
 
 ---
 
@@ -90,4 +91,4 @@ Build pipeline: **Idle** — no new loop EXEs since Aug 26 09:38 (~17 hours).
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Service ports :8000 and :3000 unreachable despite processes being alive
+- Source worktree at OneDrive path not accessible from this cron session

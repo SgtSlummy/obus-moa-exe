@@ -1,7 +1,7 @@
-# Status Report - 2026-08-27 02:45 UTC (cron cycle)
+# Status Report - 2026-08-27 03:01 UTC (cron cycle)
 
-**Job ID:** 893c7df0ef71  
-**Run Time:** 2026-08-27 02:45 UTC (UTC+00:00)  
+**Job ID:** 893c7df0ef71
+**Run Time:** 2026-08-27 03:01 UTC (UTC+00:00)
 **Schedule:** every 10m
 
 ---
@@ -11,23 +11,23 @@
 ### obus-moa-exe (SgtSlummy) — MAIN
 - **Commit:** `1aeaed4` — chore: refresh push status reports for 01:31 cycle
 - **Branch:** master → origin/master ✅ **In sync (0 behind/ahead)**
-- **Status:** Up to date. Pushed this cycle.
+- **Push:** Everything up-to-date. No new commits to push.
 
 ### obus-moa-exe (SgtSlummy) — SOURCE WORKTREE
-- **Branch:** `codex/autonomy-context-agents`
-- **Commit:** `77a6f02` — in sync with origin/codex/autonomy-context-agents ✅ (0 behind/ahead)
-- **Push status:** Branch on origin since 13:41 cycle. Synced.
+- **Branch:** `codex/autonomy-context-agents` at `77a6f02`
+- **Location:** `/c/Users/Hermes/OneDrive/OBus-Thor-Loki-Paired/source-worktree`
+- **Status:** ⚠️ Worktree not accessible from this session (OneDrive path). Branch on origin since Aug 26 13:41. Synced.
 - **Local state:** 31 modified + ~200+ untracked build artifacts. Nothing staged.
 
 ### warp (submodule, nvidia/warp)
 - **Commit:** `808ddbdc0` — Invalidate cached FEM arguments after rebuilds [GH-1852]
-- **Branch:** detached at upstream main ✅
-- **Push status:** Synced with `origin/main`. No drift.
+- **Branch:** detached HEAD at upstream main ✅ **Synced** — matches `origin/main`
+- **Push:** N/A (detached HEAD, not on a branch)
 
 ### Understand-Anything (submodule, Egonex-AI)
 - **Commit:** `99e62b7` — Sync Understand-Anything submodule changes for deploy
 - **Branch:** main → origin/main ❌ **Ahead 2**
-- **Push blocked:** 403 (not collaborator). Work preserved locally.
+- **Push blocked:** 403 — Permission denied to SgtSlummy. Work preserved locally.
 
 ### third_party/warpdotdev-warp (submodule)
 - **Commit:** `6afb6c8` — Update common skills lock for warpdotdev/common-skills#77 (#15577)
@@ -41,7 +41,7 @@
 
 ## Build / EXE Status
 
-- **Main dir pipeline:** Idle — no new loop EXEs since Aug 25 10:46 (~17 hours)
+- **Main dir pipeline:** Idle — no new loop EXEs since Aug 25 10:46 (~18 hours)
 - **Latest main EXE:** `dist/OBus.exe` (139.8MB, Aug 23 21:17)
 - **Running instance:** `dist-aui-loop21/OBus.exe` (70.7MB, Aug 24 16:31, PID 18292)
 - **Source worktree builds:** `dist-aui-loop5/OBus.exe` (70.6MB), `dist-aui-loop10/OBus.exe` (70.7MB), both Aug 26 09:38
@@ -53,14 +53,15 @@
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ⚠️ Process alive (uvicorn PID 1016) but port unreachable |
-| Davy Jones server control panel | `:3000` | ⚠️ Process alive (DavyJonesHeartbeat PID 8836) but port unreachable |
+| OBus MOA FastAPI backend | `:8000` | ✅ **Running** — uvicorn PID 1016, HTTP 200 |
+| Davy Jones server control panel | `:3000` | ✅ **Running** — DavyJonesHeartbeat PID 8836, HTTP 200 |
+
+Both services recovered this cycle — ports now reachable (connected via 127.0.0.1).
 
 ---
 
 ## Process Inventory
 
-- No background processes registered in this Hermes session this cycle.
 - **System processes (relevant):**
   - `llama-server.exe` (PID 5296) — 3.5 GB — local LLM inference active
   - `codex.exe` (6+ instances) — active Codex CLI workflows
@@ -68,6 +69,8 @@
   - `OBus.exe` (14+ instances) — across multiple dist builds
   - `pinchtab-windows-amd64.exe` (3 instances) — browser automation active
   - `mempalace-mcp.exe` (2 instances) — MemPalace MCP active
+  - `uvicorn.exe` (PID 1016) — OBus backend ASGI
+  - `DavyJonesHeartbeat.exe` (PID 8836) — Davy Jones service
 
 ---
 
@@ -76,8 +79,25 @@
 | Job Type | Status | Notes |
 |----------|--------|-------|
 | Main repo push | ✅ Done | `1aeaed4` up-to-date on origin/master |
-| Source worktree push | ⚠️ No change | Branch on origin, 31 dirty files uncommitted |
-| Submodule pushes | ⚠️ Blocked | Permission/fork issues; warp synced |
-| Build pipeline | ⏸ Idle | No new EXEs in ~17 hours |
-| OBus backend | ⚠️ Alive, unreachable | Process running, port :8000 not responding |
-| Davy Jones | ⚠️ Alive, unreachable | Process running, port :3000 not responding |
+| Source worktree push | ⚠️ No change | Branch on origin, worktree not accessible from this session |
+| Submodule pushes | ⚠️ Blocked | Permission/fork issues; warp synced and detached |
+| Build pipeline | ⏸ Idle | No new EXEs in ~18 hours |
+| OBus backend | ✅ Running | Port :8000 responding HTTP 200 |
+| Davy Jones | ✅ Running | Port :3000 responding HTTP 200 |
+
+---
+
+## Persistent Blockers (unchanged)
+
+- warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
+- warpdotdev-warp: detached HEAD, 403 on push
+- Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
+- Source worktree at OneDrive path not accessible from this session — needs manual sync/commit from another session
+
+---
+
+## Changes Since Last Report
+
+1. **Both services recovered** — :8000 and :3000 now responding 200 OK (were unreachable last cycle)
+2. **Push sweep complete** — main repo up-to-date, submodule push attempts logged (same persistent blockers)
+3. **Zero new commits** — no activity since last cycle across any tracked repo
