@@ -4544,7 +4544,6 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
                     manual_key
                     and manual_key.get("local")
                     and manual_key.get("state") == "ready"
-                    and manual_key.get("verified")
                 ):
                     status = statuses.setdefault(manual_key_id, {"id": manual_key_id})
                     status["connected"] = True
@@ -4566,7 +4565,14 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
                         if inference_lock is None:
                             output = PERSISTENT_AGENT_COMPLETE(agent=copy.deepcopy(agent), card=copy.deepcopy(card), key=copy.deepcopy(key), prompt=prompt, step=step)
                         else:
+                            agent.update(status="waiting_gpu", updated_at=_runtime_now())
+                            save_state(state)
                             with inference_lock:
+                                state = load_state()
+                                active_agent = next((item for item in state["persistent_agents"] if item["id"] == agent_id), None)
+                                if active_agent is not None:
+                                    active_agent.update(status="running", updated_at=_runtime_now())
+                                    save_state(state)
                                 output = PERSISTENT_AGENT_COMPLETE(agent=copy.deepcopy(agent), card=copy.deepcopy(card), key=copy.deepcopy(key), prompt=prompt, step=step)
                         if not str(output).strip():
                             raise RuntimeError("Provider returned an empty result")
@@ -4959,6 +4965,13 @@ def _synthesize_task_ledger(ledger_id: str, agent_ids: list[str]) -> None:
         ledger["status"] = "complete" if all(item.get("status") == "complete" for item in agents) else "partial"
         ledger["completed_at"] = _runtime_now()
         ledger["updated_at"] = _runtime_now()
+        # Planned teams are disposable execution branches. Their ledger holds
+        # the durable audit trail, so archive terminal workers from the active
+        # persistent-agent pool after that evidence has been recorded.
+        if ledger.get("kind") == "planned-team":
+            for agent in agents:
+                if agent.get("status") in {"complete", "failed", "stopped", "interrupted"}:
+                    agent.update(status="deleted", archived_at=_runtime_now(), updated_at=_runtime_now())
         _runtime_event(state, "orchestration_synthesized", f"Synthesized {len(findings)} findings for {ledger_id}")
         save_state(state)
     except Exception as exc:
