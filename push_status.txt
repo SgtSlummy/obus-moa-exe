@@ -1,6 +1,17 @@
-# Push Status — 2026-08-28 09:57 UTC
+# Push Status — 2026-08-28 11:57 UTC
 
-Main repo: ✅ Pushed `ad5fdcb` to origin/master — clean working tree, in sync
-Warp submodule: ❌ Blocked — detached at 3504ce5, ahead 5 / behind 8 vs nvidia/warp main; sgtfork remote not found (repo deleted); nvidia/warp 403 (no write access)
-Warpdotdev-warp submodule: ❌ Blocked — detached at 8c2cc73, 403 on push (no write access to warpdotdev/warp)
-Understand-Anything submodule: ❌ Blocked — 403 on push (no write access to Egonex-AI/Understand-Anything)
+Main repo: ✅ Pushed — clean, in sync with origin/master (everything up-to-date at e54db1d)
+
+Submodule pointer changes staged for next commit (not yet pushed to origin):
+- warpdotdev-warp: 6afb6c8 → 8c2cc73 (REMOTE-2467: add a Windows CLI release artifact)
+- warp: 33530bd → 3504ce5 (v1.4.0-3536-g3504ce5b0)
+
+Submodule remote push status:
+- third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator; cannot push
+- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator; nvidia/warp not writable
+- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ Missing local checkout (not cloned); 403 expected
+
+Warp submodule: detached at 3504ce5, ahead 5 / behind 8 vs nvidia/warp main
+Warpdotdev-warp submodule: detached at 8c2cc73 (latest remote HEAD)
+
+Note: submodule pointer changes (third_party/warpdotdev-warp, warp) are present in working tree but not yet committed; they will require a follow-up commit + push.
