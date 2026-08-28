@@ -101,6 +101,11 @@
           applied: false,
         };
         await loadApprovals();
+        // Major-risk work stops here. Put the durable, local-only approval
+        // directly in front of the operator instead of leaving them on a
+        // composer that appears to have done nothing.
+        if (typeof root.setPage === "function") root.setPage("runtime");
+        else root.document.querySelector('.nav button[data-page="runtime"]')?.click();
         return {approval_required: true, approval_id: approvalId};
       };
       const renderSchedules = () => {

@@ -4712,6 +4712,15 @@ async def execute_planned_team(request: PlanTeamExecutionRequest):
     selected_card_ids = selected_card_ids[:parallel_limit]
     if not selected_card_ids:
         raise HTTPException(status_code=503, detail="The plan did not select any agent cards")
+    # Reclaim legacy disposable team workers before applying the active-agent
+    # limit. Their completed ledgers remain the durable audit record.
+    terminal_ledgers = {
+        item.get("id") for item in state.get("task_ledgers", [])
+        if item.get("kind") == "planned-team" and item.get("status") in {"complete", "partial", "failed"}
+    }
+    for agent in state.get("persistent_agents", []):
+        if agent.get("task_ledger_id") in terminal_ledgers and agent.get("status") != "deleted":
+            agent.update(status="deleted", archived_at=_runtime_now(), updated_at=_runtime_now())
     existing = [agent for agent in state["persistent_agents"] if agent.get("status") != "deleted"]
     if len(existing) + len(selected_card_ids) > MAX_PERSISTENT_AGENTS:
         raise HTTPException(status_code=409, detail=f"Plan would exceed persistent agent maximum ({MAX_PERSISTENT_AGENTS})")
