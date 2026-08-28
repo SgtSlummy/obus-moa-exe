@@ -1,36 +1,23 @@
-# Status Report — 2026-08-27 18:51 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m
-
-## Push Results
-
-| Repo | Branch | Commit | Result |
-|------|--------|--------|--------|
-| obus-moa-exe | master | `80fdcc3` | ✅ **Pushed** — `cfbf68a..80fdcc3` to origin |
-| warp (submodule) | main | `808ddbd` | ⚠️ **Clean** — nothing to push; prior 403 remains unresolved |
-
-## Active Processes
-
-- uvicorn.exe (PID 1016) — OBus MOA backend on :8000
-- DavyJonesHeartbeat.exe (PID 8836) — :3000 listener
-- ollama.exe (PID 3144) + ollama app.exe (PID 20328)
-- gortex.exe — 8 instances
-- msedgewebview2.exe — 13 instances
+# Build Status Report — 2026-08-28 05:08 UTC
 
 ## Services
+| Port | Status | Process |
+|------|--------|---------|
+| :8000 | ✅ UP | uvicorn (PID 1016) |
+| :3000 | ✅ UP | DavyJonesHeartbeat (PID 8836) |
 
-- `:8000` — ✅ UP (OBus MOA FastAPI, HTTP 200)
-- `:3000` — ✅ UP (Davy Jones, HTTP 200)
+## Last 3 Commits (master)
+- aa6d99b chore: refresh task command center tests and status reports
+- 9d553e7 chore: cron sync 2026-08-28T05:06:52Z
+- a78a435 feat: add task command center panel and tests
 
-## Committed Work (this cycle)
+## Background Processes
+- uvicorn.exe (PID 1016) — OBus MOA backend
+- DavyJonesHeartbeat.exe (PID 8836) — :3000 listener
 
-- `80fdcc3` feat: add GPU warm status test and guided ritual CSS updates
-  - `tests/test_gpu_warm_status.py` — new test file
-  - `backend/main.py` — modified
-  - `backend/static/aui/guided-ritual.css` — modified
-
-## Submodule Blockers (unchanged)
-
-- warp: 403 (nvidia/warp, not a collaborator) — local state is clean
-- warpdotdev-warp: detached HEAD + 403
-- Understand-Anything: 403 (Egonex-AI, not a collaborator)
-- Source worktree: OneDrive path unreachable
+## Submodules
+| Submodule | State | Push |
+|-----------|-------|------|
+| warp | 4 commits behind main, detached | Blocked |
+| warpdotdev-warp | Clean | 403 |
+| Understand-Anything | Clean | 403 |
