@@ -28,6 +28,17 @@ class AUIResponsiveContractTests(unittest.TestCase):
             self.assertIn(marker, html)
 
 
+    def test_scaled_desktop_windows_compact_navigation_before_controls_clip(self):
+        html = TestClient(backend.app).get("/").text
+        for marker in (
+            "@media(max-width:1280px) and (min-width:721px)",
+            ".shell{grid-template-columns:76px minmax(0,1fr);max-width:none}",
+            ".top{align-items:flex-start;flex-wrap:wrap;gap:12px}",
+            ".top>.actions{flex:1 1 440px;justify-content:flex-end;gap:6px}",
+        ):
+            self.assertIn(marker, html)
+
+
     def test_major_risk_stage_hands_off_to_runtime_approval_view(self):
         runtime_script = Path(backend.__file__).parent / "static" / "aui" / "runtime.js"
         source = runtime_script.read_text(encoding="utf-8")
