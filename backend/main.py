@@ -2,6 +2,8 @@
 FastAPI Backend for OBus MOA Runtime
 Supports Tarot cards, Solomon's Keys, Decks, and routing
 """
+from __future__ import annotations
+
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
