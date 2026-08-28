@@ -1,17 +1,15 @@
-# Push Status — 2026-08-28 11:57 UTC
+# Push Status — 2026-08-28 12:05 UTC
 
-Main repo: ✅ Pushed — clean, in sync with origin/master (everything up-to-date at e54db1d)
+Main repo: ✅ Pushed — `16f793e` (chore: refresh gortex community skills table in AGENTS.md), in sync with origin/master.
 
-Submodule pointer changes staged for next commit (not yet pushed to origin):
-- warpdotdev-warp: 6afb6c8 → 8c2cc73 (REMOTE-2467: add a Windows CLI release artifact)
-- warp: 33530bd → 3504ce5 (v1.4.0-3536-g3504ce5b0)
+Submodule pointer state (computed at push time):
+- warpdotdev-warp: `8c2cc73` — detached HEAD (latest remote)
+- warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main)
+- Understand-Anything: missing local checkout
 
 Submodule remote push status:
-- third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator; cannot push
-- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator; nvidia/warp not writable
-- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ Missing local checkout (not cloned); 403 expected
+- third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
+- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
+- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ Missing local checkout (not cloned)
 
-Warp submodule: detached at 3504ce5, ahead 5 / behind 8 vs nvidia/warp main
-Warpdotdev-warp submodule: detached at 8c2cc73 (latest remote HEAD)
-
-Note: submodule pointer changes (third_party/warpdotdev-warp, warp) are present in working tree but not yet committed; they will require a follow-up commit + push.
+Note: no new submodule pointer changes since last push. Working tree has no staged submodule diffs. Main repo is clean (tracked changes committed and pushed).

@@ -1,8 +1,21 @@
-Build status is produced by the GitHub Actions workflow in .github/workflows/ci.yml.
+# Build Status Report — 2026-08-28 12:05 UTC
 
-For authoritative release gates, artifact verification, deployment, shutdown, and rollback procedures, see docs/release.md. Do not record transient branch state, local paths, untracked artifacts, or access failures in this tracked file.
+## Services
+| Port | Status | Process |
+|------|--------|---------|
+| :8000 | ❌ DOWN | uvicorn (not listening) |
+| :3000 | ✅ UP | DavyJonesHeartbeat (PID ?, port bound) |
 
-Main repo: `9d553e7` pushed this cycle (22:11 UTC). Origin confirmed in sync.
-Source worktree (`codex/autonomy-context-agents`): clean — already on origin.
-Build pipeline: idle — no new EXEs since Aug 25 04:49.
-Services: both healthy — :8000 and :3000 HTTP 200.
+## Last 3 Commits (master)
+- `16f793e` chore: refresh gortex community skills table in AGENTS.md
+- `b43a8fa` chore: cron report 0371 and push status refresh 0370->0371 chain
+- `e54db1d` chore: refresh push status 0370->0371 chain
+
+## Submodules
+| Submodule | State | Push |
+|-----------|-------|------|
+| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | ❌ 403 (no write access) |
+| warpdotdev-warp | `8c2cc73` detached HEAD (latest remote) | ❌ 403 (no write access) |
+| Understand-Anything | missing local checkout | ❌ 403 expected |
+
+Note: no new submodule pointer changes since last push. Main repo pushed clean at `16f793e`.
