@@ -804,7 +804,21 @@ body.guided-ritual [data-page-panel="settings"] .row p {
 /* A desktop window can still have a narrow main canvas once the fixed
    navigation rail is present.  Stack only the header controls here, keeping
    the workbench itself in its wide layout until the smaller breakpoint. */
-@media (max-width: 1440px) and (min-width: 1181px) {
+@media (max-width: 1600px) and (min-width: 1181px) {
+  /* A window can be narrow even when its CSS viewport is above the phone/tablet breakpoint. */
+  html,
+  body.guided-ritual {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  body.guided-ritual .shell {
+    min-width: 0;
+    grid-template-columns: minmax(11rem, 12.5rem) minmax(0, 1fr);
+  }
+  body.guided-ritual .side,
+  body.guided-ritual main {
+    min-width: 0;
+  }
   body.guided-ritual .top {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

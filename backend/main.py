@@ -2090,9 +2090,30 @@ harness_runtime.runtime_config_resolver = _resolve_harness_runtime_config
 
 
 def get_gpu_warm_status() -> dict:
-    """Return the secret-free local GPU residency state tracked by OBus."""
+    """Return a secret-free GPU residency state, preferring live Ollama evidence."""
     with GPU_WARM_LOCK:
-        return copy.deepcopy(GPU_WARM_STATE)
+        tracked = copy.deepcopy(GPU_WARM_STATE)
+
+    # A warm-up request can time out while Ollama still keeps a large model resident.
+    # /api/ps is authoritative for that live condition and exposes size_vram per model.
+    try:
+        ollama = get_ollama_status()
+    except Exception:
+        return tracked
+    vram_by_model = ollama.get("vram_bytes") if isinstance(ollama, dict) else {}
+    resident_models = [
+        str(model)
+        for model in (ollama.get("running_models", []) if isinstance(ollama, dict) else [])
+        if int((vram_by_model or {}).get(model, 0) or 0) > 0
+    ]
+    if not resident_models:
+        return tracked
+    return {
+        **tracked,
+        "status": "warm",
+        "model": resident_models[0],
+        "evidence": "ollama_ps_size_vram",
+    }
 
 
 def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> dict:
