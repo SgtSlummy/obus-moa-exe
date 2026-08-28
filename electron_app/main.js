@@ -12,17 +12,42 @@ let mainWindow = null;
 let ownedBackend = null;
 let activeTarget = null;
 
-function obusUrl(value = process.env.OBUS_URL) {
-  if (!value) return DEFAULT_OBUS_URL;
+function safeLoopbackUrl(value) {
   try {
     const parsed = new URL(value);
     const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1";
-    if (parsed.protocol !== "http:" || !loopback) throw new Error("not a loopback HTTP URL");
+    if (parsed.protocol !== "http:" || !loopback) return null;
     return parsed.toString();
   } catch {
-    console.warn("Ignoring unsafe OBUS_URL; using the local OBus endpoint.");
-    return DEFAULT_OBUS_URL;
+    return null;
   }
+}
+
+function latestStartupUrl(newerThan = 0) {
+  const localAppData = process.env.LOCALAPPDATA;
+  if (!localAppData) return null;
+  try {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const startupDir = path.join(localAppData, "OBus", "logs", "startup");
+    const latest = fs.readdirSync(startupDir, {withFileTypes:true})
+      .filter(entry => entry.isFile() && /^obus-startup-.*\.json$/i.test(entry.name))
+      .map(entry => ({name:entry.name, modified:fs.statSync(path.join(startupDir, entry.name)).mtimeMs}))
+      .sort((left, right) => right.modified - left.modified)[0];
+    if (!latest || latest.modified < newerThan) return null;
+    const receipt = JSON.parse(fs.readFileSync(path.join(startupDir, latest.name), "utf8"));
+    const port = Number(receipt.app_port);
+    return Number.isInteger(port) && port > 0 && port < 65536 ? safeLoopbackUrl(`http://127.0.0.1:${port}/`) : null;
+  } catch (error) {
+    console.warn("Unable to read the local OBus startup receipt:", error.message);
+    return null;
+  }
+}
+
+function obusUrl(value = process.env.OBUS_URL) {
+  const requested = safeLoopbackUrl(value);
+  if (value && !requested) console.warn("Ignoring unsafe OBUS_URL (not a loopback HTTP URL); using the local OBus endpoint.");
+  return requested || latestStartupUrl() || DEFAULT_OBUS_URL;
 }
 
 function isLoopbackUrl(value) {
@@ -145,8 +170,21 @@ function createWindow(target = activeTarget || obusUrl()) {
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (!isLoopbackUrl(url)) event.preventDefault();
   });
+  const retryWithFreshReceipt = () => {
+    if (!mainWindow || Date.now() >= retryUntil) return;
+    const freshTarget = latestStartupUrl(launchStartedAt);
+    if (freshTarget && freshTarget !== target) {
+      target = freshTarget;
+      mainWindow.loadURL(target);
+      return;
+    }
+    retryTimer = setTimeout(retryWithFreshReceipt, 500);
+  };
+  mainWindow.webContents.on("did-fail-load", (_event, _code, _description, url, isMainFrame) => {
+    if (isMainFrame !== false && isLoopbackUrl(url)) retryWithFreshReceipt();
+  });
   mainWindow.loadURL(target);
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.on("closed", () => { if (retryTimer) clearTimeout(retryTimer); mainWindow = null; });
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -158,7 +196,10 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus();
   });
   app.whenReady().then(async () => {
-    const target = obusUrl();
+    let target = obusUrl();
+  const launchStartedAt = Date.now();
+  const retryUntil = launchStartedAt + 20_000;
+  let retryTimer = null;
     try {
       activeTarget = await ensureBackend(target);
       createWindow(activeTarget);

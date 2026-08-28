@@ -13,6 +13,7 @@ def test_task_command_center_has_safe_resume_and_approval_surfaces():
     assert "Opening a task never replays it" in source
     assert "sessionStorage.setItem('obus-last-autonomous-task'" in source
     assert "Open agent jobs" in source
+    assert "controlDrawer.open = false" in source
     assert "Selected task" in source
     assert "/api/harness/tasks/${encodeURIComponent(id)}" in source
     assert "/resume`, {method:'POST'}" in source

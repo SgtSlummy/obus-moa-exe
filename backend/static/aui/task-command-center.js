@@ -16,6 +16,8 @@
   const statusClass = value => /succeed|complete|ready|approved/i.test(value || '') ? 'ready' : /fail|reject|cancel|risk/i.test(value || '') ? 'warn' : '';
 
   function mount() {
+    const controlDrawer = document.querySelector('#mobile-control-drawer');
+    if (controlDrawer) controlDrawer.open = false;
     const page = document.querySelector('[data-page-panel="plan"]');
     if (!page || document.querySelector('#task-command-center')) return;
     const center = document.createElement('section');
