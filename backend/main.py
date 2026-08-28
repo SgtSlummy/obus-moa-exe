@@ -5751,7 +5751,9 @@ def generate_with_ollama(prompt: str, model: str, plan: dict, images: Optional[l
         "prompt": f"{system_context}\n\nUser task:\n{prompt}",
         "stream": False,
         "keep_alive": OLLAMA_KEEP_ALIVE,
-        "options": {"num_ctx": context_window},
+        # Keep the configured long context, but bound one response so a local
+        # agent cannot monopolize the GPU indefinitely on a malformed task.
+        "options": {"num_ctx": context_window, "num_predict": 512},
     }
     if images:
         request_payload["images"] = [item["data_base64"] for item in images]
