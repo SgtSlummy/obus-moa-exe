@@ -148,6 +148,18 @@ PERSISTENT_AGENT_THREADS: dict[str, threading.Thread] = {}
 PERSISTENT_AGENT_START_LOCKS: dict[str, threading.Lock] = {}
 PERSISTENT_AGENT_STOP_EVENTS: dict[str, threading.Event] = {}
 PERSISTENT_AGENT_KEY_LOADS: dict[str, int] = {}
+# Local Ollama models share a single GPU execution stream. Keep agents' histories
+# independent, while serializing only inference requests for the same model.
+PERSISTENT_LOCAL_MODEL_LOCKS: dict[str, threading.Lock] = {}
+PERSISTENT_LOCAL_MODEL_LOCKS_GUARD = threading.Lock()
+
+
+def _local_model_inference_lock(key: dict) -> threading.Lock | None:
+    if not key.get("local"):
+        return None
+    model = str(key.get("model") or key.get("id") or "local").strip().lower()
+    with PERSISTENT_LOCAL_MODEL_LOCKS_GUARD:
+        return PERSISTENT_LOCAL_MODEL_LOCKS.setdefault(model, threading.Lock())
 
 
 class _ParallelAgentGate:
@@ -4276,6 +4288,16 @@ def _ready_local_team_key(state: dict) -> dict:
         and statuses.get(key.get("id"), {}).get("connected")
     ]
     if not candidates:
+        # A provider-status refresh can briefly lag the durable verification
+        # record. A local, explicitly verified key is still a safe candidate;
+        # never use this fallback for a remote, unready, or unverified key.
+        candidates = [
+            key for key in state.get("keys", [])
+            if key.get("local")
+            and key.get("state") == "ready"
+            and key.get("verified")
+        ]
+    if not candidates:
         raise HTTPException(status_code=409, detail="No verified local provider is ready for a parallel team")
     candidates.sort(key=lambda key: (key.get("model") != selected_model, str(key.get("id") or "")))
     return candidates[0]
@@ -4512,6 +4534,20 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
                     return
                 card = next(card for card in state["cards"] if card["id"] == agent["card_id"])
                 statuses = {item["id"]: item for item in provider_statuses(state)}
+                # Planned local teams assign a verified local key at launch. A
+                # later status refresh may briefly lag while Ollama is busy;
+                # keep that one durable, local-only assignment eligible for
+                # this worker rather than falling into an unrelated fallback.
+                manual_key_id = agent.get("key_id") if agent.get("provider_mode") == "manual" else None
+                manual_key = next((item for item in state.get("keys", []) if item.get("id") == manual_key_id), None)
+                if (
+                    manual_key
+                    and manual_key.get("local")
+                    and manual_key.get("state") == "ready"
+                    and manual_key.get("verified")
+                ):
+                    status = statuses.setdefault(manual_key_id, {"id": manual_key_id})
+                    status["connected"] = True
                 excluded: set[str] = set()
                 output = None
                 last_error = "No provider succeeded"
@@ -4526,7 +4562,12 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
                         # Persist the effective per-agent capacity before the provider call so
                         # parallel work is inspectable while it is still running.
                         save_state(state)
-                        output = PERSISTENT_AGENT_COMPLETE(agent=copy.deepcopy(agent), card=copy.deepcopy(card), key=copy.deepcopy(key), prompt=prompt, step=step)
+                        inference_lock = _local_model_inference_lock(key)
+                        if inference_lock is None:
+                            output = PERSISTENT_AGENT_COMPLETE(agent=copy.deepcopy(agent), card=copy.deepcopy(card), key=copy.deepcopy(key), prompt=prompt, step=step)
+                        else:
+                            with inference_lock:
+                                output = PERSISTENT_AGENT_COMPLETE(agent=copy.deepcopy(agent), card=copy.deepcopy(card), key=copy.deepcopy(key), prompt=prompt, step=step)
                         if not str(output).strip():
                             raise RuntimeError("Provider returned an empty result")
                         break

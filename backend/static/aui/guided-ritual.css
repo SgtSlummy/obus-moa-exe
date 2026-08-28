@@ -819,6 +819,23 @@ body.guided-ritual [data-page-panel="settings"] .row p {
   body.guided-ritual main {
     min-width: 0;
   }
+  /* The available main canvas is much narrower than the browser viewport once
+     the navigation rail is visible, so prevent the Activity toolbar and rail
+     from sharing a row until there is room for both. */
+  body.guided-ritual .terminal-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.guided-ritual #run-workbench-splitter {
+    display: none;
+  }
+  body.guided-ritual .terminal-rail {
+    position: static;
+  }
+  .guided-context-panel,
+  .guided-rail-advanced {
+    border-left: 0;
+    padding-left: 0;
+  }
   body.guided-ritual .top {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

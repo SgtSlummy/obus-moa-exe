@@ -1,12 +1,12 @@
-# Status Report — 2026-08-27 17:45 UTC
+# Status Report — 2026-08-27 18:51 UTC
 **Job ID:** 893c7df0ef71 | **Schedule:** every 10m
 
 ## Push Results
 
 | Repo | Branch | Commit | Result |
 |------|--------|--------|--------|
-| obus-moa-exe | master | `2f1e109` | ✅ **Pushed** — `94c9213..2f1e109` to origin |
-| warp (submodule) | main | `808ddbd` | ❌ **Blocked** — 403, not a collaborator on nvidia/warp |
+| obus-moa-exe | master | `80fdcc3` | ✅ **Pushed** — `cfbf68a..80fdcc3` to origin |
+| warp (submodule) | main | `808ddbd` | ⚠️ **Clean** — nothing to push; prior 403 remains unresolved |
 
 ## Active Processes
 
@@ -18,16 +18,19 @@
 
 ## Services
 
-- `:8000` — ✅ UP (OBus MOA FastAPI)
-- `:3000` — ⚠️ Listener active, HTTP check failed (Davy Jones)
+- `:8000` — ✅ UP (OBus MOA FastAPI, HTTP 200)
+- `:3000` — ✅ UP (Davy Jones, HTTP 200)
 
-## Uncommitted Work
+## Committed Work (this cycle)
 
-All previously uncommitted changes (`2f1e109`) have been committed and pushed.
+- `80fdcc3` feat: add GPU warm status test and guided ritual CSS updates
+  - `tests/test_gpu_warm_status.py` — new test file
+  - `backend/main.py` — modified
+  - `backend/static/aui/guided-ritual.css` — modified
 
 ## Submodule Blockers (unchanged)
 
-- warp: 403 (nvidia/warp, not a collaborator)
+- warp: 403 (nvidia/warp, not a collaborator) — local state is clean
 - warpdotdev-warp: detached HEAD + 403
 - Understand-Anything: 403 (Egonex-AI, not a collaborator)
 - Source worktree: OneDrive path unreachable
