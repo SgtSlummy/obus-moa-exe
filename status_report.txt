@@ -1,4 +1,4 @@
-# Build Status Report — 2026-08-28 05:08 UTC
+# Build Status Report — 2026-08-28 05:10 UTC
 
 ## Services
 | Port | Status | Process |
@@ -14,10 +14,16 @@
 ## Background Processes
 - uvicorn.exe (PID 1016) — OBus MOA backend
 - DavyJonesHeartbeat.exe (PID 8836) — :3000 listener
+- OBus-6dd1e0e.exe (PID 4028, 21372) — running instances
+- OBus.exe (multiple PIDs) — desktop app instances
+- llama-server.exe (PID 22292) — local LLM inference
+- codex.exe (PID 31284) — Codex agent
+- gortex.exe (multiple PIDs) — graph tools
+- mempalace-mcp.exe (multiple PIDs) — memory palace
 
 ## Submodules
 | Submodule | State | Push |
 |-----------|-------|------|
-| warp | 4 commits behind main, detached | Blocked |
-| warpdotdev-warp | Clean | 403 |
+| warp | 4 commits behind main, detached, sgtfork not found | Blocked |
+| warpdotdev-warp | Clean, detached HEAD | 403 |
 | Understand-Anything | Clean | 403 |

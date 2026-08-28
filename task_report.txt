@@ -1,4 +1,4 @@
-# Active Jobs Status — 2026-08-28 05:08 UTC
+# Active Jobs Status — 2026-08-28 05:10 UTC
 # (Populated by cron run 893c7df0ef71)
 
 ## Services
@@ -15,6 +15,17 @@
 - 930ffd28: ✗ Inspect current workspace without modifying files
 
 ## Submodule Push Status
-- warp: 4 commits behind nvidia/warp main, cannot push (no access)
-- warpdotdev-warp: clean, 403 on push
-- Understand-Anything: clean, 403 on push
+- warp: ❌ BLOCKED — detached at 808ddbdc, 4 commits behind nvidia/warp main; sgtfork remote "https://github.com/SgtSlummy/warp.git" returns "Repository not found"; nvidia/warp 403 (no collaborator access)
+- warpdotdev-warp: ❌ BLOCKED — detached HEAD, 403 on push to warpdotdev/warp
+- Understand-Anything: ❌ BLOCKED — 403 on push to Egonex-AI/Understand-Anything
+
+## Running Processes (OBus-relevant)
+- uvicorn.exe (PID 1016) — backend :8000
+- DavyJonesHeartbeat.exe (PID 8836) — listener :3000
+- OBus-6dd1e0e.exe (PID 4028, 21372) — OBus instances
+- OBus.exe (multiple) — desktop app
+- llama-server.exe (PID 22292) — local LLM
+- codex.exe (PID 31284) — Codex agent
+- gortex.exe (multiple) — graph analysis
+- mempalace-mcp.exe (multiple) — memory
+- ollama app.exe / ollama.exe — Ollama service
