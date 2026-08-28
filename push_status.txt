@@ -1,15 +1,15 @@
-# Push Status — 2026-08-28 12:05 UTC
+# Push Status — 2026-08-28 15:33 UTC
 
-Main repo: ✅ Pushed — `16f793e` (chore: refresh gortex community skills table in AGENTS.md), in sync with origin/master.
+Main repo: ✅ Pushed — `aa663e8` (chore: add future annotations import to backend/main.py), in sync with origin/master.
 
 Submodule pointer state (computed at push time):
 - warpdotdev-warp: `8c2cc73` — detached HEAD (latest remote)
 - warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main)
-- Understand-Anything: missing local checkout
+- Understand-Anything: `99e62b7` — v1.3.0-574-g99e62b7
 
 Submodule remote push status:
 - third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
 - warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
-- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ Missing local checkout (not cloned)
+- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ 403 Forbidden — SgtSlummy not a collaborator
 
-Note: no new submodule pointer changes since last push. Working tree has no staged submodule diffs. Main repo is clean (tracked changes committed and pushed).
+Note: no new submodule pointer changes since last push. Main repo is clean (tracked changes committed and pushed). Untracked: .agents/, .claude/, .gemini/, CLAUDE.md, GEMINI.md, nul
