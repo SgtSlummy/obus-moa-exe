@@ -1,37 +1,33 @@
-# Status Report - 2026-08-27 12:54 UTC
+# Status Report — 2026-08-27 17:45 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m
 
-**Job ID:** 893c7df0ef71
-**Run Time:** 2026-08-27 12:54 UTC
+## Push Results
 
----
+| Repo | Branch | Commit | Result |
+|------|--------|--------|--------|
+| obus-moa-exe | master | `2f1e109` | ✅ **Pushed** — `94c9213..2f1e109` to origin |
+| warp (submodule) | main | `808ddbd` | ❌ **Blocked** — 403, not a collaborator on nvidia/warp |
 
-## Git State
+## Active Processes
 
-- **HEAD:** `64fecca` — chore: refresh push status reports for 05:12 cycle
-- **Branch:** master
-- **Origin:** in sync (0 behind/ahead)
-- **Uncommitted:** `electron_app/node_modules/` + `package-lock.json` (untracked artifacts)
-
-## Build Status
-
-- **dist-onedrive-fix/OBus.exe:** 133.6MB — Aug 25 10:46
-- **dist/OBus.exe:** 139.8MB — Aug 23 21:17
-- **dist-aui-loop*/OBus.exe:** 70.6–70.7MB across loops 5–76
-- **Pipeline:** Idle — no new builds since Aug 26 09:38
+- uvicorn.exe (PID 1016) — OBus MOA backend on :8000
+- DavyJonesHeartbeat.exe (PID 8836) — :3000 listener
+- ollama.exe (PID 3144) + ollama app.exe (PID 20328)
+- gortex.exe — 8 instances
+- msedgewebview2.exe — 13 instances
 
 ## Services
 
-- **OBus backend (:8000):** ✅ Running — TCP 100.73.36.108:8000 LISTENING
-- **Davy Jones (:3000):** ✅ Running — TCP 127.0.0.1:3000 LISTENING
+- `:8000` — ✅ UP (OBus MOA FastAPI)
+- `:3000` — ⚠️ Listener active, HTTP check failed (Davy Jones)
 
-## Pushes
+## Uncommitted Work
 
-- **obus-moa-exe:** ✅ Pushed `64fecca` — up to date
-- **warp:** ✅ Synced
-- **warpdotdev-warp:** ⚠️ Blocked (unchanged)
-- **Understand-Anything:** ❌ Blocked (unchanged)
+All previously uncommitted changes (`2f1e109`) have been committed and pushed.
 
-## Blockers
+## Submodule Blockers (unchanged)
 
-- Source worktree at OneDrive path not accessible from this session
-- Submodule pushes blocked by collaborator/permission status (unchanged)
+- warp: 403 (nvidia/warp, not a collaborator)
+- warpdotdev-warp: detached HEAD + 403
+- Understand-Anything: 403 (Egonex-AI, not a collaborator)
+- Source worktree: OneDrive path unreachable
