@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const style = document.createElement('style');
-  style.textContent = `.task-command-center{margin:0 0 16px}.task-command-head{align-items:flex-start}.task-command-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.task-command-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.task-command-pane{min-width:0;border:1px solid var(--line);border-radius:12px;background:#090d19;padding:13px}.task-command-pane h4{margin:0 0 10px;font-size:13px}.task-command-list{display:grid;gap:8px;max-height:360px;overflow:auto}.task-command-card{display:grid;gap:5px;width:100%;border:1px solid var(--line);border-radius:10px;background:#0c1120;color:var(--text);padding:11px;text-align:left}.task-command-card:not(.approval-card){cursor:pointer}.task-command-card:not(.approval-card):hover,.task-command-card:not(.approval-card):focus-visible{border-color:var(--violet);background:#12172a;outline:none}.task-command-card .badge{justify-self:start;margin:0}.task-command-card strong{font-size:12px;line-height:1.35}.task-command-card small{color:var(--muted);font-size:11px;line-height:1.35}@media(max-width:720px){.task-command-grid{grid-template-columns:1fr}.task-command-head{gap:10px;flex-wrap:wrap}.task-command-head .actions{width:100%}.task-command-head .actions .button{flex:1}}`;
+  style.textContent = `.task-command-center{margin:0 0 16px}.task-command-head{align-items:flex-start}.task-command-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.task-command-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.task-command-pane{min-width:0;border:1px solid var(--line);border-radius:12px;background:#090d19;padding:13px}.task-command-pane h4{margin:0 0 10px;font-size:13px}.task-command-list{display:grid;gap:8px;max-height:360px;overflow:auto}.task-command-card{display:grid;gap:5px;width:100%;border:1px solid var(--line);border-radius:10px;background:#0c1120;color:var(--text);padding:11px;text-align:left}.task-command-card:not(.approval-card){cursor:pointer}.task-command-card:not(.approval-card):hover,.task-command-card:not(.approval-card):focus-visible{border-color:var(--violet);background:#12172a;outline:none}.task-command-card .badge{justify-self:start;margin:0}.task-command-card strong{font-size:12px;line-height:1.35}.task-command-card small{color:var(--muted);font-size:11px;line-height:1.35}.task-command-timeline{border-top:1px solid var(--line);padding-top:8px}.task-command-timeline strong{font-size:11px;color:var(--cyan)}.task-command-timeline ol{display:grid;gap:5px;margin:7px 0 0;padding:0;list-style:none;max-height:185px;overflow:auto}.task-command-timeline li{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:start;font-size:10px;color:var(--muted)}.task-command-timeline code{color:var(--gold);font:10px Consolas,monospace}.task-command-timeline small{font-size:10px;white-space:nowrap}@media(max-width:720px){.task-command-grid{grid-template-columns:1fr}.task-command-head{gap:10px;flex-wrap:wrap}.task-command-head .actions{width:100%}.task-command-head .actions .button{flex:1}}`;
   document.head.append(style);
   const TASKS_URL = '/api/harness/tasks?limit=12';
   const APPROVAL_URLS = ['/api/harness/approvals?limit=12', '/api/approvals?limit=12'];
@@ -12,7 +12,7 @@
     if (!response.ok) throw new Error(`Request unavailable (${response.status})`);
     return response.json();
   };
-  const listOf = value => Array.isArray(value) ? value : (value?.items || value?.tasks || value?.approvals || []);
+  const listOf = value => Array.isArray(value) ? value : (value?.items || value?.tasks || value?.approvals || value?.events || []);
   const statusClass = value => /succeed|complete|ready|approved/i.test(value || '') ? 'ready' : /fail|reject|cancel|risk/i.test(value || '') ? 'warn' : '';
 
   function mount() {
@@ -46,6 +46,8 @@
       if (task) inspectTask(task);
       const resume = event.target.closest('[data-task-center-resume]')?.dataset.taskCenterResume;
       if (resume) resumeTask(resume);
+      const approval = event.target.closest('[data-task-center-approval]');
+      if (approval) decideApproval(approval.dataset.taskCenterApproval, approval.dataset.taskCenterDecision);
       if (event.target.closest('[data-task-center-live]')) openLiveTask();
     });
     load();
@@ -89,10 +91,29 @@
   function renderApprovals(target, approvals) {
     if (!approvals.length) { target.innerHTML = '<p class="empty">No major-risk approval is waiting. Ordinary work can continue autonomously.</p>'; return; }
     target.innerHTML = approvals.map(item => {
+      const id = item.id || item.approval_id || '';
       const state = item.status || item.state || 'pending';
       const title = item.summary || item.objective || item.action || 'Major-risk action';
-      return `<div class="task-command-card approval-card"><span class="badge ${statusClass(state)}">${escapeHtml(state)}</span><strong>${escapeHtml(title)}</strong><small>Review in Agent jobs before anything consequential runs.</small></div>`;
+      const pending = /pending|requested|awaiting/i.test(state);
+      return `<div class="task-command-card approval-card"><span class="badge ${statusClass(state)}">${escapeHtml(state)}</span><strong>${escapeHtml(title)}</strong><small>OBus remains paused until you explicitly decide.</small>${pending && id ? `<div class="actions"><button class="button mini primary" type="button" data-task-center-approval="${escapeHtml(id)}" data-task-center-decision="approve">Approve locally</button><button class="button mini danger" type="button" data-task-center-approval="${escapeHtml(id)}" data-task-center-decision="reject">Reject</button></div>` : ''}</div>`;
     }).join('');
+  }
+
+  async function decideApproval(id, decision) {
+    if (!id || !['approve', 'reject'].includes(decision)) return;
+    const approving = decision === 'approve';
+    if (approving && !window.confirm('Allow this major-risk action? OBus will continue only the approved local task.')) return;
+    try {
+      await fetchJson(`/api/harness/approvals/${encodeURIComponent(id)}/${decision}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({note: approving ? 'Approved locally from Tasks command center.' : 'Rejected locally from Tasks command center.'}),
+      });
+      await load();
+    } catch (error) {
+      const approvals = document.querySelector('#task-center-approvals');
+      if (approvals) approvals.insertAdjacentHTML('afterbegin', `<p class="empty">Decision was not recorded: ${escapeHtml(error.message)}</p>`);
+    }
   }
 
   async function inspectTask(id) {
@@ -101,11 +122,17 @@
     detail.innerHTML = '<p class="empty">Loading the selected task’s local checkpoint…</p>';
     try {
       const task = await fetchJson(`/api/harness/tasks/${encodeURIComponent(id)}`);
+      const events = listOf(await fetchJson(`/api/harness/tasks/${encodeURIComponent(id)}/events`).catch(() => []));
       try { sessionStorage.setItem('obus-last-autonomous-task', id); } catch (_) {}
       document.querySelectorAll('[data-task-center-open]').forEach(button => button.classList.toggle('selected', button.dataset.taskCenterOpen === id));
       const state = task.status || task.state || 'unknown';
       const retryable = /failed|cancelled|interrupted|paused/i.test(state);
-      detail.innerHTML = `<div class="task-command-card selected-task-card"><span class="badge ${statusClass(state)}">${escapeHtml(state)}</span><strong>${escapeHtml(task.objective || task.goal || task.title || 'Untitled local task')}</strong><small>${escapeHtml(task.provider || task.model || 'local provider')} · attempt ${escapeHtml(task.attempt || task.retry_count || 1)}</small><small>${escapeHtml(formatTime(task.updated_at || task.finished_at || task.created_at))}</small>${task.result ? `<pre>${escapeHtml(String(task.result).slice(0, 1200))}</pre>` : '<small>No result has been recorded yet.</small>'}<div class="actions"><button class="button mini" type="button" data-task-center-live>Open live activity</button>${retryable ? `<button class="button mini primary" type="button" data-task-center-resume="${escapeHtml(id)}">Resume safely</button>` : ''}</div></div>`;
+      const timeline = events.slice(-12).map(event => {
+        const payload = event?.payload || {};
+        const labels = [payload.stage, payload.status, payload.provider, payload.tool, payload.capability].filter(Boolean).slice(0, 3).join(' · ');
+        return `<li><code>${escapeHtml(event?.event_type || 'activity')}</code><span>${escapeHtml(labels || 'local task activity')}</span><small>${escapeHtml(formatTime(event?.created_at))}</small></li>`;
+      }).join('');
+      detail.innerHTML = `<div class="task-command-card selected-task-card"><span class="badge ${statusClass(state)}">${escapeHtml(state)}</span><strong>${escapeHtml(task.objective || task.goal || task.title || 'Untitled local task')}</strong><small>${escapeHtml(task.provider || task.model || 'local provider')} · attempt ${escapeHtml(task.attempt || task.retry_count || 1)}</small><small>${escapeHtml(formatTime(task.updated_at || task.finished_at || task.created_at))}</small>${task.result ? `<pre>${escapeHtml(String(task.result).slice(0, 1200))}</pre>` : '<small>No result has been recorded yet.</small>'}${timeline ? `<section class="task-command-timeline"><strong>Recent activity</strong><ol>${timeline}</ol></section>` : ''}<div class="actions"><button class="button mini" type="button" data-task-center-live>Open live activity</button>${retryable ? `<button class="button mini primary" type="button" data-task-center-resume="${escapeHtml(id)}">Resume safely</button>` : ''}</div></div>`;
     } catch (error) {
       detail.innerHTML = `<p class="empty">Task detail is temporarily unavailable: ${escapeHtml(error.message)}</p>`;
     }

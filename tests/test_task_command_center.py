@@ -18,6 +18,13 @@ def test_task_command_center_has_safe_resume_and_approval_surfaces():
     assert "/api/harness/tasks/${encodeURIComponent(id)}" in source
     assert "/resume`, {method:'POST'}" in source
     assert "Re-inspecting the workspace before resume" in source
+    assert "Approve locally" in source
+    assert "data-task-center-decision=\"approve\"" in source
+    assert "/api/harness/approvals/${encodeURIComponent(id)}/${decision}" in source
+    assert "window.confirm('Allow this major-risk action?" in source
+    assert "/api/harness/tasks/${encodeURIComponent(id)}/events" in source
+    assert "Recent activity" in source
+    assert "task-command-timeline" in source
 
 
 def test_task_command_center_collapses_for_small_windows():
