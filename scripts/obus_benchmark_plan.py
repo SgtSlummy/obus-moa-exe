@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -24,8 +25,71 @@ OBUS_DEFAULT = "http://127.0.0.1:38173"
 OLLAMA_DEFAULT = "http://127.0.0.1:11434"
 
 
+def startup_receipt_obus_url(local_app_data: str | None = None) -> str | None:
+    """Return the newest valid loopback URL published by the desktop backend."""
+    root = Path(local_app_data or os.environ.get("LOCALAPPDATA", ""))
+    if not str(root):
+        return None
+    receipts = root / "OBus" / "logs" / "startup"
+    try:
+        candidates = sorted(receipts.glob("obus-startup-*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    for receipt in candidates:
+        try:
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+            port = int(payload["app_port"])
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if 1 <= port <= 65535:
+            return f"http://127.0.0.1:{port}"
+    return None
+
+
+def resolve_obus_url(explicit_url: str | None = None) -> str:
+    return explicit_url or startup_receipt_obus_url() or OBUS_DEFAULT
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def summarize_probe_body(path: str, body: Any) -> dict[str, Any]:
+    """Keep benchmark reports operationally useful without retaining response payloads."""
+    if not isinstance(body, dict):
+        return {"response_type": type(body).__name__}
+    if path == "/health":
+        return {key: body.get(key) for key in ("service", "status") if key in body}
+    if path == "/api/dashboard":
+        settings = body.get("settings") if isinstance(body.get("settings"), dict) else {}
+        voice = body.get("voice") if isinstance(body.get("voice"), dict) else {}
+        warm = body.get("warm_runtime") if isinstance(body.get("warm_runtime"), dict) else {}
+        return {
+            "card_count": len(body.get("cards", [])) if isinstance(body.get("cards"), list) else 0,
+            "selected_model": settings.get("selected_model"),
+            "autonomy_level": settings.get("autonomy_level"),
+            "voice_ready": voice.get("ready"),
+            "warm_status": warm.get("status"),
+        }
+    if path == "/api/warmup":
+        return {key: body.get(key) for key in ("status", "model", "evidence", "keep_alive") if key in body}
+    if path == "/api/integrations/warp":
+        return {key: body.get(key) for key in ("integration_mode", "launch_ready", "source_available", "tui_available") if key in body}
+    if path in ("/api/tags", "/api/ps"):
+        models = body.get("models") if isinstance(body.get("models"), list) else []
+        return {
+            "model_count": len(models),
+            "models": [
+                {
+                    key: model.get(key)
+                    for key in ("name", "model", "context_length", "size_vram", "capabilities")
+                    if key in model
+                }
+                for model in models
+                if isinstance(model, dict)
+            ],
+        }
+    return {"top_level_keys": sorted(body)[:20]}
 
 
 def http_get(base_url: str, path: str, timeout: float) -> dict[str, Any]:
@@ -43,7 +107,7 @@ def http_get(base_url: str, path: str, timeout: float) -> dict[str, Any]:
                 "ok": True,
                 "status": response.status,
                 "seconds": round(time.perf_counter() - started, 6),
-                "body": body,
+                "body": summarize_probe_body(path, body),
             }
     except (OSError, urllib.error.URLError, TimeoutError) as exc:
         return {
@@ -194,7 +258,10 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", action="store_true", help="collect local read-only service/GPU status")
-    parser.add_argument("--obus-url", default=OBUS_DEFAULT, help=f"OBus base URL (default: {OBUS_DEFAULT})")
+    parser.add_argument(
+        "--obus-url",
+        help="OBus base URL (default: newest desktop startup receipt, then http://127.0.0.1:38173)",
+    )
     parser.add_argument("--ollama-url", default=OLLAMA_DEFAULT, help=f"Ollama base URL (default: {OLLAMA_DEFAULT})")
     parser.add_argument("--timeout", type=float, default=3.0, help="read-only HTTP timeout in seconds")
     parser.add_argument("--output", type=Path, help="write JSON report to this path")
@@ -203,6 +270,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    args.obus_url = resolve_obus_url(args.obus_url)
     report = build_report(args)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
