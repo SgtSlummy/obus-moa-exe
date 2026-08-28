@@ -44,6 +44,21 @@ def test_harness_persists_receipts_events_and_immediately_promoted_learning(tmp_
     assert lessons[0]["active"] is True
 
 
+def test_harness_persists_inspect_work_verify_workflow_evidence(tmp_path: Path):
+    runtime = AgentHarnessRuntime(tmp_path / "harness.sqlite3", runner=lambda *_args: "done")
+    task = runtime.submit("inspect, change, and verify", tmp_path)
+    completed = wait_for_state(runtime, task["id"])
+
+    assert completed["workflow"] == "inspect-work-verify/v1"
+    stages = [event["payload"] for event in runtime.store.events(task["id"])
+              if event["event_type"] == "workflow.stage"]
+    assert [(stage["stage"], stage["status"]) for stage in stages] == [
+        ("inspect", "started"), ("inspect", "succeeded"),
+        ("work", "started"), ("work", "succeeded"),
+        ("verify", "started"), ("verify", "succeeded"),
+    ]
+
+
 def test_harness_resolves_ephemeral_provider_context_before_running_task(tmp_path: Path):
     received: list[dict] = []
 
@@ -358,6 +373,43 @@ def test_local_workspace_edit_is_exact_checksum_guarded_and_atomic(tmp_path: Pat
     assert duplicate.read_text(encoding="utf-8") == "item = 2\nitem = 2\n"
 
 
+def test_durable_queue_prioritizes_urgent_work_and_keeps_fifo_within_a_priority(tmp_path: Path):
+    store = HarnessStore(tmp_path / "harness.sqlite3")
+    low = store.create_task("background research", tmp_path, "local", 10, 1)
+    first_urgent = store.create_task("interactive repair", tmp_path, "local", 90, 1)
+    second_urgent = store.create_task("interactive verification", tmp_path, "local", 90, 1)
+
+    queued = store.list_queued_tasks()
+
+    assert [task["id"] for task in queued] == [first_urgent["id"], second_urgent["id"], low["id"]]
+
+
+def test_worker_drains_urgent_queued_work_before_lower_priority_work(tmp_path: Path):
+    blocker_started = threading.Event()
+    release_blocker = threading.Event()
+    completed_objectives: list[str] = []
+
+    def runner(task, _cancellation, _emit):
+        if task["objective"] == "blocker":
+            blocker_started.set()
+            assert release_blocker.wait(2)
+        else:
+            completed_objectives.append(task["objective"])
+        return "done"
+
+    runtime = AgentHarnessRuntime(tmp_path / "harness.sqlite3", runner=runner, max_workers=1)
+    blocker = runtime.submit("blocker", tmp_path, priority=50)
+    assert blocker_started.wait(2)
+    low = runtime.submit("background research", tmp_path, priority=10)
+    urgent = runtime.submit("interactive repair", tmp_path, priority=90)
+
+    release_blocker.set()
+    assert wait_for_state(runtime, blocker["id"])['state'] == "succeeded"
+    assert wait_for_state(runtime, urgent["id"])['state'] == "succeeded"
+    assert wait_for_state(runtime, low["id"])['state'] == "succeeded"
+    assert completed_objectives == ["interactive repair", "background research"]
+
+
 def test_harness_repairs_after_failure_and_drains_queue(tmp_path: Path):
     attempts: dict[str, int] = {}
 
@@ -398,6 +450,10 @@ def test_harness_rolls_back_when_independent_workspace_verification_fails(tmp_pa
     assert target.read_text(encoding="utf-8") == "before"
     verification_events = [event for event in runtime.store.events(task["id"]) if event["event_type"] == "workspace.verified"]
     assert verification_events[0]["payload"]["status"] == "failed"
+    workflow_events = [event["payload"] for event in runtime.store.events(task["id"])
+                       if event["event_type"] == "workflow.stage"]
+    assert workflow_events[-1]["stage"] == "verify"
+    assert workflow_events[-1]["status"] == "failed"
 
 
 def test_harness_cancellation_stops_running_task(tmp_path: Path):
@@ -414,6 +470,10 @@ def test_harness_cancellation_stops_running_task(tmp_path: Path):
     assert started.wait(2)
     runtime.cancel(task["id"])
     assert wait_for_state(runtime, task["id"])["state"] == "cancelled"
+    stages = [event["payload"] for event in runtime.store.events(task["id"])
+              if event["event_type"] == "workflow.stage"]
+    assert stages[-1]["stage"] == "work"
+    assert stages[-1]["status"] == "cancelled"
 
 
 def test_store_marks_unfinished_tasks_interrupted_without_replay(tmp_path: Path):
@@ -460,6 +520,14 @@ def test_store_keeps_terminal_task_and_redacted_receipts_after_restart(tmp_path:
     assert any(event["event_type"] == "provider.verification" for event in events)
 
 
+def test_desktop_timeline_subscribes_to_and_labels_workflow_stages():
+    runtime_source = TestClient(__import__("backend.main", fromlist=["app"]).app).get("/static/aui/runtime.js").text
+
+    assert 'event.event_type === "workflow.stage"' in runtime_source
+    assert "Workflow · ${payload.stage || \"stage\"} · ${payload.status || \"recorded\"}." in runtime_source
+    assert '"workflow.stage"' in runtime_source
+
+
 def test_harness_http_contracts_use_durable_runtime(tmp_path: Path, monkeypatch):
     runtime = AgentHarnessRuntime(tmp_path / "harness.sqlite3", runner=lambda task, cancel, emit: "done")
     monkeypatch.setattr(harness_api, "runtime", runtime)
@@ -480,6 +548,7 @@ def test_harness_http_contracts_use_durable_runtime(tmp_path: Path, monkeypatch)
     assert capabilities["remote_authority"] == "workspace-guarded"
     assert "codex.auto-review" in capabilities["capabilities"]
     assert "local-model.workspace-tool-loop" in capabilities["capabilities"]
+    assert "workflow.inspect-work-verify" in capabilities["capabilities"]
     assert "codex.unrestricted" not in capabilities["capabilities"]
 
     blocked = client.post(

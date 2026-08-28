@@ -9,6 +9,25 @@ from typing import Any
 MAX_SUBPROCESS_OUTPUT_BYTES = 4_000_000
 
 
+def _normalize_windows_command(command: list[str]) -> list[str]:
+    """Execute Windows batch launchers through ``cmd.exe`` with argv quoting.
+
+    ``CreateProcess`` cannot directly execute a ``.cmd``/``.bat`` file, which
+    otherwise presents as WinError 5 when a desktop provider uses a Node CLI
+    shim. Keep the command as argv until this final Windows-only adaptation so
+    callers retain their output, timeout, and process-tree safeguards.
+    """
+
+    if os.name != "nt" or not command:
+        return command
+    if os.path.splitext(command[0])[1].lower() not in {".cmd", ".bat"}:
+        return command
+    comspec = os.environ.get("COMSPEC") or "cmd.exe"
+    # ``call`` keeps the batch wrapper in this cmd.exe process and preserves
+    # the final quoted prompt as one argv item for Node-style CLI shims.
+    return [comspec, "/d", "/s", "/c", f"call {subprocess.list2cmdline(command)}"]
+
+
 def terminate_process_tree(process: subprocess.Popen) -> None:
     if os.name == "nt" and process.pid:
         try:
@@ -46,6 +65,7 @@ def run_bounded_subprocess(
     limit: int = MAX_SUBPROCESS_OUTPUT_BYTES,
 ) -> subprocess.CompletedProcess[str]:
     """Run a child with bounded concurrent stdout/stderr capture."""
+    command = _normalize_windows_command(command)
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,

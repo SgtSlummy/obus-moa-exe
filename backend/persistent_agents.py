@@ -145,9 +145,24 @@ def select_persistent_agent_key(card: dict[str, Any], prompt: str, state: dict[s
     ]
     if manual_key_id:
         chosen = next((key for key in eligible if key.get("id") == manual_key_id), None)
-        if not chosen:
-            raise RuntimeError(f"Requested Key is not ready and connected: {manual_key_id}")
-        return chosen
+        if chosen:
+            return chosen
+        # A busy local Ollama server can miss a short status probe while it is
+        # already serving sibling agents.  A user-selected local key that was
+        # persistently verified remains safe to attempt; the actual provider
+        # request still reports its own failure if the runtime is unavailable.
+        cached_local = next((
+            key for key in state.get("keys", [])
+            if key.get("id") == manual_key_id
+            and key.get("id") not in excluded
+            and key.get("local")
+            and key.get("state") == "ready"
+            and key.get("verified")
+            and float(key.get("cooldown_until") or 0) <= now
+        ), None)
+        if cached_local:
+            return cached_local
+        raise RuntimeError(f"Requested Key is not ready and connected: {manual_key_id}")
     if not eligible:
         raise RuntimeError("No ready and connected Solomon Key is available")
     card_caps = set(card.get("capabilities", []))

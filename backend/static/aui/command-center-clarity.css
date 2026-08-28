@@ -1,0 +1,25 @@
+/* Command center clarity: retain every control without making the working surface compete with them. */
+.guided-task-switcher{inline-size:100%;max-inline-size:100%;min-inline-size:0;overflow:hidden}
+.guided-task-switcher-head,.guided-task-switcher-task{min-inline-size:0;max-inline-size:100%}
+.guided-task-switcher-task strong,.guided-task-switcher-task small{overflow-wrap:anywhere}
+.first-run-notice{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:12px 0 0;padding:12px 14px;border:1px solid color-mix(in srgb,var(--gold) 55%,var(--line));border-radius:12px;background:linear-gradient(135deg,#221b0e,#12162a);color:var(--text)}
+.first-run-notice strong{display:block;margin-bottom:3px;color:var(--gold)}
+.first-run-notice p{margin:0;color:var(--muted);font-size:12px;max-width:70ch}
+.first-run-notice .button{flex:0 0 auto;white-space:nowrap}
+@media (max-width:1680px) and (min-width:721px){
+  body.guided-ritual .top,.top{align-items:stretch;flex-direction:column;gap:10px}
+  .top .title{min-inline-size:0}
+  .mobile-control-drawer{display:block;inline-size:100%;min-inline-size:0;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .mobile-control-drawer>.mobile-drawer-summary{display:flex;align-items:center;justify-content:space-between;min-height:42px;padding:10px 13px;cursor:pointer;color:var(--muted)}
+  .mobile-control-drawer:not([open])>.actions{display:none!important}
+  .mobile-control-drawer[open]>.actions{display:flex!important;padding:0 13px 13px;justify-content:flex-start;align-items:center;gap:8px}
+  .mobile-control-drawer[open]>.actions>*{min-inline-size:0}
+  .mobile-control-drawer[open] .status{white-space:normal}
+  .panel-head{align-items:flex-start;flex-wrap:wrap;gap:8px}
+  .panel-head>*{min-inline-size:0}
+  .panel-head>.actions{inline-size:100%;justify-content:flex-start}
+}
+@media (max-width:960px){
+  .first-run-notice{flex-direction:column}
+  .first-run-notice .button{inline-size:100%}
+}

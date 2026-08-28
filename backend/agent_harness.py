@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import signal
+import shutil
 import sqlite3
 import subprocess
 import tempfile
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .codex_policy import build_codex_exec_command
+from .process_utils import _normalize_windows_command
 from .secret_safety import redact_text
 
 TERMINAL_STATES = {"succeeded", "failed", "cancelled", "interrupted"}
@@ -28,6 +30,8 @@ RESUME_AFTER_INTERRUPTION_INSTRUCTION = (
     "verification autonomously; do not ask for confirmation between those routine steps. Pause and clearly "
     "request approval before any destructive, external, credential-handling, or hardware-affecting action."
 )
+WORKFLOW_ID = "inspect-work-verify/v1"
+WORKFLOW_STAGES = ("inspect", "work", "verify")
 
 
 def utc_now() -> str:
@@ -56,6 +60,7 @@ class HarnessStore:
                 CREATE TABLE IF NOT EXISTS harness_tasks (
                     id TEXT PRIMARY KEY, objective TEXT NOT NULL, workspace TEXT NOT NULL,
                     state TEXT NOT NULL, source TEXT NOT NULL, priority INTEGER NOT NULL,
+                    workflow TEXT NOT NULL DEFAULT 'inspect-work-verify/v1',
                     attempt INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL,
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                     started_at TEXT, finished_at TEXT, result TEXT, error TEXT,
@@ -97,6 +102,10 @@ class HarnessStore:
                 connection.execute("ALTER TABLE harness_tasks ADD COLUMN provider TEXT NOT NULL DEFAULT 'codex'")
             if "model" not in columns:
                 connection.execute("ALTER TABLE harness_tasks ADD COLUMN model TEXT")
+            if "workflow" not in columns:
+                connection.execute(
+                    "ALTER TABLE harness_tasks ADD COLUMN workflow TEXT NOT NULL DEFAULT 'inspect-work-verify/v1'"
+                )
             interrupted = connection.execute(
                 "SELECT id FROM harness_tasks WHERE state IN ('queued','planning','running','verifying','repairing') "
                 "AND cancel_requested=0"
@@ -120,9 +129,9 @@ class HarnessStore:
         now = utc_now()
         with self._connection() as connection:
             connection.execute(
-                "INSERT INTO harness_tasks(id,objective,workspace,state,source,priority,max_attempts,created_at,updated_at,provider,model) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (task_id, objective, str(workspace), "queued", source, priority, max_attempts, now, now, provider, model),
+                "INSERT INTO harness_tasks(id,objective,workspace,state,source,priority,workflow,max_attempts,created_at,updated_at,provider,model) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (task_id, objective, str(workspace), "queued", source, priority, WORKFLOW_ID, max_attempts, now, now, provider, model),
             )
         self.add_event(task_id, "task.created", {"objective": objective, "workspace": str(workspace),
                                                   "source": source, "provider": provider, "model": model})
@@ -141,6 +150,16 @@ class HarnessStore:
         with self._connection() as connection:
             rows = connection.execute(
                 "SELECT * FROM harness_tasks ORDER BY created_at DESC LIMIT ?", (max(1, min(limit, 500)),)
+            ).fetchall()
+        return [dict(row) | {"cancel_requested": bool(row["cancel_requested"])} for row in rows]
+
+    def list_queued_tasks(self, limit: int = 500) -> list[dict[str, Any]]:
+        """Return runnable work by descending priority, then stable FIFO order."""
+
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT * FROM harness_tasks WHERE state='queued' AND cancel_requested=0 "
+                "ORDER BY priority DESC, created_at ASC LIMIT ?", (max(1, min(limit, 500)),)
             ).fetchall()
         return [dict(row) | {"cancel_requested": bool(row["cancel_requested"])} for row in rows]
 
@@ -184,6 +203,17 @@ class HarnessStore:
                 (task_id, event_type, json.dumps(payload, ensure_ascii=False), utc_now()),
             )
             return int(cursor.lastrowid)
+
+    def add_workflow_stage(self, task_id: str, stage: str, status: str, **evidence: Any) -> int:
+        """Record one inspect/work/verify transition with bounded, redacted-safe metadata."""
+
+        if stage not in WORKFLOW_STAGES:
+            raise ValueError(f"invalid workflow stage: {stage}")
+        if status not in {"started", "succeeded", "failed", "cancelled", "skipped"}:
+            raise ValueError(f"invalid workflow stage status: {status}")
+        return self.add_event(task_id, "workflow.stage", {
+            "workflow": WORKFLOW_ID, "stage": stage, "status": status, **evidence,
+        })
 
     def events(self, task_id: str, after: int = 0) -> list[dict[str, Any]]:
         with self._connection() as connection:
@@ -388,9 +418,8 @@ class AgentHarnessRuntime:
         return configured
 
     def resume_queued(self) -> None:
-        for task in reversed(self.store.list_tasks(500)):
-            if task["state"] == "queued" and not task["cancel_requested"]:
-                self._start(task["id"])
+        for task in self.store.list_queued_tasks():
+            self._start(task["id"])
 
     def resume(self, task_id: str) -> dict[str, Any]:
         """Resume a previously interrupted ordinary task only after a new local UI action."""
@@ -424,10 +453,9 @@ class AgentHarnessRuntime:
             with self._lock:
                 self._threads.pop(task_id, None)
                 self._cancellations.pop(task_id, None)
-            for queued in reversed(self.store.list_tasks(500)):
-                if queued["state"] == "queued" and not queued["cancel_requested"]:
-                    self._start(queued["id"])
-                    break
+            next_task = next(iter(self.store.list_queued_tasks(limit=1)), None)
+            if next_task is not None:
+                self._start(next_task["id"])
 
     def _execute(self, task_id: str, cancellation: threading.Event, resumed: bool = False) -> None:
         task = self.store.get_task(task_id)
@@ -436,7 +464,11 @@ class AgentHarnessRuntime:
             return
         self.store.transition(task_id, "planning", started_at=task["started_at"] or utc_now())
         for attempt in range(int(task["attempt"]) + 1, int(task["max_attempts"]) + 1):
+            workflow_stage = "inspect"
+            self.store.add_workflow_stage(task_id, workflow_stage, "started", attempt=attempt)
             if cancellation.is_set() or self.store.get_task(task_id)["cancel_requested"]:
+                self.store.add_workflow_stage(task_id, workflow_stage, "cancelled", attempt=attempt,
+                                              reason="task cancelled before execution")
                 self.store.transition(task_id, "cancelled", attempt=attempt, finished_at=utc_now())
                 return
             state = "running" if attempt == 1 else "repairing"
@@ -446,6 +478,10 @@ class AgentHarnessRuntime:
                 "checkpoint_id": checkpoint["id"], "files": checkpoint["files_copied"],
                 "bytes": checkpoint["bytes_copied"], "skipped": checkpoint["files_skipped"],
             })
+            self.store.add_workflow_stage(task_id, "inspect", "succeeded", attempt=attempt,
+                                          checkpoint_id=checkpoint["id"])
+            workflow_stage = "work"
+            self.store.add_workflow_stage(task_id, workflow_stage, "started", attempt=attempt)
             runtime_task = self._task_with_runtime_config(task)
             if resumed:
                 runtime_task["resumed_after_interruption"] = True
@@ -466,10 +502,15 @@ class AgentHarnessRuntime:
                                      lambda kind, payload: self.store.add_event(task_id, kind, payload))
                 if cancellation.is_set():
                     raise InterruptedError("task cancelled")
+                self.store.add_workflow_stage(task_id, "work", "succeeded", attempt=attempt)
+                workflow_stage = "verify"
+                self.store.add_workflow_stage(task_id, workflow_stage, "started", attempt=attempt)
                 verification = self.recovery.verify_workspace(checkpoint["id"])
                 self.store.add_event(task_id, "workspace.verified", verification)
                 if verification["status"] == "failed":
                     raise RuntimeError(verification.get("reason") or "workspace verification failed")
+                self.store.add_workflow_stage(task_id, "verify", "succeeded", attempt=attempt,
+                                              checkpoint_id=checkpoint["id"])
                 checkpoint_receipt = self.recovery.complete(checkpoint["id"])
                 self.store.finish_action(task_id, action_id, "succeeded", {
                     "result": result[-8000:], "checkpoint": checkpoint_receipt, "verification": verification,
@@ -485,6 +526,8 @@ class AgentHarnessRuntime:
                                       finished_at=utc_now(), error=None)
                 return
             except InterruptedError as exc:
+                self.store.add_workflow_stage(task_id, workflow_stage, "cancelled", attempt=attempt,
+                                              reason=str(exc))
                 rollback = self.recovery.rollback(checkpoint["id"])
                 self.store.finish_action(task_id, action_id, "cancelled", {
                     "error": str(exc), "rollback": rollback,
@@ -493,6 +536,7 @@ class AgentHarnessRuntime:
                 return
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
+                self.store.add_workflow_stage(task_id, workflow_stage, "failed", attempt=attempt, error=error)
                 rollback = self.recovery.rollback(checkpoint["id"])
                 failure = self.recovery.record_failure(task_id, exc)
                 self.store.finish_action(task_id, action_id, "failed", {
@@ -531,6 +575,10 @@ class AgentHarnessRuntime:
     def _run_codex(self, task: dict[str, Any], cancellation: threading.Event,
                    emit: Callable[[str, dict[str, Any]], None]) -> str:
         executable = os.environ.get("OBUS_CODEX_COMMAND", "codex")
+        # Resolve a PATH-provided Windows shim before assembling argv so the
+        # shared batch normalizer can safely route it through cmd.exe.
+        if os.name == "nt" and not Path(executable).suffix:
+            executable = shutil.which(executable) or executable
         model = os.environ.get("OBUS_CODEX_MODEL", "")
         with tempfile.NamedTemporaryFile(prefix="obus-harness-", suffix=".txt", delete=False) as handle:
             output_path = Path(handle.name)
@@ -545,6 +593,7 @@ class AgentHarnessRuntime:
             model=model or None,
             output_path=output_path,
         )
+        command = _normalize_windows_command(command)
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         emit("codex.started", {"command": executable, "model": model or "default"})
         process = subprocess.Popen(command, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

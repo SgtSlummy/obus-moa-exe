@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ def _valid_warp(module: Any) -> bool:
     return all(hasattr(module, name) for name in ("get_devices", "is_cuda_available", "launch", "zeros"))
 
 
+@lru_cache(maxsize=1)
 def _load_warp() -> Any | None:
     """Load the installed Warp package without accepting the local source shadow."""
     try:

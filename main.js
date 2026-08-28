@@ -105,15 +105,17 @@ async function startBundledBackend(target) {
 }
 
 async function ensureBackend(target) {
-  if (process.env.OBUS_URL) {
-    if (!await backendHealthy(target) || !await backendSupportsCurrentDesktopRuntime(target)) {
-      throw new Error(`OBUS_URL is unavailable or incompatible: ${target}`);
+  if (await backendHealthy(target)) {
+    if (await backendSupportsCurrentDesktopRuntime(target)) return target;
+    if (process.env.OBUS_URL) {
+      throw new Error(`OBUS_URL points to an older or incompatible OBus backend: ${target}`);
     }
-    return target;
+    return startBundledBackend(await reserveLoopbackTarget());
   }
-  // The packaged desktop owns a dedicated runtime. This prevents a legacy bridge
-  // on the default port from becoming an accidental dependency of the UI.
-  return startBundledBackend(await reserveLoopbackTarget());
+  if (process.env.OBUS_URL) {
+    throw new Error(`OBUS_URL is unavailable: ${target}`);
+  }
+  return startBundledBackend(target);
 }
 
 function stopOwnedBackend() {

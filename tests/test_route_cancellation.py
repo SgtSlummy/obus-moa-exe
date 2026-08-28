@@ -2,6 +2,10 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+import asyncio
+import threading
+import time
+
 import backend.main as backend
 
 
@@ -25,6 +29,30 @@ class RouteCancellationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotEqual(response.json()["status"], "cancelled")
         self.assertEqual(response.json()["route_id"], "route-pre-cancel")
+
+    def test_active_generation_returns_promptly_after_cancellation(self):
+        route_id = "route-active-cancel"
+        started = threading.Event()
+
+        def slow_worker():
+            started.set()
+            time.sleep(0.5)
+            return "late result"
+
+        async def scenario():
+            backend.register_route_cancel(route_id)
+            task = asyncio.create_task(backend._await_route_generation(route_id, slow_worker))
+            await asyncio.to_thread(started.wait, 0.2)
+            backend.ROUTE_CANCEL_EVENTS[route_id].set()
+            return await asyncio.wait_for(task, timeout=0.25)
+
+        try:
+            completed, result = asyncio.run(scenario())
+        finally:
+            backend.clear_route_cancel(route_id)
+
+        self.assertFalse(completed)
+        self.assertIsNone(result)
 
     def test_route_ui_exposes_confirmed_cancel_control(self):
         html = TestClient(backend.app).get("/").text

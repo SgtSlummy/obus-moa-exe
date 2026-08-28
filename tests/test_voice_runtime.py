@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import backend.main as backend
+from backend.voice_api import get_voice_status
 from backend.voice_runtime import VoiceController
 
 
@@ -75,6 +77,28 @@ def test_auto_aid_refuses_to_choose_between_multiple_local_voice_models(monkeypa
     assert result["auto_apply"] is False
     assert len(result["candidates"]) == 2
     assert state["voice_setup"]["local_model_path"] is None
+
+
+def test_harness_voice_status_reuses_the_canonical_local_model_resolver():
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                local_voice_status=lambda: {
+                    "ready": True,
+                    "model_path_configured": True,
+                    "model_source": "bundled-offline",
+                    "reason": "Ready for local speech transcription",
+                }
+            )
+        )
+    )
+
+    status = get_voice_status(request)
+
+    assert status["local_ready"] is True
+    assert status["model_path_configured"] is True
+    assert status["model_source"] == "bundled-offline"
+    assert status["ready"] is True
 
 
 def test_muted_voice_cannot_listen_or_submit():

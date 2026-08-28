@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 
+
+@lru_cache(maxsize=1)
 def faster_whisper_available() -> bool:
     """Check the bundled transcriber without loading a speech model.
 

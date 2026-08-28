@@ -119,6 +119,7 @@ def harness_capabilities(source: Annotated[str, Depends(_authorize)]):
             "codex.auto-review", "shell.local-terminal", "filesystem.workspace-write", "process.workspace",
             "git.workspace", "packages.workspace", "self.repair",
             "learning.immediate", "goals.proactive", "local-model.workspace-tool-loop",
+            "workflow.inspect-work-verify",
         ],
         "blocked_without_local_approval": [
             "bulk-or-irrecoverable-deletion", "boot-firmware-or-disk-layout",

@@ -179,6 +179,7 @@
         if (event.event_type === "task.resume_requested" || event.event_type === "task.resumed") return "Explicit safe resume requested; OBus will inspect before continuing.";
         if (event.event_type === "checkpoint.created") return `Workspace checkpoint created · ${payload.files ?? 0} files protected.`;
         if (event.event_type === "workspace.verified") return `Workspace verification ${payload.status || "recorded"}.`;
+        if (event.event_type === "workflow.stage") return `Workflow · ${payload.stage || "stage"} · ${payload.status || "recorded"}.`;
         if (event.event_type === "provider.started") return `${payload.provider || "Provider"} started${payload.model ? ` · ${payload.model}` : ""}.`;
         if (event.event_type === "provider.tool") return `${payload.provider || "Provider"} ${payload.status || "used"} ${payload.tool || "a workspace tool"}.`;
         if (event.event_type === "provider.verification") return `Verification ${payload.status || "recorded"}.`;
@@ -221,7 +222,7 @@
             }).catch(() => {});
           } catch (_) {}
         };
-        ["task.created", "task.state", "task.interrupted", "task.resume_requested", "task.resumed", "checkpoint.created", "workspace.verified", "provider.started", "provider.tool", "provider.verification", "task.completed", "repair.required", "action.started", "action.finished", "lesson.promoted", "approval.consumed"].forEach((kind) => source.addEventListener(kind, receive));
+        ["task.created", "task.state", "task.interrupted", "task.resume_requested", "task.resumed", "checkpoint.created", "workspace.verified", "workflow.stage", "provider.started", "provider.tool", "provider.verification", "task.completed", "repair.required", "action.started", "action.finished", "lesson.promoted", "approval.consumed"].forEach((kind) => source.addEventListener(kind, receive));
         source.onerror = () => { if (source.readyState === EventSource.CLOSED && state.harnessTaskEventStream === source) { stopTaskEventStream(); renderTaskTimeline(); } };
         renderTaskTimeline();
       };
@@ -428,9 +429,10 @@
           const findingCount = (ledger.findings || []).length;
           const workerLimit = Number(ledger.parallelism?.worker_limit || (ledger.agent_ids || []).length || 1);
           const sharedEvidence = ledger.context_policy?.shared_redacted_findings !== false;
-          return `<button class="row runtime-ledger ${selected ? "selected" : ""}" data-runtime-ledger="${escapeHtml(ledger.id)}" style="width:100%;text-align:left"><div><h4>${escapeHtml(ledger.kind === "planned-team" ? "Planned team" : "Orchestrated team")} <span class="badge ${ledger.status === "complete" ? "ready" : active ? "warn" : "risk"}">${escapeHtml(ledger.status || "unknown")}</span></h4><p>${escapeHtml(ledger.objective || "Untitled team")}</p><p class="hint">${(ledger.agent_ids || []).length} agents · ${workerLimit} worker slots · ${sharedEvidence ? "private contexts + redacted evidence" : "fully private contexts"} · ${findingCount} findings · updated ${escapeHtml(ledgerTime(ledger.updated_at))}</p></div><span class="badge">Inspect</span></button>`;
+          return `<div class="row runtime-ledger ${selected ? "selected" : ""}" data-runtime-ledger="${escapeHtml(ledger.id)}" role="button" tabindex="0" style="width:100%;text-align:left"><div><h4>${escapeHtml(ledger.kind === "planned-team" ? "Planned team" : "Orchestrated team")} <span class="badge ${ledger.status === "complete" ? "ready" : active ? "warn" : "risk"}">${escapeHtml(ledger.status || "unknown")}</span></h4><p>${escapeHtml(ledger.objective || "Untitled team")}</p><p class="hint">${(ledger.agent_ids || []).length} agents · ${workerLimit} worker slots · ${sharedEvidence ? "private contexts + redacted evidence" : "fully private contexts"} · ${findingCount} findings · updated ${escapeHtml(ledgerTime(ledger.updated_at))}</p></div><div class="row-actions"><span class="badge">Inspect</span>${active ? `<button class="button mini danger" data-runtime-ledger-stop="${escapeHtml(ledger.id)}" type="button">Stop team</button>` : ""}</div></div>`;
         }).join("") : "<div class=\"empty\">No parallel teams launched yet. Review a plan, then launch its team.</div>";
         $$("[data-runtime-ledger]").forEach((button) => { button.onclick = () => inspectLedger(button.dataset.runtimeLedger); });
+        $$("[data-runtime-ledger-stop]").forEach((button) => { button.onclick = async (event) => { event.stopPropagation(); const ledger = ledgers.find((item) => item.id === button.dataset.runtimeLedgerStop); const agentIds = new Set(ledger?.agent_ids || []); const activeAgents = (state.runtimeAgents || []).filter((agent) => agentIds.has(agent.id) && ['queued', 'running', 'stopping'].includes(agent.status)); if (!activeAgents.length) return toast('This team has no active agents to stop.'); button.disabled = true; try { await Promise.all(activeAgents.map((agent) => api(`/api/runtime/agents/${encodeURIComponent(agent.id)}/stop`, {method: 'POST', body: JSON.stringify({})}))); await load(); toast(`Stop requested for ${activeAgents.length} team agent${activeAgents.length === 1 ? '' : 's'}.`); } catch (error) { toast(error.message, true); } finally { button.disabled = false; } }; });
         const ledger = ledgers.find((item) => item.id === state.selectedTeamLedger);
         if (!ledger) {
           detail.textContent = "Select a team to inspect its bounded findings and synthesis.";

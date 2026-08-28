@@ -237,6 +237,23 @@ def resolve_performance_profile(profile: Optional[str]) -> dict:
     return copy.deepcopy(PERFORMANCE_PROFILES.get(str(profile or "").lower(), PERFORMANCE_PROFILES["balanced"]))
 
 
+_COMPLEX_ROUTE_SIGNALS = re.compile(
+    r"\b(architecture|build|code|debug|implement|investigate|multi[- ]step|plan|research|review|refactor|security|test|workflow)\b",
+    re.IGNORECASE,
+)
+
+
+def select_task_performance_profile(prompt: str, requested_profile: Optional[str]) -> str:
+    """Keep obvious one-shot work off an expensive multi-agent default."""
+    requested = str(requested_profile or "balanced").lower()
+    if requested != "balanced":
+        return requested
+    words = re.findall(r"[\w'-]+", prompt or "")
+    if len(words) <= 32 and not _COMPLEX_ROUTE_SIGNALS.search(prompt or ""):
+        return "fast"
+    return requested
+
+
 # ==================== DECK ROUTING ====================
 
 # Deck definitions based on cross-examination of optimal decks per task type
@@ -2098,6 +2115,16 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
             raise RuntimeError("Ollama is not connected")
         if model not in ollama.get("models", []):
             raise RuntimeError(f"Ollama model is not installed: {model}")
+        if model in set(ollama.get("running_models") or []):
+            with GPU_WARM_LOCK:
+                GPU_WARM_STATE.update(
+                    status="warm", model=model, keep_alive=keep_alive,
+                    started_at=GPU_WARM_STATE.get("started_at"),
+                    warmed_at=datetime.now(timezone.utc).isoformat(), load_duration_ns=None, error=None,
+                )
+                result = copy.deepcopy(GPU_WARM_STATE)
+                result["accepted"] = True
+                return result
 
         started_at = datetime.now(timezone.utc).isoformat()
         with GPU_WARM_LOCK:
@@ -2107,7 +2134,10 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
             )
         request = urllib.request.Request(
             f"{OLLAMA_URL}/api/generate",
-            data=json.dumps({"model": model, "prompt": "", "stream": False, "keep_alive": keep_alive}).encode("utf-8"),
+            # Ollama preloads a model when only model + keep_alive are supplied.
+            # Sending an empty prompt can start an unbounded reasoning turn on models
+            # such as gpt-oss, which leaves the warm-up request waiting indefinitely.
+            data=json.dumps({"model": model, "keep_alive": keep_alive}).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -5534,6 +5564,11 @@ async def transcribe_voice(request: VoiceTranscriptionRequest):
     return {"transcript": transcript, "engine": "local-faster-whisper"}
 
 
+# The harness voice router reads this provider at request time, avoiding a
+# second model-discovery implementation and preserving the no-download policy.
+app.state.local_voice_status = lambda: local_voice_status(load_state())
+
+
 @app.post("/api/voice/auto-aid")
 async def auto_aid_voice_model():
     """Set up a deterministic pre-existing local voice model without downloads."""
@@ -5864,11 +5899,27 @@ def generate_offline_answer(prompt: str, plan: dict) -> str:
     )
 
 
+async def _await_route_generation(route_id: str, callback):
+    """Return promptly when a route is cancelled without waiting on a blocking model call."""
+    task = asyncio.create_task(asyncio.to_thread(callback))
+    while True:
+        done, _ = await asyncio.wait({task}, timeout=0.1)
+        if done:
+            return True, task.result()
+        if route_cancel_requested(route_id):
+            # asyncio cannot forcibly kill a Python worker thread, but cancelling
+            # its awaiter releases this route immediately and prevents any later
+            # aggregation or result publication from the abandoned generation.
+            task.cancel()
+            return False, None
+
+
 async def _run_route_impl(request: RouteRequest):
     """Execute the planned route through the selected local Ollama model."""
     images = validated_route_images(request)
     image_manifest = route_image_manifest(images)
     request.prompt, input_budget, continuation = prepare_route_request(request)
+    request.performance_profile = select_task_performance_profile(request.prompt, request.performance_profile)
     route_started = time.perf_counter()
     route_id = safe_route_id(request.route_id or ("route-" + uuid.uuid4().hex[:16]))
     ROUTE_EVENTS.publish(route_id, "route.started", {"status": "planning"})
@@ -5967,15 +6018,21 @@ async def _run_route_impl(request: RouteRequest):
         ROUTE_EVENTS.publish(route_id, "route.local_started", {"model": model, "profile": request.performance_profile})
         moa_command = None if images else build_moa_router_command(routed_prompt, model, request.performance_profile)
         if moa_command is not None:
-            generated = await asyncio.to_thread(generate_with_moa_router, routed_prompt, model, plan)
             local_engine = "local-moa-router"
-        else:
-            generated = (
-                await asyncio.to_thread(generate_with_ollama, routed_prompt, model, plan, images)
-                if images
-                else await asyncio.to_thread(generate_with_ollama, routed_prompt, model, plan)
+            completed, generated = await _await_route_generation(
+                route_id,
+                lambda: generate_with_moa_router(routed_prompt, model, plan),
             )
+        else:
             local_engine = "ollama-vision-single" if images else "ollama-single"
+            completed, generated = await _await_route_generation(
+                route_id,
+                lambda: generate_with_ollama(routed_prompt, model, plan, images)
+                if images
+                else generate_with_ollama(routed_prompt, model, plan),
+            )
+        if not completed:
+            return cancelled_result("local", engine=local_engine, aggregate_manifest=aggregate_manifest)
         if isinstance(generated, tuple):
             local_answer, local_usage = generated
         else:

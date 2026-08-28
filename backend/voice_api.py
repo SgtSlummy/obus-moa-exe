@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from .harness_api import _authorize, runtime
@@ -30,8 +30,35 @@ class VoiceTranscript(BaseModel):
 
 
 @router.get("/status")
-def get_voice_status() -> dict[str, object]:
-    return voice_controller.status()
+def get_voice_status(request: Request) -> dict[str, object]:
+    """Return one truthful local-voice contract for the desktop and harness.
+
+    The harness owns listening and mute state, while the main runtime owns the
+    deterministic model resolver used for capture/transcription. Merge them at
+    the API boundary so a bundled offline model is neither hidden from the
+    desktop nor misrepresented as an environment-only configuration.
+    """
+
+    status_payload = voice_controller.status()
+    try:
+        # Main installs this router during startup, then supplies its canonical
+        # local model resolver before this endpoint can receive a request.
+        resolver = getattr(request.app.state, "local_voice_status", None)
+        if not callable(resolver):
+            return status_payload
+        local_status = resolver()
+    except (AttributeError, ImportError, OSError, RuntimeError):
+        return status_payload
+
+    local_ready = bool(local_status.get("ready"))
+    status_payload.update({
+        "local_ready": local_ready,
+        "model_path_configured": bool(local_status.get("model_path_configured")),
+        "model_source": local_status.get("model_source"),
+        "local_reason": local_status.get("reason"),
+        "ready": bool(not status_payload.get("muted") and (local_ready or status_payload.get("cloud_fallback_configured"))),
+    })
+    return status_payload
 
 
 @router.patch("/mute")

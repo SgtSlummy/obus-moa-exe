@@ -801,6 +801,35 @@ body.guided-ritual [data-page-panel="settings"] .row p {
   color: var(--parchment-muted);
 }
 
+/* A desktop window can still have a narrow main canvas once the fixed
+   navigation rail is present.  Stack only the header controls here, keeping
+   the workbench itself in its wide layout until the smaller breakpoint. */
+@media (max-width: 1440px) and (min-width: 1181px) {
+  body.guided-ritual .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+  body.guided-ritual .top > *,
+  body.guided-ritual .top > .actions,
+  body.guided-ritual .top .layout-control,
+  body.guided-ritual .top .status {
+    min-width: 0;
+  }
+  body.guided-ritual .top > .actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  body.guided-ritual .top .layout-control,
+  body.guided-ritual .top .status {
+    flex: 1 1 10rem;
+    white-space: normal;
+  }
+}
+
 @media (max-width: 1180px) {
   body.guided-ritual .terminal-workbench {
     grid-template-columns: minmax(0, 1fr);
@@ -816,6 +845,17 @@ body.guided-ritual [data-page-panel="settings"] .row p {
 
 /* Native desktop windows become cramped before phone width; switch to the
    single-column navigation layout as soon as the main canvas narrows. */
+@media (max-width: 1180px) {
+  html, body.guided-ritual { min-width: 0; overflow-x: hidden; }
+  body.guided-ritual .shell { min-width: 0; grid-template-columns: minmax(10.5rem, 12.5rem) minmax(0, 1fr); }
+  body.guided-ritual .side, body.guided-ritual main { min-width: 0; }
+  body.guided-ritual .top { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  body.guided-ritual .top > *, body.guided-ritual .panel-head > * { min-width: 0; }
+  body.guided-ritual .top > .actions, body.guided-ritual .panel-head > .actions { width: 100%; margin-left: 0; justify-content: flex-start; }
+  body.guided-ritual .actions, body.guided-ritual .panel-head { flex-wrap: wrap; }
+  body.guided-ritual .top .layout-control, body.guided-ritual .top .status { flex: 1 1 10rem; min-width: 0; white-space: normal; }
+}
+
 @media (max-width: 960px) {
   body.guided-ritual .shell { display: block; }
   body.guided-ritual .side { position: sticky; height: auto; padding: 9px 12px; }

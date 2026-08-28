@@ -716,37 +716,58 @@ class ProviderRegistry:
     def _run_codex(self, task: dict[str, Any], cancellation: threading.Event,
                    emit: Callable[[str, dict[str, Any]], None]) -> str:
         command = os.environ.get("OBUS_CODEX_COMMAND", "codex")
+        if os.name == "nt" and not Path(command).suffix:
+            command = shutil.which(command) or command
         model = os.environ.get("OBUS_CODEX_MODEL", "")
-        args = build_codex_exec_command(
-            command,
-            (
-                "This task was explicitly resumed after OBus restarted. Before taking any action, inspect the current "
-                "workspace and the visible task history/checkpoint. Do not repeat or assume any uncertain side effect. "
-                "Once a safe point is verified, continue ordinary local inspection, focused workspace edits, and local "
-                "verification autonomously; do not ask for confirmation between those routine steps. Pause and clearly "
-                "request approval before any destructive, external, credential-handling, or hardware-affecting action.\n\n"
-                if task.get("resumed_after_interruption") else ""
-            ) + str(task["objective"]),
-            model=model or None,
-        )
-        emit("provider.started", {"provider": "codex", "model": model or "default"})
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        process = subprocess.Popen(args, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, encoding="utf-8", errors="replace", creationflags=flags)
-        chunks: list[str] = []
-        while process.poll() is None:
-            if cancellation.wait(0.2):
-                process.terminate()
-                raise InterruptedError("task cancelled")
-        if process.stdout:
-            chunks.append(process.stdout.read())
-        output = "".join(chunks).strip()
-        if process.returncode != 0:
-            raise RuntimeError(f"Codex exited with code {process.returncode}: {output[-2000:]}")
-        if not output:
-            raise RuntimeError("Codex returned no output")
-        emit("provider.output", {"provider": "codex", "text": output[-16000:]})
-        return output
+        output_path: Path | None = None
+        try:
+            # Codex writes its user-facing answer separately from its useful but
+            # noisy process stream.  Keep that stream only for failure evidence.
+            with tempfile.NamedTemporaryFile(prefix="obus-codex-", suffix=".txt", delete=False) as handle:
+                output_path = Path(handle.name)
+            args = build_codex_exec_command(
+                command,
+                (
+                    "This task was explicitly resumed after OBus restarted. Before taking any action, inspect the current "
+                    "workspace and the visible task history/checkpoint. Do not repeat or assume any uncertain side effect. "
+                    "Once a safe point is verified, continue ordinary local inspection, focused workspace edits, and local "
+                    "verification autonomously; do not ask for confirmation between those routine steps. Pause and clearly "
+                    "request approval before any destructive, external, credential-handling, or hardware-affecting action.\n\n"
+                    if task.get("resumed_after_interruption") else ""
+                ) + str(task["objective"]),
+                model=model or None,
+                output_path=output_path,
+            )
+            # Python's Windows shell path is required only for .cmd/.bat shims;
+            # it preserves argv quoting for the user objective. Native executables
+            # continue through CreateProcess without a shell.
+            batch_launcher = os.name == "nt" and Path(args[0]).suffix.lower() in {".cmd", ".bat"}
+            emit("provider.started", {"provider": "codex", "model": model or "default"})
+            flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+            process = subprocess.Popen(args, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       shell=batch_launcher,
+                                       text=True, encoding="utf-8", errors="replace", creationflags=flags)
+            chunks: list[str] = []
+            while process.poll() is None:
+                if cancellation.wait(0.2):
+                    process.terminate()
+                    raise InterruptedError("task cancelled")
+            if process.stdout:
+                chunks.append(process.stdout.read())
+            diagnostics = "".join(chunks).strip()
+            if process.returncode != 0:
+                raise RuntimeError(f"Codex exited with code {process.returncode}: {diagnostics[-2000:]}")
+            output = output_path.read_text(encoding="utf-8", errors="replace").strip()
+            if not output:
+                raise RuntimeError("Codex returned no final message")
+            emit("provider.output", {"provider": "codex", "text": output[-16000:]})
+            return output
+        finally:
+            if output_path is not None:
+                try:
+                    output_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def _run_ollama(self, task: dict[str, Any], cancellation: threading.Event,
                     emit: Callable[[str, dict[str, Any]], None]) -> str:
