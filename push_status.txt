@@ -1,66 +1,15 @@
-# Push Status — 2026-08-28 20:39 UTC
+# Push Status — 2026-08-29 05:01 UTC
 
-Main repo: ✅ Pushed — `f54abdc` (chore: refresh status reports for 20:27 cycle), in sync with origin/master.
+Main repo: ✅ Pushed — `5736213` (chore: refresh status reports for 20:39 cycle), in sync with origin/master.
 
 Submodule pointer state (computed at push time):
 - warpdotdev-warp: `8c2cc73` — detached HEAD (latest remote)
-- warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main)
+- warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main) — directory MISSING on disk
 - Understand-Anything: `99e62b7` — v1.3.0-574-g99e62b7
 
 Submodule remote push status:
 - third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
-- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator  
+- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
 - Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ 403 Forbidden — SgtSlummy not a collaborator
 
-Note: Main repo pushed clean at `f54abdc`. Submodule pointers unchanged since last push.
-
-# Build Status Report — 2026-08-28 20:39 UTC
-
-## Services
-
-| Port | Status | Process |
-|------|--------|---------|
-| :8000 | ✅ UP | uvicorn (PID 7792) |
-| :3000 | ✅ UP | DavyJonesHeartbeat (node.exe PID 3740) |
-
-## Last 3 Commits (master)
-
-- `f54abdc` chore: refresh status reports for 20:27 cycle
-- `e666ee2` chore: refresh push/build status reports and cron report 0375 (18:24 cycle)
-- `a138bce` chore: refresh push/build status reports and cron report 0375
-
-## Submodules
-
-| Submodule | State | Push |
-|-----------|-------|------|
-| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | ❌ 403 (no write access) |
-| warpdotdev-warp | `8c2cc73` detached HEAD (latest remote) | ❌ 403 (no write access) |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
-
-Note: No new submodule pointer changes since last push. Main repo pushed clean.
-
-# Active Jobs Status — 2026-08-28 20:39 UTC
-
-## Services
-- uvicorn (PID 7792): ✅ UP on :8000 — OBus MOA FastAPI
-- DavyJonesHeartbeat (PID 3740): ✅ UP on :3000
-
-## Completed Tasks (this cycle)
-- (none new — cycle was a no-op, state unchanged from 0376)
-
-## Failed Tasks
-- (none)
-
-## Submodule Push Status
-- warp: ❌ BLOCKED — detached at 3504ce5, ahead 5/behind 8 vs nvidia/warp main; nvidia/warp 403 (no collaborator access)
-- warpdotdev-warp: ❌ BLOCKED — detached HEAD, 403 on push to warpdotdev/warp
-- Understand-Anything: ❌ BLOCKED — 403 on push to Egonex-AI/Understand-Anything
-
-## Running Processes (OBus-relevant)
-- uvicorn.exe (PID 7792) — backend :8000
-- DavyJonesHeartbeat.exe (PID 3740) — listener :3000
-- OBus.exe (multiple) — desktop app instances
-- ollama.exe / ollama app.exe — local LLM
-- codex.exe (PID 5584) — Codex agent (appears idle)
-- gortex.exe (multiple) — graph analysis
-- mempalace-mcp.exe (multiple) — memory
+Note: Main repo pushed clean at `5736213`. Submodule pointers unchanged since last push. `warp/` directory missing from disk (pre-existing).
