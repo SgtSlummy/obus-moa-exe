@@ -42,6 +42,7 @@ def run_bounded_subprocess(
     timeout: int | float,
     *,
     cwd: str | os.PathLike[str] | None = None,
+    env: dict[str, str] | None = None,
     limit: int = MAX_SUBPROCESS_OUTPUT_BYTES,
 ) -> subprocess.CompletedProcess[str]:
     """Run a child with bounded concurrent stdout/stderr capture."""
@@ -50,6 +51,7 @@ def run_bounded_subprocess(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=cwd,
+        env=env,
         **silent_process_kwargs(),
     )
     stdout = bytearray()

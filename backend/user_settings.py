@@ -11,6 +11,7 @@ from typing import Any
 
 WORKSPACE_SURFACES = {"terminal", "operator", "ade"}
 ROUTING_POLICIES = {"local-first", "auto-open", "manual"}
+AUTONOMY_LEVELS = {"conservative", "balanced", "high"}
 
 DEFAULT_USER_SETTINGS: dict[str, Any] = {
     "settings_schema_version": 1,
@@ -21,6 +22,11 @@ DEFAULT_USER_SETTINGS: dict[str, Any] = {
     "auto_memory": True,
     "rag_character_budget": 2400,
     "max_parallel_agents": 5,
+    "autonomy_level": "high",
+    "auto_parallelize": True,
+    "shared_task_context": True,
+    "context_utilization_percent": 95,
+    "per_agent_context_window": 0,
     "selected_model": "gpt-oss:20b",
     "selected_deck": "auto",
     "gpu_backend": "auto",
@@ -61,6 +67,8 @@ def normalize_user_settings(settings: dict[str, Any] | None) -> dict[str, Any]:
         normalized["workspace_surface"] = DEFAULT_USER_SETTINGS["workspace_surface"]
     if normalized["routing_policy"] not in ROUTING_POLICIES:
         normalized["routing_policy"] = DEFAULT_USER_SETTINGS["routing_policy"]
+    if normalized["autonomy_level"] not in AUTONOMY_LEVELS:
+        normalized["autonomy_level"] = DEFAULT_USER_SETTINGS["autonomy_level"]
     if normalized["gpu_backend"] not in {"auto", "cpu", "cuda:0"}:
         normalized["gpu_backend"] = DEFAULT_USER_SETTINGS["gpu_backend"]
     if normalized["workspace_root"] is not None and not isinstance(normalized["workspace_root"], str):
@@ -77,7 +85,19 @@ def normalize_user_settings(settings: dict[str, Any] | None) -> dict[str, Any]:
         max_parallel = 0
     if not 1 <= max_parallel <= 20:
         normalized["max_parallel_agents"] = DEFAULT_USER_SETTINGS["max_parallel_agents"]
-    for field in ("rag_enabled", "auto_memory", "warp_preprocess_enabled", "harness_enabled", "output_autoscroll"):
+    try:
+        utilization = int(normalized["context_utilization_percent"] or 0)
+    except (TypeError, ValueError):
+        utilization = 0
+    if not 50 <= utilization <= 95:
+        normalized["context_utilization_percent"] = DEFAULT_USER_SETTINGS["context_utilization_percent"]
+    try:
+        agent_context = int(normalized["per_agent_context_window"] or 0)
+    except (TypeError, ValueError):
+        agent_context = -1
+    if agent_context != 0 and not 2048 <= agent_context <= 2_000_000:
+        normalized["per_agent_context_window"] = DEFAULT_USER_SETTINGS["per_agent_context_window"]
+    for field in ("rag_enabled", "auto_memory", "auto_parallelize", "shared_task_context", "warp_preprocess_enabled", "harness_enabled", "output_autoscroll"):
         if not isinstance(normalized[field], bool):
             normalized[field] = DEFAULT_USER_SETTINGS[field]
     for field in ("selected_model", "selected_deck"):
@@ -103,14 +123,22 @@ def validate_import_payload(payload: Any) -> dict[str, Any]:
             raise ValueError("rag_character_budget must be 800-8000")
         if "max_parallel_agents" in payload and not 1 <= int(payload["max_parallel_agents"]) <= 20:
             raise ValueError("max_parallel_agents must be 1-20")
+        if "context_utilization_percent" in payload and not 50 <= int(payload["context_utilization_percent"]) <= 95:
+            raise ValueError("context_utilization_percent must be 50-95")
+        if "per_agent_context_window" in payload and int(payload["per_agent_context_window"]) != 0 and not 2048 <= int(payload["per_agent_context_window"]) <= 2_000_000:
+            raise ValueError("per_agent_context_window must be 0 or 2048-2000000")
     except (TypeError, ValueError) as exc:
-        if isinstance(exc, ValueError) and str(exc).startswith(("rag_character_budget", "max_parallel_agents")):
+        if isinstance(exc, ValueError) and str(exc).startswith((
+            "rag_character_budget", "max_parallel_agents", "context_utilization_percent", "per_agent_context_window",
+        )):
             raise
         raise ValueError("numeric settings must be valid integers") from exc
     if "workspace_surface" in payload and payload["workspace_surface"] not in WORKSPACE_SURFACES:
         raise ValueError("workspace_surface must be terminal, operator, or ade")
     if "routing_policy" in payload and payload["routing_policy"] not in ROUTING_POLICIES:
         raise ValueError("routing_policy must be local-first, auto-open, or manual")
+    if "autonomy_level" in payload and payload["autonomy_level"] not in AUTONOMY_LEVELS:
+        raise ValueError("autonomy_level must be conservative, balanced, or high")
     return candidate
 
 

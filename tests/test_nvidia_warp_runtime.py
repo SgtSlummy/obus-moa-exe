@@ -65,6 +65,19 @@ def test_status_reports_warp_device_inventory(monkeypatch):
     assert result["selected_device"] == "cuda:0"
 
 
+def test_status_falls_back_when_optional_warp_device_probe_hits_a_cache_error(monkeypatch):
+    module = fake_warp()
+    module.get_devices = lambda: (_ for _ in ()).throw(FileExistsError("Warp cache path conflict"))
+    monkeypatch.setattr(runtime, "_load_warp", lambda: module)
+
+    result = runtime.status("cuda:0")
+
+    assert result["available"] is True
+    assert result["devices"] == []
+    assert result["selected_device"] == "cpu"
+    assert result["fallback"] is True
+
+
 def test_warmup_returns_unavailable_without_warp(monkeypatch):
     monkeypatch.setattr(runtime, "_load_warp", lambda: None)
 

@@ -91,6 +91,7 @@ def build_run_receipt(prompt: str, plan: dict, result: dict, *, receipt_id: str 
         "aggregate": _safe_value(result.get("aggregate", {})),
         "trace": trace,
         "usage": _safe_value(result.get("usage", {})),
+        "continuation": _safe_value(plan.get("continuation", {})),
         "final": shared_redact_text(result.get("final", ""), limit=12000, parse_json=False),
         "contains_task_content": True,
         "privacy": "Prompt text is represented by a SHA-256 hash; private room transcripts and credentials are excluded.",
@@ -128,7 +129,10 @@ def persist_receipt(path: str | os.PathLike[str], receipt: dict[str, Any], *, re
         if len(encoded) > MAX_RECEIPT_FILE_BYTES:
             break
         bounded_records = candidate
-    records = list(reversed(bounded_records))
+    # ``bounded_records`` is rebuilt oldest-to-newest while walking the source
+    # in reverse. Keeping that order ensures the returned receipt is the one
+    # just persisted and the durable history remains chronological.
+    records = bounded_records
     if not records:
         raise ValueError("receipt exceeds the bounded persistence limit")
     encoded = json.dumps(records, indent=2, ensure_ascii=False).encode("utf-8")

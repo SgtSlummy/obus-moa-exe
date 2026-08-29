@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import threading
 from pathlib import Path
 from typing import Any, Callable
+
+from .voice_support import faster_whisper_available
 
 
 class VoiceController:
@@ -19,7 +20,9 @@ class VoiceController:
 
     def status(self) -> dict[str, Any]:
         model_path = Path(os.environ["OBUS_LOCAL_STT_MODEL_PATH"]).expanduser() if os.environ.get("OBUS_LOCAL_STT_MODEL_PATH") else None
-        local_dependencies = bool(importlib.util.find_spec("faster_whisper") and importlib.util.find_spec("sounddevice"))
+        # Browser MediaRecorder owns microphone capture.  Do not report a false
+        # setup failure just because optional Python microphone capture is absent.
+        local_dependencies = faster_whisper_available()
         local_ready = bool(local_dependencies and model_path and model_path.exists())
         cloud_configured = bool(os.environ.get("OBUS_VOICE_CLOUD_URL") and os.environ.get("OBUS_VOICE_CLOUD_TOKEN"))
         with self._lock:

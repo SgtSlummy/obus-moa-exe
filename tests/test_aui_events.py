@@ -31,6 +31,10 @@ class AUIEventTests(unittest.TestCase):
         self.assertIn('pollingFallback', source)
         self.assertIn('lastEventId', source)
         self.assertIn('X-OBus-Access', source)
+        self.assertIn('payload?.events', source)
+        self.assertIn('payload.event_type', source)
+        self.assertIn('payload.sequence', source)
+        self.assertIn('pollCursorParam', source)
 
 
 if __name__ == "__main__":

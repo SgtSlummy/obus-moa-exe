@@ -61,6 +61,66 @@ def test_explicit_plan_is_side_effect_free_and_does_not_enable_auto_mode(client)
     assert {thread["id"] for thread in after.get("forum_threads", [])} == before_threads
 
 
+def test_explicit_plan_can_launch_a_bounded_persistent_team(client, monkeypatch):
+    started = []
+    monkeypatch.setattr(backend, "_start_persistent_agent", lambda agent_id, prompt=None: started.append((agent_id, prompt)) or {"id": agent_id})
+    monkeypatch.setattr(backend, "_synthesize_task_ledger", lambda ledger_id, agent_ids: None)
+    response = client.post("/api/plan/execute", json={
+        "prompt": "Research, challenge, and verify a safe parallel rollout", "mode": "adversarial", "max_agents": 3,
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["executed"] is True
+    assert payload["parallel_limit"] == 3
+    assert len(payload["created_agents"]) == 3
+    assert len(started) == 3
+    ledger = client.get(f"/api/runtime/task-ledgers/{payload['task_ledger_id']}").json()
+    assert ledger["kind"] == "planned-team"
+    assert ledger["agent_ids"] == [agent["id"] for agent in payload["created_agents"]]
+    assert ledger["parallelism"] == {"worker_limit": 3, "execution": "independent-local-workers"}
+    assert ledger["context_policy"] == {
+        "private_history_per_agent": True,
+        "shared_redacted_findings": True,
+    }
+
+
+def test_local_only_planned_team_pins_every_reviewer_to_one_verified_local_key(client, monkeypatch):
+    state = backend.load_state()
+    local_key = next(key for key in state["keys"] if key.get("local"))
+    local_key["state"] = "ready"
+    backend.save_state(state)
+    monkeypatch.setattr(backend, "provider_statuses", lambda _state: [{"id": local_key["id"], "connected": True}])
+    monkeypatch.setattr(backend, "_start_persistent_agent", lambda agent_id, prompt=None: {"id": agent_id})
+    # This contract test verifies launch configuration only.  Keep the asynchronous
+    # synthesis worker out of the next test fixture's isolated state directory.
+    monkeypatch.setattr(backend, "_synthesize_task_ledger", lambda ledger_id, agent_ids: None)
+
+    response = client.post("/api/plan/execute", json={
+        "prompt": "Research and verify a safe local implementation approach", "mode": "collaborative", "max_agents": 3,
+        "local_only": True,
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["plan"]["local_only"] is True
+    assert all(agent["provider_mode"] == "manual" for agent in payload["created_agents"])
+    assert all(agent["key_id"] == local_key["id"] for agent in payload["created_agents"])
+
+
+def test_explicit_plan_refuses_major_risk_autonomous_execution(client):
+    before = backend.load_state()
+    response = client.post("/api/plan/execute", json={
+        "prompt": "Format the entire disk before preparing the release", "mode": "adversarial", "max_agents": 3,
+    })
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert "bulk_or_irrecoverable_deletion" in detail["risks"]
+    after = backend.load_state()
+    assert after["persistent_agents"] == before["persistent_agents"]
+    assert after.get("task_ledgers", []) == before.get("task_ledgers", [])
+
+
 def test_plan_route_serves_the_visual_plan_workbench(client):
     response = client.get("/plan")
 

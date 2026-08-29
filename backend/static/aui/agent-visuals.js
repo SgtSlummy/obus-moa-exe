@@ -76,13 +76,29 @@
     const compactClass = meta.compact ? " agent-card-face" : "";
     return `<button type="button" class="kawaii-face agent-face-button agent-face-${status}${compactClass}" data-agent-face data-agent-visual-key="${esc(key)}" aria-label="Inspect ${esc(label)} working context" title="Click to inspect ${esc(label)} · right-click for quick info"><span class="agent-face-glyph" aria-hidden="true">${esc(faceFor(meta, index))}</span><span class="agent-face-spark" aria-hidden="true">${esc(iconStream(status, index))}</span></button>`;
   };
+  const formatTokenCount = (value) => {
+    const count = Math.max(0, Math.round(Number(value) || 0));
+    return count >= 1000000 ? `${(count / 1000000).toFixed(1)}M` : count >= 1000 ? `${Math.round(count / 1000)}K` : String(count);
+  };
+  const contextMeterMarkup = (meta = {}) => {
+    const capacity = Math.max(0, Math.round(Number(meta.context_window) || 0));
+    if (!capacity) return "";
+    const used = Math.min(capacity, Math.max(0, Math.round(Number(meta.context_input_tokens_estimate) || 0)));
+    const percent = Math.min(100, Math.round((used / capacity) * 100));
+    const tone = percent >= 90 ? "risk" : percent >= 70 ? "warn" : "ready";
+    const summary = `${formatTokenCount(used)} / ${formatTokenCount(capacity)} tokens · ${percent}%`;
+    return `<div class="agent-context-meter" title="A local estimate from the sanitized prompt; provider tokenizer counts are not exposed."><div class="agent-context-meter-label"><span>Context estimate</span><span>${esc(summary)}</span></div><div class="agent-context-meter-track" role="progressbar" aria-label="Estimated context use: ${esc(summary)}" aria-valuemin="0" aria-valuemax="${capacity}" aria-valuenow="${used}"><span class="${tone}" style="width:${percent}%"></span></div></div>`;
+  };
   const contextWindowMarkup = (meta = {}, index = 0) => {
     const status = normalizedStatus(meta);
     const key = keyFor(meta, index);
     const role = meta.role || meta.name || "Agent";
     const context = meta.context || meta.output || meta.objective || "Waiting for visible working context…";
     const stage = meta.stage || (meta.kind === "persistent" ? "persistent agent" : "route stage");
-    return `<section class="agent-context-window" data-agent-context-window="${esc(key)}" aria-label="${esc(role)} context window"><div class="agent-context-head"><strong>${esc(stage)}</strong><span class="agent-icon-stream" aria-hidden="true">${esc(iconStream(status, index))}</span></div><p class="agent-context-text">${esc(context)}</p><div class="agent-context-actions"><button type="button" class="button mini agent-inspect" data-agent-inspect="${esc(key)}" data-agent-visual-key="${esc(key)}">Inspect</button><button type="button" class="button mini agent-copy" data-agent-copy="${esc(key)}" data-agent-visual-key="${esc(key)}">Copy</button></div></section>`;
+    const voice = meta.kind === "route" && index === 0
+      ? `<button type="button" class="button mini" id="voice-toggle" data-route-voice>Voice</button><span class="voice-state" id="voice-status" data-route-voice-status>Checking local voice…</span>`
+      : "";
+    return `<section class="agent-context-window" data-agent-context-window="${esc(key)}" aria-label="${esc(role)} context window"><div class="agent-context-head"><strong>${esc(stage)}</strong><span class="agent-icon-stream" aria-hidden="true">${esc(iconStream(status, index))}</span></div><p class="agent-context-text">${esc(context)}</p>${contextMeterMarkup(meta)}<div class="agent-context-actions">${voice}<button type="button" class="button mini agent-inspect" data-agent-inspect="${esc(key)}" data-agent-visual-key="${esc(key)}">Inspect</button><button type="button" class="button mini agent-copy" data-agent-copy="${esc(key)}" data-agent-visual-key="${esc(key)}">Copy</button></div></section>`;
   };
   const stageMarkup = (meta = {}, index = 0) => {
     const status = normalizedStatus(meta);
@@ -94,7 +110,8 @@
   const persistentMarkup = (agent = {}, cardLabel = "Tarot persona", index = 0) => stageMarkup({
     id: agent.id, kind: "persistent", role: agent.name || cardLabel, status: agent.status, stage: cardLabel,
     model: agent.current_model || "waiting for provider", objective: agent.objective,
-    context: agent.last_output || agent.objective || "No visible working context yet.", output: agent.last_output || ""
+    context: agent.last_output || agent.objective || "No visible working context yet.", output: agent.last_output || "",
+    context_window: agent.context_window, context_input_tokens_estimate: agent.context_input_tokens_estimate
   }, index);
 
   const dialog = () => root.document?.querySelector("#agent-monologue-dialog");
@@ -174,5 +191,5 @@
     const face = event.target.closest?.("[data-agent-face]");
     if (face && (!event.relatedTarget || !face.contains(event.relatedTarget))) hideInfo();
   });
-  root.OBusAgentVisuals = {PHI, faceFor, faceButtonMarkup, contextWindowMarkup, stageMarkup, persistentMarkup, openMonologue, showInfo};
+  root.OBusAgentVisuals = {PHI, faceFor, faceButtonMarkup, contextMeterMarkup, contextWindowMarkup, stageMarkup, persistentMarkup, openMonologue, showInfo};
 })(window);

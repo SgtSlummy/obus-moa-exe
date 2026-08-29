@@ -62,15 +62,25 @@ def _device_alias(device: Any) -> str:
 def _devices(module: Any) -> list[str]:
     try:
         return [_device_alias(device) for device in module.get_devices()]
-    except (AttributeError, RuntimeError, TypeError):
+    # Warp initializes its cache lazily in get_devices(). A broken or
+    # concurrently-created external cache must not take down the dashboard:
+    # GPU acceleration is optional and the CPU fallback remains valid.
+    except (AttributeError, OSError, RuntimeError, TypeError):
         return []
+
+
+def _cuda_available(module: Any) -> bool:
+    try:
+        return bool(module.is_cuda_available())
+    except (AttributeError, OSError, RuntimeError, TypeError):
+        return False
 
 
 def select_device(requested_device: str | None = None) -> dict[str, Any]:
     requested = str(requested_device or "auto").strip().lower()
     module = _load_warp()
     devices = _devices(module) if module is not None else []
-    cuda_available = bool(module is not None and module.is_cuda_available() and any(device.startswith("cuda:") for device in devices))
+    cuda_available = bool(module is not None and _cuda_available(module) and any(device.startswith("cuda:") for device in devices))
     available = set(devices)
 
     if requested == "auto":

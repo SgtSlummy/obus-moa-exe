@@ -2,7 +2,8 @@
 
 (function installObusPlan(root) {
   const OBusPlan = {
-    create({api, $, escapeHtml, toast, setPage, loadRooms, loadThreads, announce} = {}) {
+    create({api, $, escapeHtml, toast, setPage, loadRooms, loadThreads, loadRuntime, selectTeamLedger, announce} = {}) {
+      let reviewedPlan = null;
       const render = (result) => {
         const deliberation = result?.deliberation || {};
         const packets = deliberation.packets || [];
@@ -80,6 +81,8 @@
             method: "POST",
             body: JSON.stringify({prompt, mode: $("#plan-mode").value}),
           });
+          reviewedPlan = result;
+          $("#plan-execute").disabled = false;
           render(result);
           await Promise.all([loadRooms?.(), loadThreads?.()]);
           announce?.("Parallel plan preview is ready; enable automatic route deliberation to execute it on eligible Hermes routes.");
@@ -99,12 +102,48 @@
         }
       };
 
+      const execute = async () => {
+        const prompt = $("#plan-input")?.value.trim();
+        if (!reviewedPlan || !prompt) {
+          toast("Create and review a plan before launching its team", true);
+          return;
+        }
+        const maxAgents = Math.round(Number($("#plan-team-size").value));
+        if (!Number.isFinite(maxAgents) || maxAgents < 1 || maxAgents > 20) {
+          toast("Choose a team size from 1 to 20", true);
+          return;
+        }
+        const button = $("#plan-execute");
+        button.disabled = true;
+        button.textContent = "Launching…";
+        try {
+          const result = await api("/api/plan/execute", {
+            method: "POST",
+            body: JSON.stringify({prompt, mode: $("#plan-mode").value, max_agents: maxAgents}),
+          });
+          $("#plan-result").className = "result";
+          $("#plan-result").textContent = `Launched ${result.created_agents.length} persistent agents for task ${result.task_ledger_id}. Their independent, redacted findings will be synthesized when they finish.`;
+          announce?.(`Parallel team launched: ${result.created_agents.length} agents, bounded by the configured local concurrency limit.`);
+          await loadRuntime?.();
+          setPage("runtime");
+          await selectTeamLedger?.(result.task_ledger_id);
+          toast(`Parallel team of ${result.created_agents.length} launched`);
+          return result;
+        } catch (error) {
+          toast(error.message, true);
+          throw error;
+        } finally {
+          button.disabled = false;
+          button.textContent = "Launch parallel team";
+        }
+      };
+
       const open = () => {
         setPage("plan");
         $("#plan-input")?.focus();
       };
 
-      return {open, render, run, loadAutoDeliberation, setAutoDeliberation};
+      return {open, render, run, execute, loadAutoDeliberation, setAutoDeliberation};
     },
   };
   root.OBusPlan = OBusPlan;
