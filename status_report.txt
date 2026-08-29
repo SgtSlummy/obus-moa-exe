@@ -1,15 +1,54 @@
-# Push Status — 2026-08-28 20:39 UTC
+# Status Report — 2026-08-29 06:29 UTC
 
-Main repo: ✅ Pushed — `f54abdc` (chore: refresh status reports for 20:27 cycle), in sync with origin/master.
+## Push Summary
 
-Submodule pointer state (computed at push time):
-- warpdotdev-warp: `8c2cc73` — detached HEAD (latest remote)
-- warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main)
-- Understand-Anything: `99e62b7` — v1.3.0-574-g99e62b7
+**Main repo (obus-moa-exe):** ✅ Pushed — `5736213` (chore: refresh status reports for 20:39 cycle), **Everything up-to-date** with origin/master. No new changes to push.
 
-Submodule remote push status:
-- third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator
-- warp (origin: nvidia/warp): ❌ 403 Forbidden — SgtSlummy not a collaborator  
-- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ 403 Forbidden — SgtSlummy not a collaborator
+**Submodules:**
 
-Note: Main repo pushed clean at `f54abdc`. Submodule pointers unchanged since last push.
+| Submodule | Pointer | State | Push Status |
+|-----------|---------|-------|-------------|
+| warpdotdev-warp | `8c2cc73` | detached HEAD (latest remote) | ❌ 403 Forbidden — SgtSlummy not a collaborator |
+| warp | `3504ce5` | detached, ahead 5/behind 8 vs nvidia/warp main — **directory MISSING** | ❌ 403 Forbidden — SgtSlummy not a collaborator |
+| Understand-Anything | `99e62b7` | v1.3.0-574-g99e62b7 | ❌ 403 Forbidden — SgtSlummy not a collaborator |
+
+Note: Submodule pointers unchanged since last push. `warp/` directory missing from disk (pre-existing gap).
+
+## Active Background Jobs (OBus-relevant)
+
+### Services
+| Process | PID | Port | Status |
+|---------|-----|------|--------|
+| uvicorn (python.exe) | 7792 | :8000 | ✅ UP — OBus MOA FastAPI |
+| DavyJonesHeartbeat (node.exe) | 3740 | :3000 | ✅ UP — listener |
+
+### Other Active Processes
+| Process | PID | Notes |
+|---------|-----|-------|
+| OBus.exe | 16496, 16588, 16984, 18716 | Desktop app instances (multiple) |
+| ollama.exe / ollama app.exe | 7248, 3084 | Local LLM runtime |
+| codex.exe | 5584 | Codex agent (214 MB, appears idle) |
+| gortex.exe | 22308, 11992, 22284, 6032 | Graph analysis (multiple) |
+| mempalace-mcp.exe | 18320 | Memory palace MCP |
+| pinchtab-windows-amd64.exe | 18244, 18016, 18092 | PinchTab browser automation |
+| python.exe | 17068, 17124, 13760, 17200, 6620, 6600, 22648, 10668, 15424, 14296, 10972, 13572, 9824, 20008 | Various Python processes |
+| node.exe / node_repl.exe | 15260, 17732, 6284, 11392, 25380, 19760 | Node processes |
+| chrome.exe | 12640, 17168, 16640, 18340, 18284, 18264, 3732, 1008 | Chrome browser |
+| msedge.exe | 16028, 16060, 16244, 16252, 16344, 15568, 10040, 17700, 24256, 22232, 20540, 3388, 26116, 24800, 26336, 17604, 22280, 10992 | Edge browser (many tabs) |
+| ChatGPT.exe | 23812, 16440, 20392, 23920, 10704, 23844, 21092, 20908, 11092, 9608, 19532 | ChatGPT desktop app (many instances) |
+| Docker Desktop / com.docker.* | 22024, 19580, 19012, 15564, 22524, 5708, 20828 | Docker Desktop running |
+| OneDrive.exe | 13652 | OneDrive sync (26 GB — large sync) |
+
+## Git Status
+- Branch: `master` → `origin/master`
+- Local diff vs remote: **0 files** (clean, in sync)
+- Modified tracked files: none (status reports refreshed via commit)
+- Untracked generated dirs: build-aui-loop5..76, dist-aui-loop5..76, dist-aui-agent-visuals*, build-aui-agent-visuals*
+
+## Summary
+- ✅ Main repo pushed clean — no new commits to ship
+- ❌ Submodule pushes blocked by 403 (no write access to upstream repos)
+- ✅ Both core services (uvicorn :8000, DavyJonesHeartbeat :3000) running
+- ⚠️ OneDrive sync active (large 26 GB sync in progress)
+- ⚠️ Multiple ChatGPT/Edge/Chrome instances running (UI workspace)
+- ⚠️ Docker Desktop active with WSL backend

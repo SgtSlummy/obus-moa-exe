@@ -1,4 +1,4 @@
-# Active Jobs Status — 2026-08-28 20:39 UTC
+# Active Jobs Status — 2026-08-29 06:29 UTC
 # (Populated by cron run 893c7df0ef71)
 
 ## Services
@@ -6,21 +6,30 @@
 - DavyJonesHeartbeat (PID 3740): ✅ UP on :3000
 
 ## Completed Tasks (this cycle)
-- (none new — cycle was a no-op, state unchanged from 0376)
+- Main repo push: ✅ Pushed clean — `5736213`, up-to-date with origin/master
+- Status reports refreshed and written
 
 ## Failed Tasks
 - (none)
 
 ## Submodule Push Status
-- warp: ❌ BLOCKED — detached at 3504ce5, ahead 5/behind 8 vs nvidia/warp main; nvidia/warp 403 (no collaborator access)
+- warp: ❌ BLOCKED — detached at 3504ce5, ahead 5/behind 8 vs nvidia/warp main; nvidia/warp 403 (no collaborator access); directory MISSING on disk
 - warpdotdev-warp: ❌ BLOCKED — detached HEAD, 403 on push to warpdotdev/warp
 - Understand-Anything: ❌ BLOCKED — 403 on push to Egonex-AI/Understand-Anything
 
 ## Running Processes (OBus-relevant)
 - uvicorn.exe (PID 7792) — backend :8000
 - DavyJonesHeartbeat.exe (PID 3740) — listener :3000
-- OBus.exe (multiple) — desktop app instances
-- ollama.exe / ollama app.exe — local LLM
+- OBus.exe (multiple: 16496, 16588, 16984, 18716) — desktop app instances
+- ollama.exe / ollama app.exe (PID 7248, 3084) — local LLM
 - codex.exe (PID 5584) — Codex agent (appears idle)
-- gortex.exe (multiple) — graph analysis
-- mempalace-mcp.exe (multiple) — memory
+- gortex.exe (multiple: 22308, 11992, 22284, 6032) — graph analysis
+- mempalace-mcp.exe (PID 18320) — memory
+- pinchtab-windows-amd64.exe (multiple: 18244, 18016, 18092) — browser automation
+- node.exe (multiple) — various Node processes
+- python.exe (multiple) — various Python processes
+- chrome.exe (multiple) — Chrome browser
+- msedge.exe (multiple) — Edge browser
+- ChatGPT.exe (multiple) — ChatGPT desktop app
+- Docker Desktop / com.docker.* — Docker Desktop running
+- OneDrive.exe (PID 13652) — OneDrive sync (26 GB)
