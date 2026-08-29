@@ -1,73 +1,55 @@
-# Status Report — 2026-08-29 17:13 UTC
+# Status Report — 2026-08-29 20:15 UTC
 
 ## Push Summary
 
-**Main repo (obus-moa-exe):** ✅ Pushed — `1e81666` (chore: add cron_report_0383.md), **Everything up-to-date** with origin/master.
+- **Main repo (obus-moa-exe):** ✅ Pushed — `1e81666` (chore: add cron_report_0383.md), **Everything up-to-date** with origin/master.
+- **Paired repo (OBus-Thor-Loki-Paired):** ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
+- **Submodules:**
+  - `warpdotdev-warp`: ❌ 403 Forbidden — no write access to upstream remote.
+  - `warp`: ❌ 403 Forbidden — directory missing on disk, cannot push.
+  - `Understand-Anything`: ❌ 403 Forbidden — no write access.
 
-**Paired repo (OBus-Thor-Loki-Paired):** ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
+## Build Status
 
-**Submodules:**
+- **Latest AUI Loop Build**: **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC.
+- **Release EXE**: `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC.
+- **Electron Build**: `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC.
+- No new loop builds created since loop 76; pipeline stalled.
 
-|| Submodule | Pointer | State | Push Status |
-|-----------|---------|-------|-------------|
-| warpdotdev-warp | `8c2cc73` | detached HEAD (latest remote) | ❌ 403 Forbidden — not on branch / no collaborator access |
-| warp | `3504ce5` | detached, ahead 5/behind 8 vs nvidia/warp main — **directory MISSING** | ❌ 403 Forbidden — not a collaborator |
-| Understand-Anything | `99e62b7` | v1.3.0-574-g99e62b7 | ❌ 403 Forbidden — not a collaborator |
+## Active Background Jobs & Services
 
-Note: Submodule pointers unchanged since last push. `warp/` directory missing from disk (pre-existing gap).
-
-## Active Background Jobs (OBus-relevant)
-
-### Services
-|| Process | PID | Port | Status |
-|---------|-------|------|--------|
-| uvicorn (python.exe) | 7792 | :8000 | ✅ UP — OBus MOA FastAPI |
-| DavyJonesHeartbeat (node.exe) | 3740 | :3000 | ✅ UP — listener |
-
-### Other Active Processes
-|| Process | PID | Notes |
-|---------|-----|-------|
-| OBus.exe | 16496, 16588, 16984, 18716 | Desktop app instances (multiple) |
-| ollama.exe / ollama app.exe | 7248, 3084 | Local LLM runtime |
-| codex.exe | 5584 | Codex agent (appears idle) |
-| gortex.exe | 22308, 11992, 22284, 6032 | Graph analysis (multiple) |
+| Service | PID | Status |
+|---------|-----|--------|
+| uvicorn (OBus MOA FastAPI) | 7792 | ✅ UP on :8000 |
+| DavyJonesHeartbeat | 3740 | ✅ UP on :3000 |
+| OBus.exe | 16496, 16588, 16984, 18716 | Desktop app instances |
+| ollama.exe | 7248, 3084 | Local LLM runtime |
+| codex.exe | 5584 | Codex agent (idle) |
+| gortex.exe | 22308, 11992, 22284, 6032 | Graph analysis |
 | mempalace-mcp.exe | 18320 | Memory palace MCP |
-| pinchtab-windows-amd64.exe | 18244, 18016, 18092 | PinchTab browser automation |
-| python.exe | multiple | Various Python processes |
-| node.exe / node_repl.exe | multiple | Node processes |
-| chrome.exe | multiple | Chrome browser |
-| msedge.exe | multiple | Edge browser (many tabs) |
-| ChatGPT.exe | multiple | ChatGPT desktop app (many instances) |
-| Docker Desktop / com.docker.* | multiple | Docker Desktop running |
-| OneDrive.exe | 13652 | OneDrive sync (26 GB — large sync) |
+| pinchtab-windows-amd64.exe | 18244, 18016, 18092 | Browser automation |
+| python.exe | numerous | Various Python processes |
+| node.exe | numerous | Various Node processes |
+| chrome.exe | numerous | Chrome browser |
+| msedge.exe | numerous | Edge browser |
+| ChatGPT.exe | numerous | ChatGPT desktop instances |
+| Docker Desktop | numerous | Docker Desktop running |
+| OneDrive.exe | 13652 | OneDrive sync (26 GB) |
 
-## Git Status
+## Submodule Push Status (details)
 
-- Main repo branch: `master` → `origin/master`
-- Local diff vs remote: **0 files** (clean, in sync)
-- Paired repo branch: `codex/autonomy-context-agents` → `origin/codex/autonomy-context-agents`
-- Paired repo: **up-to-date** (nothing to push)
+| Submodule | Status |
+|-----------|--------|
+| warp | ❌ Blocked: 403 Forbidden (no collaborator), directory missing on disk |
+| warpdotdev-warp | ❌ Blocked: 403 Forbidden (no collaborator) |
+| Understand-Anything | ❌ Blocked: 403 Forbidden (no collaborator) |
 
-## Build/EXE Status
+## Summary & Recommendations
 
-### Latest AUI Loop Build
-- **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC
-- Build dir: `build-aui-loop76/`
-- **No new loop builds** — loop 77 through 80 directories do not exist. Build pipeline stalled since Aug 25.
+- ✅ Main and paired repos are in sync; no sync actions needed.
+- ⚠️ Submodule pushes blocked due to permission issues; consider re‑authorizing or removing submodule references until access restored.
+- ⚠️ Build pipeline halted since Aug 25; a new build needs to be triggered to bring loop 77+. Investigate CI or build script failures.
+- ⚠️ OneDrive sync is active; monitor disk usage (26 GB). If disk space becomes an issue, pause sync.
+- ✅ Core services (uvicorn & DavyJonesHeartbeat) are running and healthy.
 
-### Release EXE
-- `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC
-- Unchanged since Aug 25.
-
-### Electron Build
-- `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC (older than loop builds)
-
-## Summary
-
-- ✅ Main repo pushed clean — no new commits to ship
-- ✅ Paired repo pushed clean — in sync with origin/codex/autonomy-context-agents
-- ❌ Submodule pushes blocked by 403 (no write access to upstream repos)
-- ✅ Both core services (uvicorn :8000, DavyJonesHeartbeat :3000) running
-- ⚠️ OneDrive sync active (large 26 GB sync in progress)
-- ⚠️ Build pipeline stalled since Aug 25 (loop 76); no new loop builds
-- ⚠️ Release EXE unchanged since Aug 25
+Please let me know if you would like to trigger a new AUI loop build or address submodule access issues. Otherwise this status report is ready for dispatch. 
