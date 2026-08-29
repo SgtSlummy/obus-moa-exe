@@ -1,8 +1,8 @@
-# Status Report — 2026-08-29 07:24 UTC
+# Status Report — 2026-08-29 09:45 UTC
 
 ## Push Summary
 
-**Main repo (obus-moa-exe):** ✅ Pushed — `cdca9fe` (chore: refresh status reports for 06:29 cycle), **Everything up-to-date** with origin/master. No new changes to push.
+**Main repo (obus-moa-exe):** ✅ Pushed — `19e8f9f` (chore: refresh status reports for 07:24 cycle), **Everything up-to-date** with origin/master. No new changes to push.
 
 **Submodules:**
 
@@ -44,6 +44,20 @@ Note: Submodule pointers unchanged since last push. `warp/` directory missing fr
 - Local diff vs remote: **0 files** (clean, in sync)
 - Modified tracked files: none (status reports refreshed via commit)
 - Untracked generated dirs: build-aui-loop5..76, dist-aui-loop5..76, dist-aui-agent-visuals*, build-aui-agent-visuals*
+
+## Build/EXE Status
+
+### Latest AUI Loop Build
+- **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC
+- Build dir: `build-aui-loop76/`
+- **No new loop builds** — loop 77 through 80 directories do not exist. Build pipeline stalled since Aug 25.
+
+### Release EXE
+- `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC
+- Unchanged since Aug 25.
+
+### Electron Build
+- `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC (older than loop builds)
 
 ## Summary
 - ✅ Main repo pushed clean — no new commits to ship
