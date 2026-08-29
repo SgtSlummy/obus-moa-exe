@@ -2,7 +2,7 @@
 
 ## Push Summary
 
-- **Main repo (obus-moa-exe):** ✅ Pushed — `1e81666` (chore: add cron_report_0383.md), **Everything up-to-date** with origin/master.
+- **Main repo (obus-moa-exe):** ✅ Pushed — `013d313` (chore: refresh status reports for 20:15 cycle), **Everything up-to-date** with origin/master.
 - **Paired repo (OBus-Thor-Loki-Paired):** ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
 - **Submodules:**
   - `warpdotdev-warp`: ❌ 403 Forbidden — no write access to upstream remote.
@@ -11,45 +11,48 @@
 
 ## Build Status
 
-- **Latest AUI Loop Build**: **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC.
-- **Release EXE**: `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC.
-- **Electron Build**: `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC.
-- No new loop builds created since loop 76; pipeline stalled.
+- **Latest AUI Loop Build:** **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC.
+- **Release EXE:** `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC.
+- **Electron Build:** `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC.
+- **No new loop builds since loop 76** — pipeline stalled.
 
-## Active Background Jobs & Services
+## Active Services
 
-| Service | PID | Status |
-|---------|-----|--------|
-| uvicorn (OBus MOA FastAPI) | 7792 | ✅ UP on :8000 |
-| DavyJonesHeartbeat | 3740 | ✅ UP on :3000 |
-| OBus.exe | 16496, 16588, 16984, 18716 | Desktop app instances |
-| ollama.exe | 7248, 3084 | Local LLM runtime |
-| codex.exe | 5584 | Codex agent (idle) |
-| gortex.exe | 22308, 11992, 22284, 6032 | Graph analysis |
-| mempalace-mcp.exe | 18320 | Memory palace MCP |
-| pinchtab-windows-amd64.exe | 18244, 18016, 18092 | Browser automation |
-| python.exe | numerous | Various Python processes |
-| node.exe | numerous | Various Node processes |
-| chrome.exe | numerous | Chrome browser |
-| msedge.exe | numerous | Edge browser |
-| ChatGPT.exe | numerous | ChatGPT desktop instances |
-| Docker Desktop | numerous | Docker Desktop running |
-| OneDrive.exe | 13652 | OneDrive sync (26 GB) |
+| Service | PID | Port | Status |
+|---------|-----|------|--------|
+| uvicorn (OBus MOA FastAPI) | 7792 | :8000 | ✅ UP |
+| DavyJonesHeartbeat | 3740 | :3000 | ✅ UP |
 
-## Submodule Push Status (details)
+## Working Tree
 
-| Submodule | Status |
-|-----------|--------|
-| warp | ❌ Blocked: 403 Forbidden (no collaborator), directory missing on disk |
-| warpdotdev-warp | ❌ Blocked: 403 Forbidden (no collaborator) |
-| Understand-Anything | ❌ Blocked: 403 Forbidden (no collaborator) |
+- **Clean** — no staged or unstaged changes.
+- Latest commit: `013d313` (chore: refresh status reports for 20:15 cycle) — modified `status_report.txt` and `magician_key.jpg`.
+
+## Submodule Push Status
+
+| Submodule | Local HEAD | Remote | Push Result |
+|-----------|------------|--------|-------------|
+| warpdotdev-warp | `8c2cc73` detached | warpdotdev/warp | ❌ 403 (no collaborator) |
+| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | nvidia/warp | ❌ 403 (no collaborator) — **directory MISSING** |
+| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | Egonex-AI/Understand-Anything | ❌ 403 (no collaborator) |
+
+All three submodule directories are missing on disk (pre-existing gaps, unchanged).
+
+## Other Active Processes (OBus-relevant)
+
+- uvicorn (PID 7792) — backend :8000
+- DavyJonesHeartbeat (PID 3740) — listener :3000
+- OBus.exe (multiple: 16496, 16588, 16984, 18716) — desktop app instances
+- ollama.exe / ollama app.exe (PID 7248, 3084) — local LLM
+- codex.exe (PID 5584) — Codex agent (idle)
+- gortex.exe (multiple: 22308, 11992, 22284, 6032) — graph analysis
+- mempalace-mcp.exe (PID 18320) — memory palace MCP
+- pinchtab-windows-amd64.exe (multiple: 18244, 18016, 18092) — browser automation
 
 ## Summary & Recommendations
 
 - ✅ Main and paired repos are in sync; no sync actions needed.
-- ⚠️ Submodule pushes blocked due to permission issues; consider re‑authorizing or removing submodule references until access restored.
-- ⚠️ Build pipeline halted since Aug 25; a new build needs to be triggered to bring loop 77+. Investigate CI or build script failures.
-- ⚠️ OneDrive sync is active; monitor disk usage (26 GB). If disk space becomes an issue, pause sync.
+- ⚠️ Submodule pushes blocked due to permission issues; consider re-authorizing or removing submodule references until access restored.
+- ⚠️ Build pipeline halted since Aug 25; a new build needs to be triggered to bring loop 77+. Investigate CI or build script failures.
 - ✅ Core services (uvicorn & DavyJonesHeartbeat) are running and healthy.
-
-Please let me know if you would like to trigger a new AUI loop build or address submodule access issues. Otherwise this status report is ready for dispatch. 
+- No new build activity, no new commits beyond status-report refreshes since the last report cycle.
