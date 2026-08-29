@@ -1,31 +1,26 @@
-# Active Jobs Status — 2026-08-28 05:10 UTC
+# Active Jobs Status — 2026-08-28 20:15 UTC
 # (Populated by cron run 893c7df0ef71)
 
 ## Services
-- uvicorn (PID 1016): ✅ UP on :8000 — OBus MOA FastAPI
-- DavyJonesHeartbeat (PID 8836): ✅ UP on :3000
+- uvicorn (PID 7792): ✅ UP on :8000 — OBus MOA FastAPI
+- DavyJonesHeartbeat (PID 3740): ✅ UP on :3000
 
 ## Completed Tasks (this cycle)
-- 4dd612dd: ✅ Reply with exactly READY
-- 1d6536d0: ✅ Read-only verification (Codex, gpt-5.6-terra)
+- (none new — cycle was a no-op, state unchanged from 0375)
 
 ## Failed Tasks
-- 3e33ef5a: ✗ Read-only verification: list top-level names inside backend dir
-- 0f230a77: ✗ Inspect current workspace without modifying files
-- 930ffd28: ✗ Inspect current workspace without modifying files
+- (none)
 
 ## Submodule Push Status
-- warp: ❌ BLOCKED — detached at 808ddbdc, 4 commits behind nvidia/warp main; sgtfork remote "https://github.com/SgtSlummy/warp.git" returns "Repository not found"; nvidia/warp 403 (no collaborator access)
+- warp: ❌ BLOCKED — detached at 3504ce5, ahead 5/behind 8 vs nvidia/warp main; nvidia/warp 403 (no collaborator access)
 - warpdotdev-warp: ❌ BLOCKED — detached HEAD, 403 on push to warpdotdev/warp
 - Understand-Anything: ❌ BLOCKED — 403 on push to Egonex-AI/Understand-Anything
 
 ## Running Processes (OBus-relevant)
-- uvicorn.exe (PID 1016) — backend :8000
-- DavyJonesHeartbeat.exe (PID 8836) — listener :3000
-- OBus-6dd1e0e.exe (PID 4028, 21372) — OBus instances
-- OBus.exe (multiple) — desktop app
-- llama-server.exe (PID 22292) — local LLM
-- codex.exe (PID 31284) — Codex agent
+- uvicorn.exe (PID 7792) — backend :8000
+- DavyJonesHeartbeat.exe (PID 3740) — listener :3000
+- OBus.exe (multiple) — desktop app instances
+- ollama.exe / ollama app.exe — local LLM
+- codex.exe (PID 5584) — Codex agent (idle)
 - gortex.exe (multiple) — graph analysis
 - mempalace-mcp.exe (multiple) — memory
-- ollama app.exe / ollama.exe — Ollama service
