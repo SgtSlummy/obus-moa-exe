@@ -83,47 +83,47 @@ Use this skill when working on files in:
 
 | File | Symbols |
 |------|---------|
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_client.py` | targets, seed, image, tool_prompt, max_tokens, ... |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_common.py` | lines, _async_stream_chat_completion_response, line, lines, _format_chat_completion_stream_output, ... |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\_async_client.py` | num_beam_groups, typical_p, model, model, truncate, ... |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\audio_classification.py` | AudioClassificationInput, AudioClassificationOutputElement, AudioClassificationParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_client.py` | stream_options, adapter_id, sentence_similarity, tool_choice, eta_cutoff, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_common.py` | _format_chat_completion_stream_output, lines, line, _async_stream_chat_completion_response, _stream_chat_completion_response, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\_async_client.py` | document_question_answering, encoding_format, top_logprobs, top_k, num_frames, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\audio_classification.py` | AudioClassificationParameters, AudioClassificationInput, AudioClassificationOutputElement |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\audio_to_audio.py` | AudioToAudioInput, AudioToAudioOutputElement |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\automatic_speech_recognition.py` | AutomaticSpeechRecognitionGenerationParameters, AutomaticSpeechRecognitionParameters, AutomaticSpeechRecognitionOutput, AutomaticSpeechRecognitionInput, AutomaticSpeechRecognitionOutputChunk |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\automatic_speech_recognition.py` | AutomaticSpeechRecognitionParameters, AutomaticSpeechRecognitionOutputChunk, AutomaticSpeechRecognitionOutput, AutomaticSpeechRecognitionInput, AutomaticSpeechRecognitionGenerationParameters |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\base.py` | BaseInferenceType |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\chat_completion.py` | ChatCompletionInputResponseFormatText, ChatCompletionStreamOutputChoice, ChatCompletionOutputFunctionDefinition, ChatCompletionStreamOutputDelta, ChatCompletionStreamOutputFunction, ... |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\depth_estimation.py` | DepthEstimationInput, DepthEstimationOutput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\document_question_answering.py` | DocumentQuestionAnsweringParameters, DocumentQuestionAnsweringOutputElement, DocumentQuestionAnsweringInputData, DocumentQuestionAnsweringInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\chat_completion.py` | ChatCompletionStreamOutputFunction, ChatCompletionInput, ChatCompletionInputJSONSchema, ChatCompletionStreamOutputDeltaToolCall, ChatCompletionOutputMessage, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\depth_estimation.py` | DepthEstimationOutput, DepthEstimationInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\document_question_answering.py` | DocumentQuestionAnsweringOutputElement, DocumentQuestionAnsweringInputData, DocumentQuestionAnsweringInput, DocumentQuestionAnsweringParameters |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\feature_extraction.py` | FeatureExtractionInput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\fill_mask.py` | FillMaskOutputElement, FillMaskParameters, FillMaskInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\fill_mask.py` | FillMaskParameters, FillMaskOutputElement, FillMaskInput |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_classification.py` | ImageClassificationOutputElement, ImageClassificationParameters, ImageClassificationInput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_segmentation.py` | ImageSegmentationOutputElement, ImageSegmentationInput, ImageSegmentationParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_text_to_image.py` | ImageTextToImageTargetSize, ImageTextToImageInput, ImageTextToImageOutput, ImageTextToImageParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_text_to_video.py` | ImageTextToVideoParameters, ImageTextToVideoInput, ImageTextToVideoOutput, ImageTextToVideoTargetSize |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_image.py` | ImageToImageTargetSize, ImageToImageParameters, ImageToImageInput, ImageToImageOutput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_text.py` | ImageToTextGenerationParameters, ImageToTextOutput, ImageToTextInput, ImageToTextParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_video.py` | ImageToVideoOutput, ImageToVideoParameters, ImageToVideoTargetSize, ImageToVideoInput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\object_detection.py` | ObjectDetectionBoundingBox, ObjectDetectionOutputElement, ObjectDetectionInput, ObjectDetectionParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\question_answering.py` | QuestionAnsweringParameters, QuestionAnsweringInput, QuestionAnsweringOutputElement, QuestionAnsweringInputData |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\sentence_similarity.py` | SentenceSimilarityInputData, SentenceSimilarityInput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\summarization.py` | SummarizationOutput, SummarizationInput, SummarizationParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\table_question_answering.py` | TableQuestionAnsweringInput, TableQuestionAnsweringInputData, TableQuestionAnsweringOutputElement, TableQuestionAnsweringParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text2text_generation.py` | Text2TextGenerationParameters, Text2TextGenerationInput, Text2TextGenerationOutput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_classification.py` | TextClassificationParameters, TextClassificationInput, TextClassificationOutputElement |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_generation.py` | TextGenerationStreamOutputToken, TextGenerationInput, TextGenerationInputGenerateParameters, TextGenerationOutputPrefillToken, TextGenerationOutputToken, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_segmentation.py` | ImageSegmentationInput, ImageSegmentationOutputElement, ImageSegmentationParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_text_to_image.py` | ImageTextToImageTargetSize, ImageTextToImageInput, ImageTextToImageParameters, ImageTextToImageOutput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_text_to_video.py` | ImageTextToVideoOutput, ImageTextToVideoTargetSize, ImageTextToVideoInput, ImageTextToVideoParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_image.py` | ImageToImageInput, ImageToImageTargetSize, ImageToImageOutput, ImageToImageParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_text.py` | ImageToTextOutput, ImageToTextGenerationParameters, ImageToTextParameters, ImageToTextInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\image_to_video.py` | ImageToVideoOutput, ImageToVideoTargetSize, ImageToVideoInput, ImageToVideoParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\object_detection.py` | ObjectDetectionOutputElement, ObjectDetectionInput, ObjectDetectionBoundingBox, ObjectDetectionParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\question_answering.py` | QuestionAnsweringInputData, QuestionAnsweringInput, QuestionAnsweringParameters, QuestionAnsweringOutputElement |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\sentence_similarity.py` | SentenceSimilarityInput, SentenceSimilarityInputData |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\summarization.py` | SummarizationParameters, SummarizationInput, SummarizationOutput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\table_question_answering.py` | TableQuestionAnsweringOutputElement, TableQuestionAnsweringInput, TableQuestionAnsweringParameters, TableQuestionAnsweringInputData |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text2text_generation.py` | Text2TextGenerationParameters, Text2TextGenerationOutput, Text2TextGenerationInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_classification.py` | TextClassificationParameters, TextClassificationOutputElement, TextClassificationInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_generation.py` | TextGenerationOutputToken, TextGenerationInputGenerateParameters, TextGenerationOutputBestOfSequence, TextGenerationStreamOutputToken, TextGenerationOutputDetails, ... |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_audio.py` | TextToAudioInput, TextToAudioGenerationParameters, TextToAudioOutput, TextToAudioParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_image.py` | TextToImageOutput, TextToImageInput, TextToImageParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_speech.py` | TextToSpeechInput, TextToSpeechParameters, TextToSpeechOutput, TextToSpeechGenerationParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_video.py` | TextToVideoInput, TextToVideoParameters, TextToVideoOutput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\token_classification.py` | TokenClassificationOutputElement, TokenClassificationParameters, TokenClassificationInput |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\translation.py` | TranslationParameters, TranslationOutput, TranslationInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_image.py` | TextToImageOutput, TextToImageParameters, TextToImageInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_speech.py` | TextToSpeechParameters, TextToSpeechOutput, TextToSpeechInput, TextToSpeechGenerationParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\text_to_video.py` | TextToVideoParameters, TextToVideoInput, TextToVideoOutput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\token_classification.py` | TokenClassificationOutputElement, TokenClassificationInput, TokenClassificationParameters |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\translation.py` | TranslationInput, TranslationParameters, TranslationOutput |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\video_classification.py` | VideoClassificationParameters, VideoClassificationInput, VideoClassificationOutputElement |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\visual_question_answering.py` | VisualQuestionAnsweringInput, VisualQuestionAnsweringInputData, VisualQuestionAnsweringOutputElement, VisualQuestionAnsweringParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_classification.py` | ZeroShotClassificationOutputElement, ZeroShotClassificationInput, ZeroShotClassificationParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_image_classification.py` | ZeroShotImageClassificationInput, ZeroShotImageClassificationOutputElement, ZeroShotImageClassificationParameters |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_object_detection.py` | ZeroShotObjectDetectionBoundingBox, ZeroShotObjectDetectionOutputElement, ZeroShotObjectDetectionParameters, ZeroShotObjectDetectionInput |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\visual_question_answering.py` | VisualQuestionAnsweringOutputElement, VisualQuestionAnsweringParameters, VisualQuestionAnsweringInput, VisualQuestionAnsweringInputData |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_classification.py` | ZeroShotClassificationInput, ZeroShotClassificationParameters, ZeroShotClassificationOutputElement |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_image_classification.py` | ZeroShotImageClassificationInput, ZeroShotImageClassificationParameters, ZeroShotImageClassificationOutputElement |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_generated\types\zero_shot_object_detection.py` | ZeroShotObjectDetectionInput, ZeroShotObjectDetectionParameters, ZeroShotObjectDetectionBoundingBox, ZeroShotObjectDetectionOutputElement |
 | `.venv-build\Lib\site-packages\huggingface_hub\inference\_mcp\agent.py` | user_input, abort_event, run |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_mcp\mcp_client.py` | process_single_turn_with_tools, messages, exit_if_first_chunk_no_tool, exit_loop_tools |
-| `.venv-build\Lib\site-packages\huggingface_hub\inference\_mcp\utils.py` | format_result, base64_str, _get_base64_size, result |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_mcp\mcp_client.py` | exit_loop_tools, messages, process_single_turn_with_tools, exit_if_first_chunk_no_tool |
+| `.venv-build\Lib\site-packages\huggingface_hub\inference\_mcp\utils.py` | _get_base64_size, format_result, result, base64_str |
 | `external-call::dep:huggingface_hub.inference._common._async_stream_chat_completion_response` | huggingface_hub.inference._common._async_stream_chat_completion_response |
 | `external-call::dep:huggingface_hub.inference._common._b64_encode` | huggingface_hub.inference._common._b64_encode |
 | `external-call::dep:huggingface_hub.inference._common._b64_to_image` | huggingface_hub.inference._common._b64_to_image |
@@ -154,16 +154,15 @@ Use this skill when working on files in:
 
 ## Connected Communities
 
-- **. +53 dirs** (2 cross-edges)
-- **. +46 dirs** (2 cross-edges)
-- **site-packages/PIL +22 dirs** (2 cross-edges)
-- **. +43 dirs** (2 cross-edges)
+- **. +47 dirs** (4 cross-edges)
+- **. +54 dirs** (2 cross-edges)
+- **. +45 dirs** (2 cross-edges)
 - **. +3 dirs · _parse_text_generation_error** (1 cross-edges)
 
 ## How to Explore
 
 ```
-analyze(operation:"communities", id:"community-988")
+analyze(operation:"communities", id:"community-957")
 explore(operation:"context", task:"understand _generated/types +4 dirs", format:"gcx")
 ```
 

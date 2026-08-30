@@ -111,62 +111,62 @@ Use this skill when working on files in:
 
 | File | Symbols |
 |------|---------|
-| `.venv-build\Lib\site-packages\flatbuffers\builder.py` | file_identifier, PrependSOffsetTRelative, Pad, v, Builder, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\builder.py` | rootTable, Place, sizePrefix, StructIsNotInlineError, BuilderSizeError, ... |
 | `.venv-build\Lib\site-packages\flatbuffers\compat.py` | NumpyRequiredForThisFeature |
-| `.venv-build\Lib\site-packages\flatbuffers\encode.py` | head, numpy_type, buf, Get, offset, ... |
-| `.venv-build\Lib\site-packages\flatbuffers\flexbuffers.py` | obj, __repr__, String, offset, __str__, ... |
-| `.venv-build\Lib\site-packages\flatbuffers\number_types.py` | SOffsetTFlags, number_type, Int32Flags, VOffsetTFlags, enforce_number, ... |
-| `.venv-build\Lib\site-packages\flatbuffers\table.py` | off, Union, off, off, flags, ... |
-| `.venv-build\Lib\site-packages\flatbuffers\util.py` | GetSizePrefix, offset, buf |
-| `.venv-build\Lib\site-packages\numpy\matrixlib\defmatrix.py` | __getitem__, __new__, subtype, other, _convert_from_string, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\encode.py` | offset, buf, GetVectorAsNumpy, Write, numpy_type, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\flexbuffers.py` | __str__, Dumps, key, obj, __getitem__, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\number_types.py` | SOffsetTFlags, VOffsetTFlags, n, Int32Flags, Uint16Flags, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\table.py` | Table, d, d, off, off, ... |
+| `.venv-build\Lib\site-packages\flatbuffers\util.py` | offset, buf, GetSizePrefix |
+| `.venv-build\Lib\site-packages\numpy\matrixlib\defmatrix.py` | __getitem__, dtype, _convert_from_string, __mul__, other, ... |
 | `.venv-build\Lib\site-packages\numpy\random\tests\test_generator_mt19937_regressions.py` | N |
-| `.venv-build\Lib\site-packages\onnxruntime\quantization\CalTableFlatBuffers\KeyValue.py` | pos, Key, GetRootAsKeyValue, KeyValue, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\quantization\CalTableFlatBuffers\TrtTable.py` | buf, DictIsNone, Dict, offset, offset, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\quantization\CalTableFlatBuffers\KeyValue.py` | GetRootAsKeyValue, GetRootAs, Key, pos, offset, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\quantization\CalTableFlatBuffers\TrtTable.py` | buf, TrtTable, offset, offset, GetRootAsTrtTable, ... |
 | `.venv-build\Lib\site-packages\onnxruntime\quantization\calibrate.py` | to_dict |
-| `.venv-build\Lib\site-packages\onnxruntime\quantization\quant_utils.py` | dir, write_calibration_table, calibration_cache |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\operator_type_usage_processors.py` | key, process_node, restore_from_config_entry, make_op_type_impl_filter, value_name_to_typeinfo, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ArgTypeAndIndex.py` | buf, offset, Init, ArgType, GetRootAsArgTypeAndIndex, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Attribute.py` | FloatsAsNumpy, StringsLength, GraphsIsNone, S, IntsIsNone, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Checkpoint.py` | ModuleState, OptimizerGroups, GetRootAs, buf, pos, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedKernelCreateInfos.py` | NodeIndicesAsNumpy, DeprecatedKernelCreateInfos, GetRootAs, j, KernelDefHashes, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedNodeIndexAndKernelDefHash.py` | NodeIndex, buf, Init, offset, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedSessionState.py` | GetRootAsDeprecatedSessionState, j, buf, SubGraphSessionStatesLength, Init, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedSubGraphSessionState.py` | DeprecatedSubGraphSessionState, buf, GetRootAs, buf, GetRootAsDeprecatedSubGraphSessionState, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Dimension.py` | Value, Init, GetRootAsDimension, buf, Denotation, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DimensionValue.py` | DimValue, buf, DimType, offset, DimParam, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\EdgeEnd.py` | pos, EdgeEnd, dstArgIndex, SrcArgIndex, builder, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\FloatProperty.py` | GetRootAs, GetRootAsFloatProperty, offset, Init, pos, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Graph.py` | NodeEdges, Inputs, offset, j, InputsLength, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\InferenceSession.py` | buf, buf, pos, Init, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\IntProperty.py` | buf, buf, pos, buf, Value, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\KernelTypeStrArgsEntry.py` | GetRootAs, buf, Init, j, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\KernelTypeStrResolver.py` | GetRootAs, OpKernelTypeStrArgs, buf, j, OpKernelTypeStrArgsIsNone, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\MapType.py` | offset, buf, offset, GetRootAs, pos, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Model.py` | DocString, j, IrVersion, ProducerVersion, Init, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ModuleState.py` | offset, j, GetRootAs, buf, ModuleState, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Node.py` | ImplicitInputsIsNone, OpType, j, GetRootAs, pos, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\NodeEdge.py` | OutputEdgesLength, buf, offset, offset, Init, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\NodesToOptimizeIndices.py` | NodesToOptimizeIndices, NumVariadicInputs, GetRootAs, NumOutputs, Init, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OpIdKernelTypeStrArgsEntry.py` | buf, GetRootAsOpIdKernelTypeStrArgsEntry, GetRootAs, buf, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OperatorSetId.py` | buf, pos, offset, buf, OperatorSetId, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OptimizerGroup.py` | Init, OptimizerStates, GetRootAsOptimizerGroup, GetRootAs, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ParameterOptimizerState.py` | MomentumsIsNone, ParamName, Momentums, ParameterOptimizerState, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\PropertyBag.py` | IntsIsNone, offset, Floats, offset, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizationRecord.py` | buf, ProducedOpIdsIsNone, j, RuntimeOptimizationRecord, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizationRecordContainerEntry.py` | RuntimeOptimizationRecordContainerEntry, OptimizerName, GetRootAs, offset, GetRootAsRuntimeOptimizationRecordContainerEntry, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizations.py` | offset, RecordsLength, RecordsIsNone, Records, GetRootAs, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\SequenceType.py` | offset, offset, buf, GetRootAs, SequenceType, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Shape.py` | DimLength, buf, offset, pos, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\SparseTensor.py` | Values, SparseTensor, pos, DimsLength, Init, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\StringProperty.py` | GetRootAsStringProperty, buf, GetRootAs, Name, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\StringStringEntry.py` | pos, StringStringEntry, Init, buf, GetRootAs, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Tensor.py` | RawDataLength, pos, Init, DimsAsNumpy, buf, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\TensorTypeAndShape.py` | offset, offset, Shape, buf, pos, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\TypeInfo.py` | ValueType, pos, buf, Init, offset, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ValueInfo.py` | buf, Name, GetRootAs, pos, Type, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_model_processor.py` | model_path, graph, domain, _setup_type_info, required_ops, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\types.py` | value_name_to_typeinfo, name, get_typeinfo, value_name_to_typeinfo, FbsTypeInfo, ... |
-| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\utils.py` | _extract_ops_and_types_from_ort_models, enable_type_reduction, model_files |
+| `.venv-build\Lib\site-packages\onnxruntime\quantization\quant_utils.py` | dir, calibration_cache, write_calibration_table |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\operator_type_usage_processors.py` | node, optype, restore_from_config_entry, process_node, domain, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ArgTypeAndIndex.py` | buf, Init, pos, ArgTypeAndIndex, GetRootAs, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Attribute.py` | F, buf, Tensors, StringsLength, Graphs, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Checkpoint.py` | buf, OptimizerGroupsIsNone, OptimizerGroups, offset, OptimizerGroupsLength, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedKernelCreateInfos.py` | NodeIndicesLength, Init, pos, buf, j, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedNodeIndexAndKernelDefHash.py` | buf, KernelDefHash, GetRootAsDeprecatedNodeIndexAndKernelDefHash, pos, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedSessionState.py` | DeprecatedSessionState, Kernels, offset, buf, SubGraphSessionStatesLength, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DeprecatedSubGraphSessionState.py` | GetRootAsDeprecatedSubGraphSessionState, buf, Init, SessionState, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Dimension.py` | buf, Dimension, buf, pos, Denotation, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\DimensionValue.py` | buf, buf, GetRootAsDimensionValue, GetRootAs, DimensionValue, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\EdgeEnd.py` | buf, Init, nodeIndex, dstArgIndex, SizeOf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\FloatProperty.py` | offset, buf, GetRootAs, Value, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Graph.py` | RuntimeOptimizations, Nodes, NodeEdges, Outputs, NodeArgsLength, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\InferenceSession.py` | offset, offset, buf, InferenceSession, Init, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\IntProperty.py` | IntProperty, offset, buf, Value, GetRootAs, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\KernelTypeStrArgsEntry.py` | offset, ArgsLength, KernelTypeStr, j, KernelTypeStrArgsEntry, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\KernelTypeStrResolver.py` | buf, buf, KernelTypeStrResolver, GetRootAsKernelTypeStrResolver, OpKernelTypeStrArgsLength, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\MapType.py` | MapType, offset, GetRootAs, pos, offset, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Model.py` | j, GetRootAsModel, GetRootAs, buf, MetadataPropsIsNone, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ModuleState.py` | pos, Init, j, ModuleState, RequiresGradParams, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Node.py` | Type, Index, OutputsIsNone, buf, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\NodeEdge.py` | InputEdgesLength, offset, InputEdgesIsNone, GetRootAsNodeEdge, NodeEdge, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\NodesToOptimizeIndices.py` | GetRootAs, NodeIndicesIsNone, NumVariadicOutputs, NumVariadicInputs, HasVariadicOutput, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OpIdKernelTypeStrArgsEntry.py` | pos, buf, KernelTypeStrArgsLength, GetRootAsOpIdKernelTypeStrArgsEntry, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OperatorSetId.py` | Init, buf, Version, GetRootAs, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\OptimizerGroup.py` | offset, buf, pos, offset, j, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ParameterOptimizerState.py` | offset, buf, MomentumsIsNone, Init, GetRootAsParameterOptimizerState, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\PropertyBag.py` | FloatsIsNone, buf, pos, Init, GetRootAs, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizationRecord.py` | RuntimeOptimizationRecord, ProducedOpIdsLength, buf, NodesToOptimizeIndices, ProducedOpIds, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizationRecordContainerEntry.py` | Init, RuntimeOptimizationRecordsIsNone, offset, RuntimeOptimizationRecords, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizations.py` | pos, buf, Init, GetRootAsRuntimeOptimizations, RuntimeOptimizations, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\SequenceType.py` | buf, SequenceType, offset, ElemType, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Shape.py` | j, GetRootAs, Init, offset, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\SparseTensor.py` | GetRootAs, j, offset, Dims, SparseTensor, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\StringProperty.py` | GetRootAsStringProperty, Name, offset, buf, StringProperty, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\StringStringEntry.py` | GetRootAs, StringStringEntry, pos, Init, GetRootAsStringStringEntry, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\Tensor.py` | buf, DataType, RawDataLength, j, ExternalDataOffset, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\TensorTypeAndShape.py` | offset, pos, TensorTypeAndShape, buf, ElemType, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\TypeInfo.py` | pos, offset, GetRootAsTypeInfo, Value, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\ValueInfo.py` | Name, pos, DocString, GetRootAsValueInfo, buf, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_model_processor.py` | outer_scope_value_typeinfo, graph, required_ops, outer_scope_value_typeinfo, process, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\types.py` | typeinfo_to_str, type, value_name_to_typeinfo, name, value_name_to_typestr, ... |
+| `.venv-build\Lib\site-packages\onnxruntime\tools\ort_format_model\utils.py` | enable_type_reduction, model_files, _extract_ops_and_types_from_ort_models |
 | `external-call::dep:flatbuffers.table.Table` | flatbuffers.table.Table |
 | `external-call::dep:numpy._core.numeric.isscalar` | numpy._core.numeric.isscalar |
 | `external-call::dep:onnxruntime.quantization.CalTableFlatBuffers.KeyValue` | onnxruntime.quantization.CalTableFlatBuffers.KeyValue |
@@ -210,25 +210,26 @@ Use this skill when working on files in:
 
 ## Connected Communities
 
-- **. +114 dirs** (7 cross-edges)
-- **onnxruntime/quantization +4 dirs** (6 cross-edges)
+- **onnxruntime/quantization +2 dirs** (6 cross-edges)
 - **. +3 dirs · numpy._core.numeric** (6 cross-edges)
+- **. +112 dirs** (6 cross-edges)
 - **tools/ort_format_model · _create_operator_type_usage_pro…** (4 cross-edges)
-- **Lib/site-packages · Ref** (3 cross-edges)
 - **site-packages/flatbuffers · Prepend** (3 cross-edges)
-- **. +43 dirs** (2 cross-edges)
-- **site-packages/flatbuffers · Add** (2 cross-edges)
+- **Lib/site-packages · Ref** (3 cross-edges)
 - **tools/ort_format_model · is_typed_registration_needed · operator_type_usage_processors (10)** (2 cross-edges)
+- **site-packages/flatbuffers · Add** (2 cross-edges)
+- **. +45 dirs** (2 cross-edges)
+- **. +65 dirs** (1 cross-edges)
 - **tools/ort_format_model · debug_dump** (1 cross-edges)
-- **. +53 dirs** (1 cross-edges)
 - **. +1 dirs · asmatrix** (1 cross-edges)
+- **. +47 dirs** (1 cross-edges)
+- **. +54 dirs** (1 cross-edges)
 - **site-packages/flatbuffers · _BinarySearch** (1 cross-edges)
-- **tests +10 dirs · dumps** (1 cross-edges)
 
 ## How to Explore
 
 ```
-analyze(operation:"communities", id:"community-3427")
+analyze(operation:"communities", id:"community-3379")
 explore(operation:"context", task:"understand . +7 dirs · flatbuffers", format:"gcx")
 ```
 

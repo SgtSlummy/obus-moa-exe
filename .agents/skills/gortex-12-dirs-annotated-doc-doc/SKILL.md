@@ -1,11 +1,11 @@
 ---
 name: gortex-12-dirs-annotated-doc-doc
-description: "Work in the . +12 dirs · annotated_doc.Doc area — 1931 symbols across 115 files (94% cohesion)"
+description: "Work in the . +12 dirs · annotated_doc.Doc area — 1927 symbols across 115 files (94% cohesion)"
 ---
 
 # . +12 dirs · annotated_doc.Doc
 
-1931 symbols | 115 files | 94% cohesion
+1927 symbols | 115 files | 94% cohesion
 
 ## When to Use
 
@@ -27,7 +27,6 @@ Use this skill when working on files in:
 - `.venv-build\Lib\site-packages\fastapi\openapi\utils.py`
 - `.venv-build\Lib\site-packages\fastapi\param_functions.py`
 - `.venv-build\Lib\site-packages\fastapi\params.py`
-- `.venv-build\Lib\site-packages\fastapi\responses.py`
 - `.venv-build\Lib\site-packages\fastapi\routing.py`
 - `.venv-build\Lib\site-packages\fastapi\security\api_key.py`
 - `.venv-build\Lib\site-packages\fastapi\security\base.py`
@@ -43,6 +42,7 @@ Use this skill when working on files in:
 - `.venv-build\Lib\site-packages\starlette\background.py`
 - `.venv-build\Lib\site-packages\starlette\middleware\authentication.py`
 - `.venv-build\Lib\site-packages\starlette\middleware\errors.py`
+- `.venv-build\Lib\site-packages\starlette\middleware\exceptions.py`
 - `.venv-build\Lib\site-packages\starlette\requests.py`
 - `.venv-build\Lib\site-packages\starlette\responses.py`
 - `.venv-build\Lib\site-packages\starlette\routing.py`
@@ -130,42 +130,42 @@ Use this skill when working on files in:
 
 | File | Symbols |
 |------|---------|
-| `` | contextmanager, getsourcefile, get, format_exception, contextlib.asynccontextmanager, ... |
-| `.venv-build\Lib\site-packages\annotated_doc\main.py` | other, Doc, documentation, __repr__, __init__, ... |
+| `` | replace, getsourcefile, asynccontextmanager, format_exception, contextlib.contextmanager, ... |
+| `.venv-build\Lib\site-packages\annotated_doc\main.py` | __init__, documentation, other, Doc, __repr__, ... |
 | `.venv-build\Lib\site-packages\cryptography\hazmat\asn1\asn1.py` | Default |
-| `.venv-build\Lib\site-packages\fastapi\_compat\v2.py` | known_models, get_flat_models_from_annotation, get_flat_models_from_field, field, known_models, ... |
-| `.venv-build\Lib\site-packages\fastapi\applications.py` | decorator, swagger_ui_init_oauth, path, response_model_exclude_unset, response_model_exclude_defaults, ... |
-| `.venv-build\Lib\site-packages\fastapi\background.py` | args, kwargs, add_task, BackgroundTasks, func |
-| `.venv-build\Lib\site-packages\fastapi\datastructures.py` | seek, value, size, read, __get_pydantic_core_schema__, ... |
+| `.venv-build\Lib\site-packages\fastapi\_compat\v2.py` | known_models, get_flat_models_from_annotation, known_models, get_flat_models_from_field, annotation, ... |
+| `.venv-build\Lib\site-packages\fastapi\applications.py` | operation_id, openapi, response_model_exclude_unset, docs_url, root_path, ... |
+| `.venv-build\Lib\site-packages\fastapi\background.py` | args, func, BackgroundTasks, kwargs, add_task |
+| `.venv-build\Lib\site-packages\fastapi\datastructures.py` | value, core_schema, Default, __init__, __eq__, ... |
 | `.venv-build\Lib\site-packages\fastapi\dependencies\models.py` | Dependant |
-| `.venv-build\Lib\site-packages\fastapi\dependencies\utils.py` | scope, body_params, value, dependant, is_path_param, ... |
-| `.venv-build\Lib\site-packages\fastapi\encoders.py` | include, exclude, exclude_defaults, jsonable_encoder, obj, ... |
-| `.venv-build\Lib\site-packages\fastapi\exception_handlers.py` | request, request, exc, http_exception_handler, request_validation_exception_handler, ... |
-| `.venv-build\Lib\site-packages\fastapi\exceptions.py` | __init__, reason, WebSocketRequestValidationError, WebSocketException, __init__, ... |
-| `.venv-build\Lib\site-packages\fastapi\openapi\docs.py` | with_google_fonts, title, swagger_js_url, title, swagger_css_url, ... |
-| `.venv-build\Lib\site-packages\fastapi\openapi\models.py` | Response, Example, APIKeyIn |
-| `.venv-build\Lib\site-packages\fastapi\openapi\utils.py` | route_context, body_field, model_name_map, external_docs, route, ... |
-| `.venv-build\Lib\site-packages\fastapi\param_functions.py` | title, extra, allow_inf_nan, deprecated, allow_inf_nan, ... |
-| `.venv-build\Lib\site-packages\fastapi\params.py` | Depends, openapi_examples, validation_alias, include_in_schema, decimal_places, ... |
-| `.venv-build\Lib\site-packages\fastapi\responses.py` | content, render, ORJSONResponse, option, dumps, ... |
-| `.venv-build\Lib\site-packages\fastapi\routing.py` | response_description, openapi_extra, response_description, callbacks, operation_id, ... |
-| `.venv-build\Lib\site-packages\fastapi\security\api_key.py` | description, auto_error, name, description, __init__, ... |
+| `.venv-build\Lib\site-packages\fastapi\dependencies\utils.py` | fields, _should_embed_body_fields, parent_oauth_scopes, solve_dependencies, param_name, ... |
+| `.venv-build\Lib\site-packages\fastapi\encoders.py` | jsonable_encoder, obj, sqlalchemy_safe, by_alias, include, ... |
+| `.venv-build\Lib\site-packages\fastapi\exception_handlers.py` | exc, websocket_request_validation_exception_handler, exc, http_exception_handler, request_validation_exception_handler, ... |
+| `.venv-build\Lib\site-packages\fastapi\exceptions.py` | endpoint_ctx, endpoint_ctx, errors, code, detail, ... |
+| `.venv-build\Lib\site-packages\fastapi\openapi\docs.py` | oauth2_redirect_url, swagger_favicon_url, swagger_js_url, openapi_url, get_swagger_ui_oauth2_redirect_html, ... |
+| `.venv-build\Lib\site-packages\fastapi\openapi\models.py` | Example, APIKeyIn, Response |
+| `.venv-build\Lib\site-packages\fastapi\openapi\utils.py` | body_field, separate_input_output_schemas, model_name_map, tags, _get_openapi_operation_parameters, ... |
+| `.venv-build\Lib\site-packages\fastapi\param_functions.py` | allow_inf_nan, lt, description, max_digits, pattern, ... |
+| `.venv-build\Lib\site-packages\fastapi\params.py` | multiple_of, discriminator, include_in_schema, examples, decimal_places, ... |
+| `.venv-build\Lib\site-packages\fastapi\routing.py` | name, put, tags, response_model_include, response_class, ... |
+| `.venv-build\Lib\site-packages\fastapi\security\api_key.py` | name, description, __init__, auto_error, name, ... |
 | `.venv-build\Lib\site-packages\fastapi\security\base.py` | SecurityBase |
-| `.venv-build\Lib\site-packages\fastapi\security\http.py` | scheme_name, HTTPBase, scheme_name, scheme_name, __init__, ... |
-| `.venv-build\Lib\site-packages\fastapi\security\oauth2.py` | description, tokenUrl, OAuth2PasswordRequestForm, __init__, auto_error, ... |
-| `.venv-build\Lib\site-packages\fastapi\security\open_id_connect_url.py` | auto_error, __init__, openIdConnectUrl, description, scheme_name |
-| `.venv-build\Lib\site-packages\fastapi\sse.py` | _split_sse_lines, event, format_sse_event, data_str, comment, ... |
-| `.venv-build\Lib\site-packages\fastapi\utils.py` | get_value_or_default, first_item, extra_items |
-| `.venv-build\Lib\site-packages\huggingface_hub\_oauth.py` | _add_oauth_routes, app, route_prefix, _add_mocked_oauth_routes, route_prefix, ... |
-| `.venv-build\Lib\site-packages\huggingface_hub\cli\_errors.py` | _format_cli_extension_install_error, error |
-| `.venv-build\Lib\site-packages\huggingface_hub\cli\_framework.py` | handler, kwargs |
+| `.venv-build\Lib\site-packages\fastapi\security\http.py` | description, __init__, HTTPBearer, make_not_authenticated_error, make_authenticate_headers, ... |
+| `.venv-build\Lib\site-packages\fastapi\security\oauth2.py` | OAuth2, auto_error, request, scheme_name, scheme_name, ... |
+| `.venv-build\Lib\site-packages\fastapi\security\open_id_connect_url.py` | OpenIdConnect, __call__, make_not_authenticated_error, description, auto_error, ... |
+| `.venv-build\Lib\site-packages\fastapi\sse.py` | data_str, id, comment, event, _split_sse_lines, ... |
+| `.venv-build\Lib\site-packages\fastapi\utils.py` | get_value_or_default, extra_items, first_item |
+| `.venv-build\Lib\site-packages\huggingface_hub\_oauth.py` | _add_oauth_routes, app, _get_oauth_uris, _add_mocked_oauth_routes, app, ... |
+| `.venv-build\Lib\site-packages\huggingface_hub\cli\_errors.py` | error, _format_cli_extension_install_error |
+| `.venv-build\Lib\site-packages\huggingface_hub\cli\_framework.py` | kwargs, handler |
 | `.venv-build\Lib\site-packages\starlette\applications.py` | routes |
-| `.venv-build\Lib\site-packages\starlette\background.py` | args, func, __init__, kwargs |
-| `.venv-build\Lib\site-packages\starlette\middleware\authentication.py` | app, AuthenticationMiddleware, default_on_error, __init__, backend, ... |
-| `.venv-build\Lib\site-packages\starlette\middleware\errors.py` | handler, request, __call__, error_response, ServerErrorMiddleware, ... |
-| `.venv-build\Lib\site-packages\starlette\requests.py` | scope, max_part_size, json, receive, empty_receive, ... |
-| `.venv-build\Lib\site-packages\starlette\responses.py` | JSONResponse, HTMLResponse |
-| `.venv-build\Lib\site-packages\starlette\routing.py` | path_params, include_in_schema, __call__, __init__, __repr__, ... |
+| `.venv-build\Lib\site-packages\starlette\background.py` | func, __init__, kwargs, args |
+| `.venv-build\Lib\site-packages\starlette\middleware\authentication.py` | backend, conn, __init__, exc, default_on_error, ... |
+| `.venv-build\Lib\site-packages\starlette\middleware\errors.py` | error_response, exc, send, generate_plain_text, request, ... |
+| `.venv-build\Lib\site-packages\starlette\middleware\exceptions.py` | request, exc, http_exception |
+| `.venv-build\Lib\site-packages\starlette\requests.py` | empty_receive, max_part_size, json, Request, form, ... |
+| `.venv-build\Lib\site-packages\starlette\responses.py` | HTMLResponse |
+| `.venv-build\Lib\site-packages\starlette\routing.py` | name, app, path, Router, host, ... |
 | `.venv-build\Lib\site-packages\starlette\testclient.py` | _is_asgi3, app |
 | `external-call::dep:annotated_doc.Doc` | annotated_doc.Doc |
 | `external-call::dep:authlib.integrations.starlette_client.OAuth` | authlib.integrations.starlette_client.OAuth |
@@ -248,48 +248,43 @@ Use this skill when working on files in:
 
 ## Connected Communities
 
-- **. +31 dirs · pydantic_core.core_schema** (17 cross-edges)
-- **. +43 dirs** (8 cross-edges)
+- **. +31 dirs** (17 cross-edges)
+- **. +47 dirs** (10 cross-edges)
+- **. +45 dirs** (8 cross-edges)
+- **. +4 dirs · get_response** (7 cross-edges)
+- **. +7 dirs · send** (5 cross-edges)
+- **fastapi/_compat +8 dirs** (5 cross-edges)
 - **. +2 dirs · _is_coroutine_callable_cached** (5 cross-edges)
 - **. +1 dirs · get_validation_alias** (5 cross-edges)
-- **fastapi/_compat +8 dirs** (5 cross-edges)
-- **tests +10 dirs · dumps** (5 cross-edges)
-- **. +3 dirs · get_response** (5 cross-edges)
-- **site-packages/starlette +1 dirs · append** (5 cross-edges)
+- **. +1 dirs · append · .** (5 cross-edges)
 - **. +4 dirs · ModelField** (4 cross-edges)
 - **starlette/middleware +5 dirs** (4 cross-edges)
-- **. +7 dirs · send** (4 cross-edges)
-- **. +3 dirs · AsyncExitStack** (3 cross-edges)
 - **site-packages/starlette +7 dirs** (3 cross-edges)
-- **. +17 dirs** (2 cross-edges)
-- **site-packages/httpx +7 dirs** (2 cross-edges)
-- **onnxruntime/quantization +4 dirs** (2 cross-edges)
+- **. +3 dirs · AsyncExitStack** (3 cross-edges)
 - **. +2 dirs · fastapi.logger.logger** (2 cross-edges)
-- **. +5 dirs · _assert_func** (2 cross-edges)
 - **site-packages/setuptools +6 dirs** (2 cross-edges)
 - **site-packages/starlette +1 dirs · get** (2 cross-edges)
+- **. +19 dirs** (2 cross-edges)
+- **. +5 dirs · _assert_func** (2 cross-edges)
+- **site-packages/httpx +7 dirs** (2 cross-edges)
+- **site-packages/starlette +1 dirs · setdefault** (1 cross-edges)
+- **site-packages/click · get_current_context** (1 cross-edges)
+- **_vendor/packaging +1 dirs · _get** (1 cross-edges)
 - **. +1 dirs · parse · .** (1 cross-edges)
 - **. +3 dirs · _extract_source_from_frame** (1 cross-edges)
-- **. +4 dirs · cleandoc** (1 cross-edges)
-- **site-packages/click · get_current_context** (1 cross-edges)
-- **. +3 dirs · app** (1 cross-edges)
-- **. +46 dirs** (1 cross-edges)
-- **. +1 dirs · get_typed_annotation** (1 cross-edges)
-- **numpy/f2py +2 dirs** (1 cross-edges)
 - **site-packages/starlette +1 dirs · replace_params** (1 cross-edges)
-- **_vendor/packaging +1 dirs · _get** (1 cross-edges)
-- **. +1 dirs · to_pascal** (1 cross-edges)
-- **site-packages/huggingface_hub +11 dirs** (1 cross-edges)
-- **site-packages/starlette +2 dirs · send** (1 cross-edges)
-- **_core/tests +8 dirs · signature** (1 cross-edges)
-- **site-packages/starlette +1 dirs · setdefault** (1 cross-edges)
+- **. +4 dirs · cleandoc** (1 cross-edges)
+- **numpy/f2py +2 dirs** (1 cross-edges)
+- **_core/tests +8 dirs** (1 cross-edges)
+- **. +3 dirs · app** (1 cross-edges)
 - **tmp +12 dirs** (1 cross-edges)
-- **. +114 dirs** (1 cross-edges)
+- **. +1 dirs · get_typed_annotation** (1 cross-edges)
+- **site-packages/huggingface_hub +17 dirs** (1 cross-edges)
 
 ## How to Explore
 
 ```
-analyze(operation:"communities", id:"community-3197")
+analyze(operation:"communities", id:"community-3152")
 explore(operation:"context", task:"understand . +12 dirs · annotated_doc.Doc", format:"gcx")
 ```
 

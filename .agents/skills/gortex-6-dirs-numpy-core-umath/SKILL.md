@@ -34,17 +34,17 @@ Use this skill when working on files in:
 
 | File | Symbols |
 |------|---------|
-| `` | all, replace, builtins, Parameter |
-| `.venv-build\Lib\site-packages\numpy\_core\_methods.py` | min, _mean, max, out, ddof, ... |
-| `.venv-build\Lib\site-packages\numpy\_core\fromnumeric.py` | where, correction, out, _var_dispatcher, a, ... |
+| `` | replace, Parameter, builtins, all |
+| `.venv-build\Lib\site-packages\numpy\_core\_methods.py` | a, keepdims, dtype, min, out, ... |
+| `.venv-build\Lib\site-packages\numpy\_core\fromnumeric.py` | dtype, mean, out, out, a, ... |
 | `.venv-build\Lib\site-packages\numpy\_core\tests\test_regression.py` | X |
-| `.venv-build\Lib\site-packages\numpy\_core\tests\test_umath.py` | x, x, y, assert_hypot_isnan, test_inf_any, ... |
-| `.venv-build\Lib\site-packages\numpy\core\_internal.py` | shape, _reconstruct, dtype, subtype |
-| `.venv-build\Lib\site-packages\numpy\ma\core.py` | tolist, axis, indices, x, a, ... |
-| `.venv-build\Lib\site-packages\numpy\ma\extras.py` | overwrite_input, flatnotmasked_contiguous, _fromnxfunction_single, npfunc, clump_masked, ... |
-| `.venv-build\Lib\site-packages\numpy\ma\mrecords.py` | fill_value, fill_value, aligned, mask, descr, ... |
-| `.venv-build\Lib\site-packages\numpy\ma\tests\test_subclassing.py` | SubMaskedArray, kwargs, info, __new__ |
-| `.venv-build\Lib\site-packages\numpy\ma\testutils.py` | actual, err_msg, err_msg, x, decimal, ... |
+| `.venv-build\Lib\site-packages\numpy\_core\tests\test_umath.py` | assert_hypot_isnan, x, test_positive_zero, test_inf_any, test_heaviside, ... |
+| `.venv-build\Lib\site-packages\numpy\core\_internal.py` | shape, subtype, _reconstruct, dtype |
+| `.venv-build\Lib\site-packages\numpy\ma\core.py` | target, value, baseclass, a, obj, ... |
+| `.venv-build\Lib\site-packages\numpy\ma\extras.py` | mask_rowcols, setdiff1d, assume_unique, assume_unique, median, ... |
+| `.venv-build\Lib\site-packages\numpy\ma\mrecords.py` | titles, arr, __getstate__, descr, mask, ... |
+| `.venv-build\Lib\site-packages\numpy\ma\tests\test_subclassing.py` | kwargs, __new__, info, SubMaskedArray |
+| `.venv-build\Lib\site-packages\numpy\ma\testutils.py` | x, assert_array_compare, compare, err_msg, y, ... |
 | `.venv-build\Lib\site-packages\numpy\testing\overrides.py` | get_overridable_numpy_ufuncs |
 | `external-call::dep:numpy._core.multiarray` | numpy._core.multiarray |
 | `external-call::dep:numpy._core.multiarray.asanyarray` | numpy._core.multiarray.asanyarray |
@@ -56,28 +56,28 @@ Use this skill when working on files in:
 
 ## Connected Communities
 
-- **. +53 dirs** (303 cross-edges)
-- **. +43 dirs** (8 cross-edges)
-- **. +9 dirs** (5 cross-edges)
+- **. +54 dirs** (303 cross-edges)
+- **. +45 dirs** (8 cross-edges)
+- **. +9 dirs · numpy.array** (5 cross-edges)
 - **. +3 dirs · norm** (3 cross-edges)
 - **. +6 dirs · deepcopy** (2 cross-edges)
-- **. +17 dirs** (1 cross-edges)
-- **. +1 dirs · get_typed_annotation** (1 cross-edges)
 - **numpy/_core +2 dirs · tensordot** (1 cross-edges)
-- **numpy/_core +1 dirs · binary_repr** (1 cross-edges)
 - **numpy/ma · _delegate_binop** (1 cross-edges)
-- **. +1 dirs · render · .** (1 cross-edges)
-- **. +4 dirs · cleandoc** (1 cross-edges)
-- **site-packages/numpy · unique** (1 cross-edges)
 - **protobuf/internal +4 dirs** (1 cross-edges)
+- **. +1 dirs · render · .** (1 cross-edges)
+- **. +1 dirs · get_typed_annotation** (1 cross-edges)
 - **. +4 dirs · reduce** (1 cross-edges)
-- **. +31 dirs · pydantic_core.core_schema** (1 cross-edges)
-- **_core/tests +8 dirs · signature** (1 cross-edges)
+- **. +4 dirs · cleandoc** (1 cross-edges)
+- **. +19 dirs** (1 cross-edges)
+- **numpy/_core +1 dirs · binary_repr** (1 cross-edges)
+- **. +31 dirs** (1 cross-edges)
+- **_core/tests +8 dirs** (1 cross-edges)
+- **site-packages/numpy · unique** (1 cross-edges)
 
 ## How to Explore
 
 ```
-analyze(operation:"communities", id:"community-1796")
+analyze(operation:"communities", id:"community-1762")
 explore(operation:"context", task:"understand . +6 dirs · numpy._core.umath", format:"gcx")
 ```
 

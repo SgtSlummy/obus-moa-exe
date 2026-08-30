@@ -1,11 +1,11 @@
 ---
 name: gortex-20-dirs
-description: "Work in the . +20 dirs area — 1140 symbols across 132 files (91% cohesion)"
+description: "Work in the . +20 dirs area — 1142 symbols across 132 files (91% cohesion)"
 ---
 
 # . +20 dirs
 
-1140 symbols | 132 files | 91% cohesion
+1142 symbols | 132 files | 91% cohesion
 
 ## When to Use
 
@@ -147,55 +147,55 @@ Use this skill when working on files in:
 
 | File | Symbols |
 |------|---------|
-| `` | resolve_bases, ForwardRef, collections.ChainMap, TypingGenericAlias, CollectionCounter, ... |
+| `` | types.new_class, typing._eval_type, types.resolve_bases, collections.ChainMap, new_class, ... |
 | `.venv-build\Lib\site-packages\anyio\_backends\_asyncio.py` | _State |
 | `.venv-build\Lib\site-packages\anyio\_core\_tasks.py` | Status |
 | `.venv-build\Lib\site-packages\anyio\lowlevel.py` | _NoValueSet |
 | `.venv-build\Lib\site-packages\av\sidedata\sidedata.py` | Type |
 | `.venv-build\Lib\site-packages\click\_utils.py` | Sentinel, __repr__ |
 | `.venv-build\Lib\site-packages\cryptography\hazmat\primitives\kdf\kbkdf.py` | CounterLocation, Mode |
-| `.venv-build\Lib\site-packages\cryptography\utils.py` | __repr__, __str__, Enum |
-| `.venv-build\Lib\site-packages\cryptography\x509\certificate_transparency.py` | SignatureAlgorithm, LogEntryType, Version |
+| `.venv-build\Lib\site-packages\cryptography\utils.py` | __repr__, Enum, __str__ |
+| `.venv-build\Lib\site-packages\cryptography\x509\certificate_transparency.py` | LogEntryType, SignatureAlgorithm, Version |
 | `.venv-build\Lib\site-packages\cryptography\x509\name.py` | _ASN1Type |
-| `.venv-build\Lib\site-packages\fastapi\openapi\models.py` | SecuritySchemeType, ParameterInType |
+| `.venv-build\Lib\site-packages\fastapi\openapi\models.py` | ParameterInType, SecuritySchemeType |
 | `.venv-build\Lib\site-packages\google\protobuf\runtime_version.py` | Domain |
 | `.venv-build\Lib\site-packages\huggingface_hub\_jobs_api.py` | JobHardware |
 | `.venv-build\Lib\site-packages\huggingface_hub\_space_api.py` | SpaceStage |
 | `.venv-build\Lib\site-packages\huggingface_hub\cli\_cli_utils.py` | __init__, choices |
 | `.venv-build\Lib\site-packages\huggingface_hub\cli\extensions.py` | _ExtensionUpdateStatus |
 | `.venv-build\Lib\site-packages\huggingface_hub\cli\repos.py` | RepoTypeAll |
-| `.venv-build\Lib\site-packages\huggingface_hub\utils\_xet.py` | repo_id, revision, xet_connection_info_refresh_url, repo_type, XetTokenType, ... |
-| `.venv-build\Lib\site-packages\numpy\_globals.py` | _CopyMode, __bool__ |
+| `.venv-build\Lib\site-packages\huggingface_hub\utils\_xet.py` | repo_id, endpoint, xet_connection_info_refresh_url, repo_type, token_type, ... |
+| `.venv-build\Lib\site-packages\numpy\_globals.py` | __bool__, _CopyMode |
 | `.venv-build\Lib\site-packages\packaging\ranges.py` | _SetOp |
-| `.venv-build\Lib\site-packages\pydantic\v1\_hypothesis_plugin.py` | typ, _registered |
-| `.venv-build\Lib\site-packages\pydantic\v1\annotated_types.py` | kwargs, namedtuple_cls, create_model_from_namedtuple, is_legacy_typeddict, typeddict_cls, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\class_validators.py` | _generic_validator_basic, args, whole, make_generic_validator, Validator, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\color.py` | field_schema, __modify_schema__ |
-| `.venv-build\Lib\site-packages\pydantic\v1\config.py` | prepare_field, BaseConfig, ConfigDict, model_class, schema, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\dataclasses.py` | kwargs, config, __name, unsafe_hash, use_proxy, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\_hypothesis_plugin.py` | _registered, typ |
+| `.venv-build\Lib\site-packages\pydantic\v1\annotated_types.py` | is_legacy_typeddict, kwargs, typeddict_cls, typeddict_cls, create_model_from_namedtuple, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\class_validators.py` | inherit_validators, make_generic_validator, __init__, func, each_item, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\color.py` | __modify_schema__, field_schema |
+| `.venv-build\Lib\site-packages\pydantic\v1\config.py` | inherit_config, BaseConfig, field, name, schema, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\dataclasses.py` | dc_cls, use_proxy, name, validate_on_init, eq, ... |
 | `.venv-build\Lib\site-packages\pydantic\v1\datetime_parse.py` | value, parse_duration |
-| `.venv-build\Lib\site-packages\pydantic\v1\decorator.py` | takes_args, Config, kwargs, create_model, kwargs, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\env_settings.py` | case_sensitive, case_sensitive, field, __init__, env_file_encoding, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\error_wrappers.py` | _get_exc_type, __str__, model, ErrorWrapper, config, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\errors.py` | __init__, ArbitraryTypeError, expected_arbitrary_type, ConfigError, SubclassError, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\fields.py` | max_length, name, values, multiple_of, type_, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\generics.py` | base_model, __concrete_name__, params, fields, v, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\json.py` | obj, type_encoders, pydantic_encoder, custom_pydantic_encoder, obj |
-| `.venv-build\Lib\site-packages\pydantic\v1\main.py` | __base__, instance, BaseModel, exclude, obj, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\mypy.py` | value, model_name, options, api, orm_mode, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\networks.py` | field_schema, max_length, EmailStr, allowed_schemes, __modify_schema__, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\parse.py` | content_type, encoding, proto, json_loads, b, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\schema.py` | field_type_schema, field_schema, _apply_modify_schema, constraint_func, constraint_func, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\tools.py` | allow_pickle, schema_kwargs, type_, b, schema_json_of, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\types.py` | lt, JsonWrapper, min_items, field_schema, multiple_of, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\typing.py` | exc_to_suppress, fields, model, ann_type, type_, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\utils.py` | __repr_args__, p, items, assert_never, __repr_name__, ... |
-| `.venv-build\Lib\site-packages\pydantic\v1\validators.py` | config_attr_names, dict_validator, make_namedtuple_validator, v, values, ... |
-| `.venv-build\Lib\site-packages\setuptools\_static.py` | Dict, Static, Tuple, SpecifierSet, List |
-| `.venv-build\Lib\site-packages\tokenizers\__init__.py` | SplitDelimiterBehavior, OffsetReferential, OffsetType |
-| `.venv-build\Lib\site-packages\typing_inspection\introspection.py` | __str__, __repr__, _UnknownTypeEnum |
-| `backend\credit_manager.py` | _save_state, to_dict |
-| `backend\deck_router.py` | get_card_by_id, get_cards, classify_task, get_recommended_deck, get_deck_by_id, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\decorator.py` | ValidatedFunction, execute, build_values, fields, config, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\env_settings.py` | env_vars, file_path, SettingsError, parse_env_var, field_name, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\error_wrappers.py` | errors, __str__, model, loc, indent, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\errors.py` | expected_arbitrary_type, expected_class, __init__, ConfigError, __init__, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\fields.py` | _validate_mapping_like, annotation, default_factory, default_factory, set_config, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\generics.py` | instance_type_hints, fields, type_, params, _params, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\json.py` | obj, pydantic_encoder, type_encoders, obj, custom_pydantic_encoder |
+| `.venv-build\Lib\site-packages\pydantic\v1\main.py` | ref_template, include, __config__, validate, v, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\mypy.py` | config_file, config, forbid_extra, set_values_dict, __init__, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\networks.py` | allowed_schemes, min_length, __modify_schema__, field_schema, tld_required, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\parse.py` | b, allow_pickle, content_type, proto, load_file, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\schema.py` | known_models, get_flat_models_from_field, field, models, schema_overrides, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\tools.py` | type_name, title, path, type_, type_, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\types.py` | typ, __modify_schema__, NonPositiveFloat, conbytes, confrozenset, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\typing.py` | v, update_model_forward_refs, v, get_args, is_finalvar, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\utils.py` | __getitem__, v_length, validate_field_name, update_not_none, is_true, ... |
+| `.venv-build\Lib\site-packages\pydantic\v1\validators.py` | __init__, make_literal_validator, dict_validator, enum_validator, config, ... |
+| `.venv-build\Lib\site-packages\setuptools\_static.py` | Dict, List, Static, Tuple, SpecifierSet |
+| `.venv-build\Lib\site-packages\tokenizers\__init__.py` | OffsetType, SplitDelimiterBehavior, OffsetReferential |
+| `.venv-build\Lib\site-packages\typing_inspection\introspection.py` | __repr__, _UnknownTypeEnum, __str__ |
+| `backend\credit_manager.py` | to_dict, _save_state |
+| `backend\deck_router.py` | classify_task, get_all_decks, prompt, get_deck_summary, get_cards, ... |
 | `external-call::dep:annotationlib.call_annotate_function` | annotationlib.call_annotate_function |
 | `external-call::dep:annotationlib.get_annotate_from_class_namespace` | annotationlib.get_annotate_from_class_namespace |
 | `external-call::dep:dotenv.dotenv_values` | dotenv.dotenv_values |
@@ -282,37 +282,35 @@ Use this skill when working on files in:
 
 ## Connected Communities
 
-- **. +31 dirs · pydantic_core.core_schema** (22 cross-edges)
+- **. +31 dirs** (25 cross-edges)
 - **. +1 dirs · pydantic.v1.errors** (15 cross-edges)
-- **. +43 dirs** (11 cross-edges)
-- **. +114 dirs** (6 cross-edges)
-- **. +46 dirs** (4 cross-edges)
-- **. +6 dirs · deepcopy** (3 cross-edges)
+- **. +45 dirs** (11 cross-edges)
+- **. +112 dirs** (5 cross-edges)
+- **. +65 dirs** (5 cross-edges)
+- **. +47 dirs** (4 cross-edges)
 - **. +7 dirs · defaultdict** (3 cross-edges)
-- **site-packages/huggingface_hub +11 dirs** (3 cross-edges)
+- **. +6 dirs · deepcopy** (3 cross-edges)
 - **huggingface_hub/utils +11 dirs** (3 cross-edges)
-- **. +4 dirs · reduce** (2 cross-edges)
+- **. +1 dirs · __init_subclass__** (2 cross-edges)
 - **. +4 dirs · add_method** (2 cross-edges)
-- **site-packages/pydantic +5 dirs** (1 cross-edges)
-- **. +1 dirs · to_pascal** (1 cross-edges)
-- **. +4 dirs · cleandoc** (1 cross-edges)
-- **. +7 dirs · announce** (1 cross-edges)
-- **. +1 dirs · create_generic_submodel** (1 cross-edges)
-- **. +53 dirs** (1 cross-edges)
-- **tests +10 dirs · dumps** (1 cross-edges)
-- **numpy/f2py +11 dirs** (1 cross-edges)
-- **backend +11 dirs** (1 cross-edges)
-- **numpy/f2py +2 dirs** (1 cross-edges)
-- **. +2 dirs · MemoryStore** (1 cross-edges)
-- **. +1 dirs · autoparse** (1 cross-edges)
-- **. +2 dirs · now** (1 cross-edges)
+- **. +4 dirs · reduce** (2 cross-edges)
+- **. +6 dirs · announce** (1 cross-edges)
 - **pydantic/v1 +1 dirs · pydantic.v1.utils.update_not_no…** (1 cross-edges)
 - **. +1 dirs · __init__ · env_settings** (1 cross-edges)
+- **site-packages/pydantic +5 dirs** (1 cross-edges)
+- **. +1 dirs · create_generic_submodel** (1 cross-edges)
+- **. +1 dirs · CreditManager** (1 cross-edges)
+- **site-packages/huggingface_hub +17 dirs** (1 cross-edges)
+- **. +2 dirs · MemoryStore** (1 cross-edges)
+- **. +54 dirs** (1 cross-edges)
+- **. +4 dirs · cleandoc** (1 cross-edges)
+- **numpy/f2py +2 dirs** (1 cross-edges)
+- **. +1 dirs · autoparse** (1 cross-edges)
 
 ## How to Explore
 
 ```
-analyze(operation:"communities", id:"community-2446")
+analyze(operation:"communities", id:"community-2415")
 explore(operation:"context", task:"understand . +20 dirs", format:"gcx")
 ```
 
