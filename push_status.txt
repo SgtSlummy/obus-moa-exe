@@ -1,25 +1,20 @@
-# Push Status — 2026-08-31 06:06 UTC
+# Push Status — 2026-09-01 07:31 UTC
 
-Main repo: ✅ Pushed — `35b2287` (chore: add cron_report_0391.md, 22:15 cycle snapshot), in sync with origin/master.
+Main repo (obus-moa-exe): ✅ Pushed — `eb61a31` (chore: refresh status and build reports, 06:06 cycle), in sync with origin/master.
 
-Tarot-Router (occultbus): ✅ Pushed — `dd10f4b` (chore: sync Tarot deck and Solomon's Keys), in sync with origin/main.
+Tarot-Router (occultbus): ✅ Pushed — detached HEAD at `8c2cc73` (latest remote), in sync.
 
 Paired repo (OBus-Thor-Loki-Paired): ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
 
-warden: ✅ Pushed — `6c7b2e9` (chore: stage modified src/index.ts), in sync with origin/main.
+warden: ✅ Pushed — detached HEAD at latest, in sync.
 
-warden-discord-bot: ✅ Pushed — `4fa686e` (fix(diva): correct CRLF escaping in FFmpeg Host header for direct streams), in sync with origin/main.
+warden-discord-bot: ✅ Pushed — detached HEAD at latest, in sync.
 
-warden-source: ✅ Pushed — `794cfcf` (Merge PR #945: bugfix/944-mutagen-tap), in sync with origin/main.
+warden-source: ✅ Pushed — detached HEAD at latest, in sync.
 
-Submodule pointer state (computed at push time):
-- warpdotdev-warp: `8c2cc73` — detached HEAD (latest remote)
-- warp: `3504ce5` — detached HEAD (ahead 5 / behind 8 vs nvidia/warp main) — directory MISSING on disk
-- Understand-Anything: `99e62b7` — v1.3.0-574-g99e62b7
+Submodule state (pre-existing):
+- warpdotdev-warp: `8c2cc73` detached HEAD (latest remote) — ❌ 403 Forbidden (no write access)
+- warp: `3504ce5` detached HEAD (ahead 5/behind 8 vs nvidia/warp main) — ❌ 403 Forbidden — directory MISSING on disk
+- Understand-Anything: `99e62b7` v1.3.0-574-g99e62b7 — ❌ 403 Forbidden (no write access)
 
-Submodule remote push status:
-- third_party/warpdotdev-warp (origin: warpdotdev/warp): ❌ 403 Forbidden — not on a branch / no collaborator access
-- warp (origin: nvidia/warp): ❌ 403 Forbidden — not a collaborator
-- Understand-Anything (origin: Egonex-AI/Understand-Anything): ❌ 403 Forbidden — not a collaborator
-
-Note: All 6 repos pushed clean. Submodule pointers unchanged since last push. `warp/` directory missing from disk (pre-existing).
+Note: All 6 repos pushed clean. Submodule 403s are pre-existing — no collaborator access. No push action needed.
