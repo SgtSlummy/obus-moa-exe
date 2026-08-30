@@ -1,48 +1,14 @@
-# Build Status Report — 2026-08-30 17:35 UTC
+# Build Status Report — 2026-08-30 21:29 UTC
 
-## Services
+## Loop Builds
+- Latest loop build: loop 76 (`dist-aui-loop76/OBus.exe`, ~67.5 MB, Aug 25 04:49 UTC)
+- Build pipeline **STALLED** since Aug 25 — no loop 77+
+- Next expected: loop 77 (unbuilt)
 
-| Service | Port | Status |
-|---------|------|--------|
-| uvicorn (OBus MOA FastAPI) | :8000 | ✅ UP — HTTP 200, OBus MOA dashboard serving |
-| DavyJonesHeartbeat | :3000 | ✅ UP — listener running |
+## Release EXE
+- `dist-aui-release/OBus.exe` — unchanged since Aug 25
+- `dist-electron-20260827/` — unchanged since Aug 27
 
-## Last 3 Commits (master)
-
-- `75c7c44` chore: push cycle report 2026-08-30T16:20:51Z
-- `deb9e47` chore: add cron_report_0393.md (08:06 cycle)
-- `b458a3b` chore: refresh status reports and add cron_report_0392.md (07:31 cycle)
-
-## Repo Push Status
-
-| Repo | Branch | Head | Push |
-|------|--------|------|------|
-| obus-moa-exe | master | `75c7c44` | ✅ Pushed (up to date) |
-| Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed (up to date) |
-| warden | main | `6c7b2e9` | ✅ Pushed (up to date) |
-| warden-discord-bot | main | `4fa686e` | ✅ Pushed (up to date) |
-| mythos-router-source | main | `032e0c2` | ✅ Pushed (up to date) |
-| temporal | main | `561ba4e` | ✅ Pushed (up to date) |
-| hermes-photon-client | master | `d7acf11` | ✅ Pushed (up to date) |
-| hermes-photon-server | master | `9cf3bd5` | ✅ Pushed (up to date) |
-| DavyJonesBot/workspace | main | `249b5bf` | ⚠️ Bundle push fails (ahead 7) |
-| mempalace | develop | `b522512` | ❌ 403 (no write access) |
-| MoA-source | main | `fd816ca` | ❌ 403 (no write access) |
-| models-dev-source | dev | `aa6d1fb` | ❌ SSH auth failure |
-
-## Submodules
-
-| Submodule | State | Push |
-|-----------|-------|------|
-| third_party/warpdotdev-warp | `8c2cc73` detached HEAD | ❌ 403 (no write access) |
-| warp | `3504ce5` detached, ahead 5/behind 8 — directory missing | ❌ 403 (no write access) |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
-
-## Notes
-
-- All accessible repos pushed clean and up to date.
-- Submodule push failures unchanged (pre-existing 403s). `warp/` directory missing from disk.
-- Build pipeline stalled since Aug 25 — latest AUI loop build is loop 76.
-- Both services confirmed healthy via HTTP check (200 responses).
-- DavyJonesBot/workspace: 7 commits ahead, no valid remote — bundle push fails.
-- 403-blocked repos: warden-source, mempalace, MoA-source + 4 community sources (pre-existing).
+## Status
+- No new builds in last 24 hours
+- Build queue: empty

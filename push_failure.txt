@@ -1,12 +1,6 @@
-# Push Failure Log — 2026-08-30 17:35 UTC
+# Push Failure Log — 2026-08-30 21:29 UTC
 
 ## Auth / Access Failures (pre-existing, no action possible)
-
-### warden-source
-- remote: wardenenv/warden.git
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: main (clean, no local changes)
-- state: cannot push
 
 ### DavyJonesBot/workspace
 - remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
@@ -16,7 +10,12 @@
   - 249b5bf fix: keep music search within the music channel
   - 0d8ba01 feat: add direct music play and paste queue
   - bc73eff fix: separate music and D&D voice channel rules
+  - 8b98d70 docs: record verified CodeQL evidence
+  - e81dd48 security: harden LLM prompt and output handling
+  - a02cc31 ci: scope CodeQL to deployable sources
+  - 98ef89f ci: retain and enforce private CodeQL SARIF
 - state: needs a valid remote destination
+- NEW: untracked directory `.candidate-evidence-inspect/` detected
 
 ### mempalace
 - remote: MemPalace/mempalace.git
@@ -34,6 +33,12 @@
 - remote: github.com:sst/models.dev.git
 - error: SSH permission denied (publickey) — no valid SSH key
 - branch: dev (ahead 1)
+- state: clean
+
+### warden-source
+- remote: wardenenv/warden.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: main (ahead 1)
 - state: clean
 
 ### Community source repos (403, pre-existing)
