@@ -2525,9 +2525,10 @@ def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
             Path(temp_name).unlink(missing_ok=True)
 
 
-def provider_statuses(state: Optional[dict] = None) -> list:
+def provider_statuses(state: Optional[dict] = None, ollama: Optional[dict] = None) -> list:
+    """Return provider cards, reusing a caller's fresh Ollama snapshot when available."""
     state = state or load_state()
-    ollama = get_ollama_status()
+    ollama = ollama if isinstance(ollama, dict) else get_ollama_status()
     providers = []
     for key in state.get("keys", DEFAULT_KEYS):
         if key.get("local"):
@@ -2823,7 +2824,7 @@ async def dashboard():
         "local_auto_aid": local_ollama_auto_aid_preflight(state, ollama),
         "nvidia_warp": nvidia_warp_runtime.status(settings.get("gpu_backend", os.environ.get("OBUS_WARP_DEVICE"))),
         "warm_runtime": get_gpu_warm_status(),
-        "providers": provider_statuses(state),
+        "providers": provider_statuses(state, ollama),
         "cards": [card_public(card) for card in state.get("cards", DEFAULT_CARDS) if isinstance(card, dict)],
         "decks": [deck_public(d) for d in state.get("decks", ALL_DECKS) if d.get("enabled", True)],
         "settings": settings,
