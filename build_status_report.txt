@@ -1,41 +1,42 @@
-# Build Status Report — 2026-08-30 21:45 UTC
+# Build Status Report — 2026-08-30 21:55 UTC
 
 ## Services
 
-| | Port | Status | Process |
-|---|------|--------|---------|
-| | :8000 | ✅ UP | uvicorn (python.exe PID 7792) |
-| | :3000 | ✅ UP | DavyJonesHeartbeat (node.exe PID 3740) |
+|| | Port | Status | Process |
+||---|------|--------|---------|
+|| | :8000 | ✅ UP | uvicorn (python.exe PID 7792) |
+|| | :3000 | ✅ UP | DavyJonesHeartbeat (node.exe PID 3740) |
 
 ## Last 3 Commits (master)
 
+- `95ae15a` chore: add cron_report_0389.md (21:55 cycle snapshot)
+- `b4ad5bd` chore: refresh build status report for 21:45 cycle
 - `4aa18ee` chore: add cron_report_0388.md (21:45 cycle snapshot)
-- `9949f4b` fix: restore provider_statuses(ollama) snapshot reuse for dashboard
-- `5ce12ff` chore: add cron_report_0387.md (21:20 cycle snapshot)
 
 ## Repo Push Status
 
-| Repo | Branch | Head | Push |
-|------|--------|------|------|
-| obus-moa-exe | master | `4aa18ee` | ✅ Pushed |
-| Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed |
-| Warden | — | — | ❌ Repo missing on disk |
-| warden-discord-bot | — | — | ❌ Repo missing on disk |
-| warden-source | — | — | ❌ Repo missing on disk |
+|| Repo | Branch | Head | Push |
+||------|--------|------|------|
+|| obus-moa-exe | master | `95ae15a` | ✅ Pushed |
+|| Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed |
+|| Warden | — | — | ❌ Repo missing on disk |
+|| warden-discord-bot | — | — | ❌ Repo missing on disk |
+|| warden-source | — | — | ❌ Repo missing on disk |
 
 ## Submodules
 
-| Submodule | State | Push |
-|-----------|-------|------|
-| warpdotdev-warp | `8c2cc73` detached HEAD (latest remote) | ❌ 403 (no write access) |
-| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main — **directory missing** | ❌ 403 (no write access) |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
+|| Submodule | State | Push |
+||-----------|-------|------|
+|| warpdotdev-warp | `8c2cc73` detached HEAD (latest remote) | ❌ 403 (no write access) |
+|| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main — **directory missing** | ❌ 403 (no write access) |
+|| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
 
 ## Notes
 
-- Main repo (`obus-moa-exe`) pushed clean at `4aa18ee`.
+- Main repo (`obus-moa-exe`) pushed clean at `95ae15a`.
 - Tarot-Router (`occultbus`) pushed clean at `dd10f4b`.
 - Warden repos (warden, warden-discord-bot, warden-source) no longer present on disk — previously tracked under Documents/.
 - Submodule push failures unchanged (pre-existing 403s).
 - `warp/` directory missing from disk (pre-existing gap, not new).
 - Build pipeline stalled since Aug 25 — latest AUI loop build is loop 76.
+- build_status_report.txt now current (reflects HEAD `95ae15a`).
