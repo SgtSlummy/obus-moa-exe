@@ -1,4 +1,4 @@
-# Build Status Report — 2026-08-30 07:24 UTC
+# Build Status Report — 2026-08-30 21:20 UTC
 
 ## Services
 
@@ -9,9 +9,19 @@
 
 ## Last 3 Commits (master)
 
+- `02dec92` chore: update status and build reports (21:20 cycle)
 - `0522377` chore: add cron_report_0386.md (07:24 cycle snapshot)
 - `d5658fe` chore: add cron_report_0385.md (23:08 cycle)
-- `d10b9f6` chore: refresh status reports for 23:08 cycle (loop 77)
+
+## Repo Push Status
+
+| Repo | Branch | Head | Push |
+|------|--------|------|------|
+| obus-moa-exe | master | `02dec92` | ✅ Pushed |
+| Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed |
+| Warden | — | — | ❌ Repo missing on disk |
+| warden-discord-bot | — | — | ❌ Repo missing on disk |
+| warden-source | — | — | ❌ Repo missing on disk |
 
 ## Submodules
 
@@ -21,4 +31,10 @@
 | warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main — **directory missing** | ❌ 403 (no write access) |
 | Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
 
-Note: Main repo pushed clean at `0522377`. Paired repo pushed clean at `9429331`. `warp/` directory missing from disk (pre-existing gap, not new).
+## Notes
+
+- Main repo (`obus-moa-exe`) pushed clean at `02dec92`.
+- Tarot-Router (`occultbus`) pushed clean at `dd10f4b`.
+- Warden repos (warden, warden-discord-bot, warden-source) no longer present on disk — previously tracked under Documents/.
+- Submodule push failures unchanged (pre-existing 403s).
+- `warp/` directory missing from disk (pre-existing gap, not new).
