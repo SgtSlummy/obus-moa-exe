@@ -1,59 +1,35 @@
 # Push Status — 2026-08-30 17:35 UTC
 
-Main repo (obus-moa-exe): ✅ Clean — `75c7c44` in sync with origin/master. No local changes.
+## Push Summary
 
-Tarot-Router (occultbus): ✅ Clean — `dd10f4b` in sync with origin/main.
+| Repo | Branch | Head | Remote | In Sync | Push Result |
+|------|--------|------|--------|---------|-------------|
+| obus-moa-exe | master | `75c7c44` (chore: push cycle report 2026-08-30T16:20:51Z) | origin/master | ✅ YES | Already pushed |
+| Tarot-Router | main | `dd10f4b` (chore: sync Tarot deck and Solomon's Keys) | origin/main | ✅ YES | Already pushed |
+| warden | main | `6c7b2e9` | origin/main | ✅ YES | Already pushed |
+| warden-discord-bot | main | `4fa686e` | origin/main | ✅ YES | Already pushed |
+| mythos-router-source | main | `032e0c2` | origin/main | ✅ YES | Already pushed |
+| temporal | main | `561ba4e` | origin/main | ✅ YES | Already pushed |
+| hermes-photon-client | master | `d7acf11` | origin/master | ✅ YES | Already pushed |
+| hermes-photon-server | master | `9cf3bd5` | origin/master | ✅ YES | Already pushed |
+| DavyJonesBot/workspace | main | `249b5bf` | bundle (local) | ⚠️ NO | Bundle push fails (ahead 7, no remote) |
+| mempalace | develop | `b522512` | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden (not a collaborator) |
+| MoA-source | main | `fd816ca` | togethercomputer/MoA | ❌ NO | 403 Forbidden (not a collaborator) |
+| models-dev-source | dev | `aa6d1fb` | github.com:sst/models.dev.git | ❌ NO | SSH auth failure (no valid SSH key) |
 
-Paired repo (OBus-Thor-Loki-Paired): ✅ Pushed — `9429331` in sync with origin/codex/autonomy-context-agents.
+**8 of 12 accessible repos pushed clean. 3 blocked (2×403, 1×SSH). 1 with no remote (DavyJonesBot/workspace).**
 
-warden: ✅ Clean — in sync with origin/main.
+## Submodules (unchanged)
 
-warden-discord-bot: ✅ Clean — in sync with origin/main.
+| Submodule | Local HEAD | Push Result |
+|-----------|------------|-------------|
+| third_party/warpdotdev-warp | `8c2cc73` detached | ❌ 403 (no write access) — pre-existing |
+| warp | `3504ce5` detached, ahead 5/behind 8, directory MISSING | ❌ 403 (no write access) |
+| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) — pre-existing |
 
-warden-source: ❌ 403 Forbidden — not a collaborator on wardenenv/warden.git (pre-existing).
+## Push Failure Log
 
-mythos-router-source: ✅ Clean — in sync with origin/main.
-
-temporal: ✅ Clean — in sync with origin/main.
-
-hermes-photon-client: ✅ Clean — `d7acf11` master, in sync.
-
-hermes-photon-server: ✅ Clean — `9cf3bd5` master, in sync.
-
-DavyJonesBot/workspace: ⚠️ Ahead 7 vs origin/main — push to local bundle fails (bundle may be stale). No remote push path available. Active commits need a remote destination.
-
-mempalace: ❌ 403 Forbidden — not a collaborator on MemPalace/mempalace.git (develop branch, ahead 1).
-
-MoA-source: ❌ 403 Forbidden — not a collaborator on togethercomputer/MoA.git (ahead 4).
-
-models-dev-source: ❌ SSH auth failure — no valid SSH key for github.com:sst/models.dev.git (dev branch, ahead 1).
-
-awesome-free-llm-apis-mnfst-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
-
-awesome-free-models-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
-
-free-ai-coding-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
-
-free-coding-models-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
-
-Submodules (unchanged):
-- warpdotdev-warp: `8c2cc73` — 403 (pre-existing, no write access)
-- warp: `3504ce5` — 403 — directory MISSING on disk
-- Understand-Anything: `99e62b7` — 403 (pre-existing)
-
-Note: All accessible repos pushed clean. Auth failures are pre-existing collaborator/SSH issues — no new action possible.
-
-# Push Failure Log — 2026-08-30 17:35 UTC
-
-## Auth / Access Failures (pre-existing, no action possible)
-
-### warden-source
-- remote: wardenenv/warden.git
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: main (clean, no local changes)
-- state: cannot push
-
-### DavyJonesBot/workspace
+### DavyJonesBot/workspace (active)
 - remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
 - error: push to bundle failed — bundle likely stale
 - branch: main (ahead 7)
@@ -61,28 +37,25 @@ Note: All accessible repos pushed clean. Auth failures are pre-existing collabor
   - 249b5bf fix: keep music search within the music channel
   - 0d8ba01 feat: add direct music play and paste queue
   - bc73eff fix: separate music and D&D voice channel rules
+  - 8b98d70 docs: record verified CodeQL evidence
+  - e81dd48 security: harden LLM prompt and output handling
+  - a02cc31 ci: scope CodeQL to deployable sources
+  - 98ef89f ci: retain and enforce private CodeQL SARIF
 - state: needs a valid remote destination
 
 ### mempalace
-- remote: MemPalace/mempalace.git
+- remote: MemPalace/mempalace.git (develop, ahead 1)
 - error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: develop (ahead 1)
 - state: clean
 
 ### MoA-source
-- remote: togethercomputer/MoA.git
+- remote: togethercomputer/MoA.git (main, ahead 4)
 - error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: main (ahead 4)
 - state: clean
 
 ### models-dev-source
-- remote: github.com:sst/models.dev.git
+- remote: github.com:sst/models.dev.git (dev, ahead 1)
 - error: SSH permission denied (publickey) — no valid SSH key
-- branch: dev (ahead 1)
 - state: clean
 
-### Community source repos (403, pre-existing)
-- awesome-free-llm-apis-mnfst-source → mnfst/awesome-free-llm-apis.git
-- awesome-free-models-source → 12britz/awesome-free-models.git
-- free-ai-coding-source → inmve/free-ai-coding.git
-- free-coding-models-source → vava-nessa/free-coding-models.git
+Note: All accessible repos pushed clean. Auth failures are pre-existing — no new action possible.

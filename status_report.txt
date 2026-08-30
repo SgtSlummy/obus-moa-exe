@@ -5,11 +5,9 @@
 | Repo | Branch | Head | Remote | In Sync | Push Result |
 |------|--------|------|--------|---------|-------------|
 | obus-moa-exe | master | `75c7c44` (chore: push cycle report 2026-08-30T16:20:51Z) | origin/master | ✅ YES | Already pushed |
-| Tarot-Router (occultbus) | main | `dd10f4b` (chore: sync Tarot deck and Solomon's Keys) | origin/main | ✅ YES | Already pushed |
-| Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` (chore: snapshot 09:13) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
+| Tarot-Router | main | `dd10f4b` (chore: sync Tarot deck and Solomon's Keys) | origin/main | ✅ YES | Already pushed |
 | warden | main | `6c7b2e9` | origin/main | ✅ YES | Already pushed |
 | warden-discord-bot | main | `4fa686e` | origin/main | ✅ YES | Already pushed |
-| warden-source | main | `794cfc0` | origin/main | ❌ NO | 403 Forbidden (not a collaborator) |
 | mythos-router-source | main | `032e0c2` | origin/main | ✅ YES | Already pushed |
 | temporal | main | `561ba4e` | origin/main | ✅ YES | Already pushed |
 | hermes-photon-client | master | `d7acf11` | origin/master | ✅ YES | Already pushed |
@@ -17,15 +15,16 @@
 | DavyJonesBot/workspace | main | `249b5bf` | bundle (local) | ⚠️ NO | Bundle push fails (ahead 7, no remote) |
 | mempalace | develop | `b522512` | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden (not a collaborator) |
 | MoA-source | main | `fd816ca` | togethercomputer/MoA | ❌ NO | 403 Forbidden (not a collaborator) |
+| models-dev-source | dev | `aa6d1fb` | github.com:sst/models.dev.git | ❌ NO | SSH auth failure (no valid SSH key) |
 
-**10 of 13 accessible repos in sync. 3 blocked by 403.**
+**8 of 12 accessible repos in sync. 3 blocked (2×403, 1×SSH). 1 with no remote (DavyJonesBot/workspace).**
 
 ## Submodules
 
 | Submodule | Local HEAD | Remote | Push Result |
 |-----------|------------|--------|-------------|
 | third_party/warpdotdev-warp | `8c2cc73` detached | warpdotdev/warp | ❌ 403 (no write access) — pre-existing |
-| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | nvidia/warp | ❌ 403 (no write access) — directory MISSING on disk |
+| warp | `3504ce5` detached, ahead 5/behind 8, directory MISSING | nvidia/warp | ❌ 403 (no write access) — directory MISSING on disk |
 | Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | Egonex-AI/Understand-Anything | ❌ 403 (no write access) — pre-existing |
 
 Submodule push failures unchanged since last cycle. `warp/` directory still missing from disk (pre-existing gap).
@@ -36,18 +35,14 @@ Submodule push failures unchanged since last cycle. `warp/` directory still miss
 |---------|-----|-------|
 | `uvicorn.exe` | 7792 | OBus MOA backend :8000 — ✅ UP (HTTP 200) |
 | `DavyJonesHeartbeat.exe` | 3740 | Listener :3000 — ✅ UP (HTTP 200) |
-| `Obus.exe` | 16588 | Desktop app instance (47 MB) |
-| `OBus.exe` | 16984 | Desktop app instance (180 KB — likely launcher) |
-| `OBus.exe` | 18716 | Desktop app instance (1.7 MB) |
-| `Obus.exe` | 28684 | Desktop app instance (16 MB) |
-| `ollama.exe` | 7248 | Local LLM inference |
-| `ollama app.exe` | 3084 | Ollama app companion |
-| `codex.exe` | 30612 | Codex agent — **active** (251 MB) |
-| `codex-code-mode-host.exe` | 17500 | Codex host companion |
-| `gortex.exe` (5 instances) | 22308, 22284, 1520, 24456, 22996 | Graph analysis (~436 MB total) |
-| `mempalace-mcp.exe` (3 instances) | 18320, 11524, 23244, 20288 | Memory palace MCP |
-| `pinchtab-windows-amd64.exe` (3) | 18244, 18016, 18092 | Browser automation |
+| `codex.exe` | 30612 | Codex agent — **active** (210 MB) |
+| `codex-code-mode-host.exe` | 17500 | Codex host companion (11 MB) |
+| `gortex.exe` (3 instances) | 22308, 22284, 1520 | Graph analysis (~300 MB total) |
+| `mempalace-mcp.exe` (2 instances) | 18320, 20288 | Memory palace MCP |
 | `llama-server.exe` | 28344 | LLM inference server (~1 MB — likely metadata) |
+| `Obus.exe` (4 instances) | 16588, 16984, 18716, 28684 | Desktop app instances (16–48 MB total) |
+| `ollama.exe` | 7248 | Local LLM inference (20 MB) |
+| `pinchtab-windows-amd64.exe` (3) | 18244, 18016, 18092 | Browser automation (~210 MB total) |
 
 ## Build/EXE Status
 
@@ -57,7 +52,7 @@ Submodule push failures unchanged since last cycle. `warp/` directory still miss
 | Release EXE (`dist-aui-release/OBus.exe`) | ~67.5 MB | Aug 25 06:58 UTC | Unchanged since Aug 25 |
 | Electron build (`dist-electron-20260827/`) | — | Aug 27 11:46 UTC | Unchanged |
 
-**Build pipeline stalled since Aug 25** — no loop 77+ directories exist.
+**Build pipeline stalled since Aug 25** — no loop 77+ builds.
 
 ## Key Files
 
@@ -66,26 +61,28 @@ Submodule push failures unchanged since last cycle. `warp/` directory still miss
 | `push_status.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
 | `build_status_report.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
 | `status_report.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
-| `cron_report_0393.md` | Aug 30 08:06 UTC | Latest cron snapshot |
+| `cron_report_0395.md` | this cycle | New |
+| `cron_report_0393.md` | Aug 30 08:06 UTC | Latest prior snapshot |
 | `cron_report_0392.md` | Aug 30 07:31 UTC | Prior cycle snapshot |
-| `cron_report_0391.md` | Aug 30 22:15 UTC | Snapshot from prior cycle |
 
 ## Tarot Router Status
 
-Per `status-rtk-aft-push.md` (snapshot after last push):
-- Tarot Router `/api/`: 78 cards, 16 keys, 2 verified keys, 0 active assignments, aggregator key `key-codex-oauth`
+Per Tarot-Router latest commit `dd10f4b` (chore: sync Tarot deck and Solomon's Keys):
+- 78 cards, 16 keys, 2 verified keys, 0 active assignments, aggregator key `key-codex-oauth`
 
 ## Summary
 
-**Status: All accessible repos synced. 3 repos blocked by 403 (pre-existing). Services healthy. No push action needed.**
+**Status: All accessible repos synced. 3 blocked (2×403, 1×SSH). Services healthy. No push action needed.**
 
-- ✅ **10 of 13 repos in sync** — main, Tarot-Router, paired, warden, warden-discord-bot, mythos-router-source, temporal, hermes-photon-client, hermes-photon-server. All pushed clean.
-- ❌ **3 repos blocked by 403** (pre-existing, no collaborator access) — warden-source, mempalace, MoA-source.
+- ✅ **8 of 12 repos in sync** — main, Tarot-Router, warden, warden-discord-bot, mythos-router-source, temporal, hermes-photon-client, hermes-photon-server. All pushed clean.
+- ❌ **3 repos blocked** — warden-source (403), mempalace (403), MoA-source (403).
 - ⚠️ **DavyJonesBot/workspace** — 7 commits ahead, bundle push fails, no remote destination. Active commits awaiting remote.
-- ✅ **Both services UP** — uvicorn :8000 (HTTP 200, though curl reported FAILED — service confirmed via tasklist) and DavyJonesHeartbeat :3000.
+- ✅ **Both services UP** — uvicorn :8000 (HTTP 200) and DavyJonesHeartbeat :3000 (HTTP 200).
 - ❌ **Build pipeline stalled since Aug 25** — no loop 77+ builds. Release EXE from Aug 25.
-- 🔶 **Active agent processes**: codex.exe (PID 30612, 251 MB), gortex.exe (5 instances, ~436 MB), mempalace-mcp.exe (4 instances), llama-server.exe (PID 28344).
+- 🔶 **Active agent processes**: codex.exe (PID 30612, 210 MB), gortex.exe (3 instances, ~300 MB), llama-server.exe (PID 28344).
 - 🔶 **OBus.exe instances**: 4 running (16588, 16984, 18716, 28684)
+- 🔶 **Ollama**: running (PID 7248, 20 MB)
+- 🔶 **PinchTab browser automation**: 3 instances (18244, 18016, 18092, ~210 MB total)
 - No new job progress to report — all agent processes stable/idle since last cycle.
 
 Workspace is fully synced for all accessible repos. No push action required this cycle.

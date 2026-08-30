@@ -19,10 +19,8 @@
 |------|--------|------|------|
 | obus-moa-exe | master | `75c7c44` | ✅ Pushed (up to date) |
 | Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed (up to date) |
-| Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` | ✅ Pushed (up to date) |
 | warden | main | `6c7b2e9` | ✅ Pushed (up to date) |
 | warden-discord-bot | main | `4fa686e` | ✅ Pushed (up to date) |
-| warden-source | main | `794cfc0` | ❌ 403 (no write access) |
 | mythos-router-source | main | `032e0c2` | ✅ Pushed (up to date) |
 | temporal | main | `561ba4e` | ✅ Pushed (up to date) |
 | hermes-photon-client | master | `d7acf11` | ✅ Pushed (up to date) |
@@ -30,6 +28,7 @@
 | DavyJonesBot/workspace | main | `249b5bf` | ⚠️ Bundle push fails (ahead 7) |
 | mempalace | develop | `b522512` | ❌ 403 (no write access) |
 | MoA-source | main | `fd816ca` | ❌ 403 (no write access) |
+| models-dev-source | dev | `aa6d1fb` | ❌ SSH auth failure |
 
 ## Submodules
 
