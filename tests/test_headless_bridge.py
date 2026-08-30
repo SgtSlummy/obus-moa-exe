@@ -15,7 +15,7 @@ class HeadlessRuntimeTests(unittest.TestCase):
 
     def test_headless_source_does_not_reuse_an_unrelated_health_endpoint(self):
         source = Path(obus_launcher.__file__).read_text(encoding="utf-8")
-        self.assertIn("if not headless and wait_for_server(HEALTH_URL", source)
+        self.assertIn("if not headless:\n        existing_health = obus_health_state(HEALTH_URL)", source)
 
     def test_headless_secondary_launch_never_opens_the_ui(self):
         with patch.object(obus_launcher, "acquire_single_instance", return_value=False), \

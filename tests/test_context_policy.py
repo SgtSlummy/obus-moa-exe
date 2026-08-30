@@ -63,12 +63,13 @@ def test_context_override_is_per_agent_and_clamped_to_model_capacity():
 def test_bounded_agent_context_keeps_private_and_shared_context_separate():
     private, shared = bounded_agent_context(
         [{"step": 1, "output": "private result"}],
-        [{"agent_name": "Researcher", "output": "shared evidence"}],
+        [{"agent_name": "Researcher", "step": 1, "output": "shared evidence"}],
         4096,
     )
     assert "private result" in private
     assert "shared evidence" not in private
-    assert "shared evidence" in shared
+    assert "shared evidence" not in shared
+    assert shared == "Researcher: completed step 1"
 
 
 def test_parallel_agent_gate_honors_the_live_worker_limit():
@@ -114,7 +115,7 @@ def test_agent_prompt_includes_autonomy_budget_and_sibling_ledger(monkeypatch):
     state["settings"].update({"autonomy_level": "high", "shared_task_context": True})
     state["task_ledgers"] = [{
         "id": "task-one", "findings": [
-            {"agent_id": "agent-other", "agent_name": "Researcher", "output": "validated sibling finding"},
+            {"agent_id": "agent-other", "agent_name": "Researcher", "step": 1, "output": "validated sibling finding"},
         ],
     }]
     agent = {
@@ -132,7 +133,8 @@ def test_agent_prompt_includes_autonomy_budget_and_sibling_ledger(monkeypatch):
     assert 0 < agent["context_input_tokens_estimate"] <= agent["context_window"]
     assert agent["context_usage_source"] == "sanitized prompt estimate"
     assert "private draft" in prompt
-    assert "validated sibling finding" in prompt
+    assert "validated sibling finding" not in prompt
+    assert "Researcher: completed step 1" in prompt
     assert "Ask only when credentials" in prompt
 
 

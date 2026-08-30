@@ -776,12 +776,12 @@ class RuntimeContractTests(unittest.TestCase):
     def test_builtin_keys_use_distinct_public_domain_solomon_seals(self):
         dashboard = self.client.get("/api/dashboard").json()
         providers = [item for item in dashboard["providers"] if item["id"] in backend.BUILTIN_KEY_IDS]
-        self.assertEqual(len(providers), 16)
-        self.assertEqual(len({item["solomon_seal"] for item in providers}), 16)
-        self.assertEqual(len({item["solomon_seal_number"] for item in providers}), 16)
+        self.assertEqual(len(providers), 17)
+        self.assertEqual(len({item["solomon_seal"] for item in providers}), 17)
+        self.assertEqual(len({item["solomon_seal_number"] for item in providers}), 17)
         manifest_path = Path(__file__).resolve().parents[1] / "backend" / "static" / "art" / "keys" / "solomon-key-manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(len(manifest["keys"]), 16)
+        self.assertEqual(len(manifest["keys"]), 17)
         self.assertTrue(all(item["license"] == "Public domain" for item in manifest["keys"]))
         self.assertTrue(all(item["source_page"].startswith("https://commons.wikimedia.org/wiki/File:") for item in manifest["keys"]))
         self.assertEqual({item["key_id"] for item in manifest["keys"]}, {item["id"] for item in providers})
@@ -795,7 +795,7 @@ class RuntimeContractTests(unittest.TestCase):
             text_nodes = [node for node in svg.iter() if node.tag.rsplit("}", 1)[-1] == "text"]
             self.assertFalse(text_nodes, f"Key art must keep all text below the image: {provider['id']}")
             hashes.add(__import__("hashlib").sha256(response.content).hexdigest())
-        self.assertEqual(len(hashes), 16)
+        self.assertEqual(len(hashes), 17)
 
     def test_dashboard_lists_full_key_catalog_with_context_windows_and_unique_sigils(self):
         dashboard = self.client.get("/api/dashboard").json()
@@ -1419,6 +1419,13 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(len(payload["created_agents"]), 2)
         self.assertEqual(len(payload["created_rooms"]), 2)
         self.assertEqual(len(payload["created_forums"]), 1)
+        self.assertEqual(payload["integration"], {
+            "mode": "private-context-evidence-lanes",
+            "workspace_writes": False,
+            "automatic_merge": False,
+            "integration_status": "review_required",
+        })
+        self.assertTrue(all(agent["parallel_lane"]["workspace_writes"] is False for agent in payload["created_agents"]))
         self.assertEqual(len(self.client.get("/api/runtime/agents").json()), 2)
         self.assertEqual(len(self.client.get("/api/rooms").json()), 2)
         self.assertEqual(len(self.client.get("/api/forum/threads").json()), 1)
@@ -1884,6 +1891,22 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertTrue(submitted["local_only"])
         self.assertEqual(response.json()["launch_mode"], "safe_parallel_defaults")
         self.assertTrue(response.json()["defaults"]["local_only"])
+
+    def test_planned_team_declares_private_evidence_lanes_and_review_required_integration(self):
+        plan = {"card_sets": [["card-hermit"], ["card-magician"]]}
+        with patch.object(backend, "build_review_only_plan", return_value=plan), patch.object(
+            backend, "_start_persistent_agent"
+        ), patch.object(backend, "_synthesize_task_ledger"):
+            response = self.client.post("/api/plan/execute", json={
+                "prompt": "Compare two safe approaches", "mode": "collaborative", "max_agents": 2,
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["integration"]["integration_status"], "review_required")
+        self.assertFalse(response.json()["integration"]["automatic_merge"])
+        ledger = self.client.get(f"/api/runtime/task-ledgers/{response.json()['task_ledger_id']}").json()
+        self.assertFalse(ledger["workspace_isolation"]["workspace_writes"])
+        self.assertTrue(all(agent["parallel_lane"]["result"] == "review_artifact" for agent in response.json()["created_agents"]))
 
     def test_quick_task_preserves_major_risk_in_local_approval_without_submitting(self):
         workspace = Path(self.tempdir.name) / "quick-project"

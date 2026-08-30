@@ -39,7 +39,7 @@ class ObjectiveCreate(BaseModel):
     objective: str = Field(min_length=1, max_length=65536)
     workspace: str | None = None
     interval_seconds: int = Field(ge=1, le=31_536_000)
-    provider: str = Field(default="codex", pattern="^(codex|ollama|openai-compatible)$")
+    provider: str = Field(default="autoagent", pattern="^(autoagent|codex|ollama|openai-compatible)$")
     priority: int = Field(default=50, ge=0, le=100)
     enabled: bool = True
 

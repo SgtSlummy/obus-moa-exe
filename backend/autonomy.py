@@ -31,7 +31,7 @@ def utc_now() -> str:
 
 
 class ProviderRegistry:
-    """Codex-primary registry with Ollama and OpenAI-compatible local adapters."""
+    """AutoAgent-primary registry with Codex fallback and local model adapters."""
 
     def __init__(self) -> None:
         self._last_discovery: list[dict[str, Any]] = []
@@ -47,11 +47,19 @@ class ProviderRegistry:
 
     def discover(self) -> list[dict[str, Any]]:
         providers: list[dict[str, Any]] = []
+        autoagent_command = os.environ.get("OBUS_AUTOAGENT_COMMAND", "auto")
+        autoagent_path = shutil.which(autoagent_command)
+        providers.append({
+            "id": "autoagent", "kind": "autoagent", "available": bool(autoagent_path),
+            "primary": True, "endpoint": None, "models": [],
+            "detail": autoagent_path or "command not found; Codex will be used as fallback",
+        })
         codex_command = os.environ.get("OBUS_CODEX_COMMAND", "codex")
         codex_path = shutil.which(codex_command)
         providers.append({
             "id": "codex", "kind": "codex", "available": bool(codex_path),
-            "primary": True, "endpoint": None, "models": [], "detail": codex_path or "command not found",
+            "primary": False, "endpoint": None, "models": [],
+            "detail": codex_path or "command not found",
         })
 
         ollama_url = os.environ.get("OBUS_OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
@@ -78,7 +86,7 @@ class ProviderRegistry:
 
     def capabilities(self) -> dict[str, Any]:
         providers = self.discover()
-        return {"default": "codex", "providers": providers,
+        return {"default": "autoagent", "secondary": "codex", "providers": providers,
                 "available": [provider["id"] for provider in providers if provider["available"]]}
 
     @staticmethod
@@ -704,7 +712,19 @@ class ProviderRegistry:
 
     def run(self, task: dict[str, Any], cancellation: threading.Event,
             emit: Callable[[str, dict[str, Any]], None]) -> str:
-        provider = str(task.get("provider") or "codex")
+        provider = str(task.get("provider") or "autoagent")
+        if provider == "autoagent":
+            try:
+                return self._run_autoagent(task, cancellation, emit)
+            except InterruptedError:
+                raise
+            except Exception as exc:
+                if os.environ.get("OBUS_AUTOAGENT_FALLBACK_CODEX", "true").strip().lower() in {"0", "false", "no", "off"}:
+                    raise
+                emit("provider.fallback", {
+                    "from": "autoagent", "to": "codex", "reason": f"{type(exc).__name__}: {exc}"[:2000],
+                })
+                return self._run_codex(task | {"provider": "codex"}, cancellation, emit)
         if provider == "codex":
             return self._run_codex(task, cancellation, emit)
         if provider == "ollama":
@@ -712,6 +732,53 @@ class ProviderRegistry:
         if provider == "openai-compatible":
             return self._run_openai_compatible(task, cancellation, emit)
         raise ValueError(f"unsupported provider: {provider}")
+
+    def _run_autoagent(self, task: dict[str, Any], cancellation: threading.Event,
+                       emit: Callable[[str, dict[str, Any]], None]) -> str:
+        """Run AutoAgent's non-interactive `agent` command for one bounded objective."""
+
+        if cancellation.is_set():
+            raise InterruptedError("task cancelled")
+        command = os.environ.get("OBUS_AUTOAGENT_COMMAND", "auto")
+        agent_function = os.environ.get("OBUS_AUTOAGENT_AGENT_FUNCTION", "get_system_triage_agent")
+        model = str(task.get("model") or os.environ.get("OBUS_AUTOAGENT_MODEL", "")).strip()
+        query = str(task["objective"])
+        raw_plan = task.get("upstream_plan")
+        if raw_plan is not None:
+            from backend.upstream_agent_adapters import AutoAgentPlan
+
+            if not isinstance(raw_plan, dict):
+                raise ValueError("upstream_plan must be an object")
+            plan = AutoAgentPlan.from_mapping(raw_plan)
+            actions = plan.obus_actions()
+            if any(action["requires_approval"] for action in actions):
+                raise PermissionError("upstream_plan contains a step that requires OBus approval")
+            query = "\n\n".join(
+                f"{action['agent']}: {action['objective']}"
+                for action in actions
+            )
+            emit("provider.plan", {"provider": "autoagent", "plan": plan.manifest()})
+        args = [command, "agent", "--agent_func", agent_function, "--query", query]
+        if model:
+            args.extend(["--model", model])
+        emit("provider.started", {
+            "provider": "autoagent", "command": command, "agent_function": agent_function,
+            "model": model or "AutoAgent default",
+        })
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        process = subprocess.Popen(args, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, encoding="utf-8", errors="replace", creationflags=flags)
+        while process.poll() is None:
+            if cancellation.wait(0.2):
+                process.terminate()
+                raise InterruptedError("task cancelled")
+        output = process.stdout.read().strip() if process.stdout else ""
+        if process.returncode != 0:
+            raise RuntimeError(f"AutoAgent exited with code {process.returncode}: {output[-2000:]}")
+        if not output:
+            raise RuntimeError("AutoAgent returned no output")
+        emit("provider.output", {"provider": "autoagent", "text": output[-16_000:]})
+        return output
 
     def _run_codex(self, task: dict[str, Any], cancellation: threading.Event,
                    emit: Callable[[str, dict[str, Any]], None]) -> str:
@@ -836,7 +903,7 @@ class ObjectiveScheduler:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS harness_objectives (
                     id TEXT PRIMARY KEY, name TEXT NOT NULL, objective TEXT NOT NULL,
-                    workspace TEXT NOT NULL, provider TEXT NOT NULL DEFAULT 'codex',
+                    workspace TEXT NOT NULL, provider TEXT NOT NULL DEFAULT 'autoagent',
                     interval_seconds INTEGER NOT NULL, priority INTEGER NOT NULL DEFAULT 50,
                     enabled INTEGER NOT NULL DEFAULT 1, next_run_at REAL NOT NULL,
                     last_run_at REAL, last_task_id TEXT, last_error TEXT,
@@ -850,7 +917,7 @@ class ObjectiveScheduler:
                 connection.execute("ALTER TABLE harness_objectives ADD COLUMN last_error TEXT")
 
     def create(self, name: str, objective: str, workspace: Path, interval_seconds: int,
-               provider: str = "codex", priority: int = 50, enabled: bool = True) -> dict[str, Any]:
+               provider: str = "autoagent", priority: int = 50, enabled: bool = True) -> dict[str, Any]:
         now = time.time()
         item_id = uuid.uuid4().hex
         with self._connection() as connection:

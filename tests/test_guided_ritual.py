@@ -70,7 +70,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         for marker in (
             ':focus-visible',
             'min-height: 42px',
-            '@media (max-width: 760px)',
+            '@media (max-width: 960px)',
             '@media (prefers-reduced-motion: reduce)',
         ):
             self.assertIn(marker, css)

@@ -115,7 +115,7 @@ class HarnessStore:
                 )
 
     def create_task(self, objective: str, workspace: Path, source: str, priority: int, max_attempts: int,
-                    provider: str = "codex", model: str | None = None) -> dict[str, Any]:
+                    provider: str = "autoagent", model: str | None = None) -> dict[str, Any]:
         task_id = uuid.uuid4().hex
         now = utc_now()
         with self._connection() as connection:
@@ -337,7 +337,7 @@ Runner = Callable[[dict[str, Any], threading.Event, Callable[[str, dict[str, Any
 
 
 class AgentHarnessRuntime:
-    """Codex-primary autonomous runner with durable retry, cancellation, and learning."""
+    """AutoAgent-primary autonomous runner with Codex fallback, retry, and learning."""
 
     def __init__(self, database: Path, runner: Runner | None = None, max_workers: int = 2):
         self.store = HarnessStore(database)
@@ -353,7 +353,7 @@ class AgentHarnessRuntime:
         self.resume_queued()
 
     def submit(self, objective: str, workspace: Path, source: str = "local", priority: int = 50,
-               max_attempts: int = 3, provider: str = "codex", model: str | None = None) -> dict[str, Any]:
+               max_attempts: int = 3, provider: str = "autoagent", model: str | None = None) -> dict[str, Any]:
         workspace = workspace.resolve()
         workspace.mkdir(parents=True, exist_ok=True)
         supported = {item["id"] for item in self.providers.discover()}
@@ -450,7 +450,7 @@ class AgentHarnessRuntime:
             if resumed:
                 runtime_task["resumed_after_interruption"] = True
                 self.store.add_event(task_id, "task.resumed", {"explicit": True, "safe_reinspection": True})
-            provider = str(runtime_task.get("provider") or "codex")
+            provider = str(runtime_task.get("provider") or "autoagent")
             if runtime_task.get("context_window"):
                 self.store.add_event(task_id, "provider.configured", {
                     "provider": provider, "model": runtime_task.get("model"),
@@ -568,4 +568,5 @@ class AgentHarnessRuntime:
             active = sum(thread.is_alive() for thread in self._threads.values())
         return {"status": "ready", "mode": "guarded-autonomous", "authority": "workspace-write",
                 "active_tasks": active, "max_workers": self.max_workers, "database": str(self.store.path),
-                "provider_default": "codex", "providers": self.providers.capabilities()}
+                "provider_default": "autoagent", "provider_secondary": "codex",
+                "providers": self.providers.capabilities()}

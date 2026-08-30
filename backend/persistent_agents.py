@@ -232,7 +232,7 @@ def _validated_provider_base_url(provider: str, value: object) -> str:
     if parsed.scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise RuntimeError("Provider base URL is not an approved secret-free endpoint")
     host = hostname.casefold()
-    loopback = provider == "ollama" and host in {"localhost", "127.0.0.1", "::1"}
+    loopback = provider in {"ollama", "omniroute"} and host in {"localhost", "127.0.0.1", "::1"}
     allowed_hosts = {
         "anthropic": {"api.anthropic.com"}, "google": {"generativelanguage.googleapis.com"},
         "gemini": {"generativelanguage.googleapis.com"}, "codex": {"api.openai.com"}, "nous": {"api.upstage.com"}, "nvidia": {"integrate.api.nvidia.com"}, "openrouter": {"openrouter.ai"},
@@ -250,7 +250,7 @@ def execute_remote_provider(key: dict[str, Any], prompt: str) -> str:
     provider = str(key.get("provider", "")).lower()
     env_var = key.get("env_var")
     secret = os.getenv(env_var) if env_var else None
-    if not secret:
+    if not secret and provider != "omniroute":
         raise RuntimeError(f"Authorization reference is unavailable: {env_var or 'not configured'}")
     model = str(key.get("model") or "")
     base_url = _validated_provider_base_url(provider, key.get("base_url"))
@@ -271,7 +271,8 @@ def execute_remote_provider(key: dict[str, Any], prompt: str) -> str:
         url = base_url + f"/openai/deployments/{urllib.parse.quote(model, safe='')}/chat/completions?api-version=2024-10-21"
         result = _http_json(url, {"api-key": secret}, {"messages": [{"role": "user", "content": prompt}], "max_tokens": 2048})
     else:
-        result = _http_json(_chat_url(base_url), {"Authorization": f"Bearer {secret}"}, {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 2048})
+        headers = {"Authorization": f"Bearer {secret}"} if secret else {}
+        result = _http_json(_chat_url(base_url), headers, {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 2048})
     return str(result.get("choices", [{}])[0].get("message", {}).get("content", "")).strip()
 
 

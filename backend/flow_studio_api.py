@@ -21,7 +21,7 @@ class FlowRun(BaseModel):
     workspace: str | None = Field(default=None,max_length=1000)
     priority: int = Field(default=50,ge=0,le=100)
     max_attempts: int = Field(default=1,ge=1,le=3)
-    provider: str = Field(default="codex",pattern="^(codex|ollama|openai-compatible)$")
+    provider: str = Field(default="autoagent",pattern="^(autoagent|codex|ollama|openai-compatible)$")
     model: str | None = Field(default=None,max_length=256)
 
 @page_router.get("/flow-studio",include_in_schema=False)

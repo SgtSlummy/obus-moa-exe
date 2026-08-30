@@ -54,7 +54,9 @@ def bounded_agent_context(
     shared_parts: list[str] = []
     used = 0
     for item in reversed(list(shared_findings)):
-        text = f"{item.get('agent_name', 'Agent')}: {item.get('output', '')}".strip()
+        # Task ledgers are shared state, so they may contain coordination
+        # metadata but never another agent's output or transcript.
+        text = f"{item.get('agent_name', 'Agent')}: completed step {item.get('step', '?')}".strip()
         if not text or used + len(text) > shared_budget:
             continue
         shared_parts.append(text)

@@ -85,11 +85,12 @@ from .harness_api import _public_task as public_harness_task, router as harness_
 from .autonomy_api import router as autonomy_router
 from .peer_api import router as peer_router
 from .recovery_api import router as recovery_router
-from .voice_api import router as voice_router
+from .voice_api import router as voice_router, voice_controller
 from .github_webhook_api import router as github_webhook_router
 from .terminal_api import router as terminal_router
 from .codex_bridge_api import router as codex_bridge_router
 from .flow_studio_api import api_router as flow_studio_api_router, page_router as flow_studio_page_router
+from .voice_link_api import router as voice_link_router
 
 app.include_router(harness_router)
 app.include_router(autonomy_router)
@@ -101,6 +102,7 @@ app.include_router(terminal_router)
 app.include_router(codex_bridge_router)
 app.include_router(flow_studio_api_router)
 app.include_router(flow_studio_page_router)
+app.include_router(voice_link_router)
 
 
 @app.middleware("http")
@@ -116,7 +118,7 @@ async def enforce_local_access(request: Request, call_next):
         return JSONResponse(status_code=403, content={"detail": "Remote access is limited to authenticated Thor services."})
 
     public = (
-        path == "/" or path == "/health" or path.startswith("/static/")
+        path == "/" or path == "/health" or path == "/voice-link" or path.startswith("/static/")
         or path.startswith("/api/access/") or thor_portal or autonomous_harness or signed_peers
     )
     access = access_gate.status()
@@ -382,6 +384,7 @@ def key_template(key_id: str, name: str, provider: str, model: str, base_url: st
 
 DEFAULT_KEYS = [
     key_template("key-local-ollama", "Local Ollama", "ollama", "gpt-oss:20b", "http://127.0.0.1:11434", None, 131072, ["coding", "tools", "reasoning", "analysis", "research", "synthesis"], "🔮", True, True, "ready"),
+    key_template("key-omniroute", "OmniRoute", "omniroute", "auto", "http://127.0.0.1:20128/v1", None, 131072, ["routing", "analysis", "coding", "research", "free_tier"], "🧭", True, True, "ready"),
     key_template("key-codex-oauth", "GPT 5.6 Luna", "codex", "gpt-5.6-luna", "https://api.openai.com/v1", "OPENAI_API_KEY", 131072, ["coding", "tools", "analysis", "synthesis", "reasoning"], "✦", False, True),
     key_template("key-nous-oauth", "Nous / Solar", "nous", "upstage/solar-pro4:free", "https://api.upstage.com/v1", "NOUS_API_KEY", 131072, ["research", "analysis", "writing"], "☀️"),
     key_template("key-nvidia-nim", "NVIDIA NIM", "nvidia", "nvidia/nemotron-3-super-120b-a12b", "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY", 131072, ["reasoning", "architecture", "planning", "tools"], "◈"),
@@ -414,6 +417,7 @@ for _key in DEFAULT_KEYS:
 
 KEY_SETUP_GUIDES = {
     "ollama": ("https://ollama.com/download", "Install Ollama", "Start the local service", "Pull the selected model with `ollama pull <model>`", "Return here and select Test & enable"),
+    "omniroute": ("https://github.com/diegosouzapw/OmniRoute", "Install OmniRoute", "Start OmniRoute on the local default port (20128)", "Connect providers in OmniRoute, then leave model set to `auto` or choose an OmniRoute model ID", "Return here and select Test & enable"),
     "codex": ("https://developers.openai.com/codex/cli/", "Install or open the Codex CLI", "Run the provider's device-login flow", "Keep OAuth in the provider client; do not paste it into OBus", "Return here and select Test & enable"),
     "nous": ("https://portal.nousresearch.com/", "Open the Nous portal", "Create or select an authorization reference", "Store it in the environment variable named below", "Return here and select Test & enable"),
     "nvidia": ("https://build.nvidia.com/", "Open NVIDIA Build", "Create an API-key reference for the selected model", "Store it in the environment variable named below", "Return here and select Test & enable"),
@@ -438,7 +442,7 @@ KEY_PUBLIC_FIELDS = {
     "id", "name", "provider", "model", "symbol", "sigil", "solomon_seal", "solomon_seal_number",
     "solomon_seal_reason", "solomon_seal_source", "base_url", "env_var", "state", "capabilities",
     "max_context_tokens", "configured", "verified", "approved", "active", "local", "open_model",
-    "can_aggregate", "oauth", "verified_at", "last_probe_reason", "last_probe_message",
+    "can_aggregate", "omniroute_catalog", "oauth", "verified_at", "last_probe_reason", "last_probe_message",
 }
 
 
@@ -827,7 +831,7 @@ def save_state(state: dict):
     """Atomically save state so concurrent readers never see a partial JSON file."""
     with STATE_LOCK:
         state = normalize_state(state)
-        for field, limit in (("keys", 200), ("cards", 200), ("rooms", 500), ("room_messages", 20_000), ("forum_threads", 500), ("persistent_agents", 100), ("task_ledgers", 100), ("runtime_events", 200)):
+        for field, limit in (("keys", 500), ("cards", 200), ("rooms", 500), ("room_messages", 20_000), ("forum_threads", 500), ("persistent_agents", 100), ("task_ledgers", 100), ("runtime_events", 200)):
             if isinstance(state.get(field), list):
                 state[field] = state[field][-limit:]
         for thread in state.get("forum_threads", []):
@@ -1714,6 +1718,67 @@ def _models_url(base_url: str) -> str:
     return base_url.rstrip("/") + "/models"
 
 
+def _omniroute_catalog_id(value: object) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(value or "").casefold()).strip("-")[:80]
+
+
+def sync_omniroute_catalog(state: dict) -> dict:
+    """Materialize the currently reachable OmniRoute providers as local OBus Keys.
+
+    OmniRoute owns credentials and paid-provider setup. OBus only reads its local
+    OpenAI-compatible model catalog and never imports credentials from it.
+    """
+    gateway = next((key for key in state.get("keys", []) if key.get("id") == "key-omniroute"), None)
+    if not gateway:
+        raise RuntimeError("OmniRoute gateway Key is unavailable")
+    base_url = _validated_provider_base_url("omniroute", gateway.get("base_url"))
+    request = urllib.request.Request(_models_url(base_url), headers={"Accept": "application/json", "User-Agent": "OBus-OmniRoute-Catalog/1.0"}, method="GET")
+    with _NO_REDIRECT_OPENER.open(request, timeout=15) as response:
+        payload = read_bounded_json_response(response, limit=1_000_000)
+    rows = payload.get("data", []) if isinstance(payload, dict) else []
+    if not isinstance(rows, list):
+        raise RuntimeError("OmniRoute returned an invalid model catalog")
+
+    providers: dict[str, str] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        model = str(row.get("id") or "").strip()
+        owner = str(row.get("owned_by") or "").strip()
+        if not owner or owner.casefold() in {"omniroute", "system", "unknown"}:
+            owner = model.split("/", 1)[0]
+        provider_id = _omniroute_catalog_id(owner)
+        if model and provider_id and provider_id not in providers:
+            providers[provider_id] = model
+        if len(providers) >= 400:
+            break
+
+    existing = {key.get("id"): key for key in state.get("keys", [])}
+    managed_ids = {key_id for key_id, key in existing.items() if key.get("omniroute_catalog")}
+    catalog_ids = set()
+    for provider_id, model in providers.items():
+        key_id = f"omniroute-{provider_id}"
+        catalog_ids.add(key_id)
+        previous = existing.get(key_id, {})
+        state_value = "ready" if gateway.get("state") == "ready" and gateway.get("verified") else "staged"
+        catalog_key = {
+            "id": key_id, "name": f"OmniRoute · {provider_id}", "provider": "omniroute", "model": model,
+            "symbol": "🧭", "base_url": base_url, "env_var": None, "state": state_value,
+            "capabilities": ["routing", "catalog"], "max_context_tokens": 131072, "local": True,
+            "open_model": True, "can_aggregate": True, "omniroute_catalog": True,
+            "verified": bool(gateway.get("verified")), "approved": bool(gateway.get("approved")),
+            "active": bool(gateway.get("active")), "verified_at": gateway.get("verified_at"),
+            "last_probe_reason": gateway.get("last_probe_reason"), "last_probe_message": gateway.get("last_probe_message"),
+            "sigil": previous.get("sigil") or f"/api/keys/{key_id}/sigil.svg",
+        }
+        if previous:
+            previous.update(catalog_key)
+        else:
+            state["keys"].append(catalog_key)
+    state["keys"] = [key for key in state.get("keys", []) if key.get("id") not in managed_ids - catalog_ids]
+    return {"providers": len(providers), "models_seen": len(rows)}
+
+
 def probe_key_live(key: dict) -> dict:
     """Run a minimal provider-specific live probe without returning credentials."""
     provider = str(key.get("provider", "")).lower()
@@ -2458,6 +2523,17 @@ def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
     finally:
         if temp_name:
             Path(temp_name).unlink(missing_ok=True)
+
+
+def process_voice_link_audio(audio: bytes) -> dict[str, str]:
+    """Turn one deliberate Relay Pad recording into a guarded Codex task."""
+    transcript = transcribe_local_audio(base64.b64encode(audio).decode("ascii"), "audio/webm")
+    task = voice_controller.submit_transcript(transcript, provider="codex")
+    task_id = str(task.get("id", "queued")) if isinstance(task, dict) else "queued"
+    return {"transcript": transcript, "task_id": task_id}
+
+
+app.state.voice_link_process = process_voice_link_audio
 
 
 def provider_statuses(state: Optional[dict] = None) -> list:
@@ -3656,7 +3732,7 @@ async def test_provider(key_id: str):
 
     original_state = key.get("state", "staged")
     env_var = key.get("env_var")
-    needs_reference = key.get("provider") not in {"ollama", "codex"}
+    needs_reference = key.get("provider") not in {"ollama", "omniroute", "codex"}
     if needs_reference and (not env_var or not os.getenv(env_var)):
         key.update(verified=False, approved=False, active=False, last_probe_reason="missing_reference",
                    last_probe_message=f"Authorization reference {env_var or 'not configured'} is unavailable")
@@ -3683,14 +3759,35 @@ async def test_provider(key_id: str):
         key.update(verified=False, approved=False, active=False)
         if original_state != "disabled":
             key["state"] = "staged"
+    catalog = None
+    if succeeded and key.get("id") == "key-omniroute":
+        try:
+            catalog = await asyncio.to_thread(sync_omniroute_catalog, state)
+        except (OSError, RuntimeError, ValueError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            result["message"] = f"OmniRoute gateway verified, but its catalog could not be synchronized: {exc}"
     save_state(state)
     public = next(item for item in provider_statuses(state) if item["id"] == key_id)
     return {
         "success": succeeded, "connected": public["connected"], "configured": public["configured"],
         "verified": bool(key.get("verified")), "verified_at": key.get("verified_at"),
         "state": key["state"], "reason": result.get("reason"), "status_code": result.get("status_code"),
-        "message": result.get("message"),
+        "message": result.get("message"), "catalog": catalog,
     }
+
+
+@app.post("/api/providers/omniroute/sync")
+async def sync_omniroute_provider_catalog():
+    """Refresh provider cards from the local OmniRoute catalog without credentials."""
+    state = load_state()
+    gateway = next((key for key in state["keys"] if key.get("id") == "key-omniroute"), None)
+    if not gateway or not gateway.get("verified") or gateway.get("state") != "ready":
+        raise HTTPException(status_code=409, detail="Test & enable OmniRoute before synchronizing its catalog")
+    try:
+        result = await asyncio.to_thread(sync_omniroute_catalog, state)
+    except (OSError, RuntimeError, ValueError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail="OmniRoute catalog is unavailable") from exc
+    save_state(state)
+    return {"success": True, **result}
 
 
 # ==================== ROOMS AND FORUM ====================
@@ -4208,7 +4305,11 @@ def build_review_only_plan(request: AutoDeliberationRequest) -> dict:
 
 
 class PlanTeamExecutionRequest(AutoDeliberationRequest):
-    """Explicit local confirmation to turn an inspectable plan into a bounded team."""
+    """Explicit local confirmation to turn an inspectable plan into a bounded team.
+
+    Parallel OBus teams are evidence lanes: their contexts and results stay
+    separate, and a human reviews the synthesis before any workspace change.
+    """
 
     max_agents: int = Field(default=5, ge=1, le=MAX_PARALLEL_AGENT_RUNS)
     local_only: bool = False
@@ -4510,7 +4611,7 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
                 if ledger is not None:
                     ledger.setdefault("findings", []).append({
                         "agent_id": agent["id"], "agent_name": agent["name"], "step": step,
-                        "output": safe_output, "created_at": _runtime_now(),
+                        "created_at": _runtime_now(),
                     })
                     ledger["findings"] = ledger["findings"][-100:]
                     ledger["updated_at"] = _runtime_now()
@@ -4631,6 +4732,15 @@ async def execute_planned_team(request: PlanTeamExecutionRequest):
             "private_history_per_agent": True,
             "shared_redacted_findings": bool(settings.get("shared_task_context", True)),
         },
+        # OBus agents in this route are not granted filesystem write capability.
+        # This deliberately adopts Orca's per-agent isolation principle without
+        # pretending that a review result is an already-merged code change.
+        "workspace_isolation": {
+            "mode": "private-context-evidence-lanes",
+            "workspace_writes": False,
+            "automatic_merge": False,
+            "integration_status": "review_required",
+        },
         "created_at": _runtime_now(), "updated_at": _runtime_now(),
     }
     state.setdefault("task_ledgers", []).append(ledger)
@@ -4652,6 +4762,12 @@ async def execute_planned_team(request: PlanTeamExecutionRequest):
             max_steps=1, auto_start=True,
         ))
         agent["task_ledger_id"] = ledger_id
+        agent["parallel_lane"] = {
+            "ledger_id": ledger_id,
+            "context": "private",
+            "result": "review_artifact",
+            "workspace_writes": False,
+        }
         created_agents.append(agent)
     if not created_agents:
         state["task_ledgers"] = [item for item in state["task_ledgers"] if item.get("id") != ledger_id]
@@ -4673,6 +4789,7 @@ async def execute_planned_team(request: PlanTeamExecutionRequest):
         "executed": True, "task_ledger_id": ledger_id, "parallel_limit": parallel_limit,
         "created_agents": [_persistent_agent_public(agent) for agent in created_agents],
         "plan": {"card_ids": selected_card_ids, "mode": request.mode, "planning_only": False, "local_only": bool(local_key)},
+        "integration": ledger["workspace_isolation"],
     }
 
 
@@ -4912,12 +5029,24 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
     ledger = {
         "id": ledger_id, "objective": redact_text(request.objective, 4000), "status": "planning",
         "agent_ids": [], "findings": [], "synthesis": None, "created_at": _runtime_now(), "updated_at": _runtime_now(),
+        "workspace_isolation": {
+            "mode": "private-context-evidence-lanes",
+            "workspace_writes": False,
+            "automatic_merge": False,
+            "integration_status": "review_required",
+        },
     }
     state.setdefault("task_ledgers", []).append(ledger)
     created_agents = []
     for action in plan.agents:
         agent = _spawn_persistent_agent_record(state, PersistentAgentCreate(**action.model_dump()))
         agent["task_ledger_id"] = ledger_id
+        agent["parallel_lane"] = {
+            "ledger_id": ledger_id,
+            "context": "private",
+            "result": "review_artifact",
+            "workspace_writes": False,
+        }
         created_agents.append(agent)
     ledger["agent_ids"] = [agent["id"] for agent in created_agents]
     room_name_map: dict[str, str] = {}
@@ -4957,6 +5086,7 @@ async def orchestrate_runtime(request: RuntimeOrchestratorRequest):
     if room_runs or forum_runs:
         asyncio.create_task(_run_orchestrated_structures(room_runs, forum_runs))
     return {"plan": redact_value(plan.model_dump()), "executed": True, "task_ledger_id": ledger_id,
+            "integration": ledger["workspace_isolation"],
             "created_agents": [_persistent_agent_public(agent) for agent in created_agents],
             "created_rooms": [room_public(room) for room in created_rooms],
             "created_forums": [forum_public(thread) for thread in created_forums]}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="OMNIROUTE — Solomon Key 21, MARAX">
+<title>OMNIROUTE — MARAX SEAL</title>
+<desc>Public-domain seal #21 from the Ars Goetia section of the Lesser Key of Solomon, assigned to OMNIROUTE: knowledge, astronomy, and wise counsel.</desc>
+<defs><radialGradient id="bg"><stop stop-color="#78b7ff" stop-opacity=".3"/><stop offset=".7" stop-color="#0d1120"/><stop offset="1" stop-color="#050711"/></radialGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="400" height="400" rx="42" fill="#050711"/><circle cx="200" cy="200" r="181" fill="url(#bg)" stroke="#f5c451" stroke-width="3"/><circle cx="200" cy="200" r="164" fill="none" stroke="#78b7ff" stroke-width="2" opacity=".75"/>
+<g fill="none" stroke="#f5c451" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"><path d="M200 73 238 143 316 160 260 217 270 297 200 264 130 297 140 217 84 160 162 143Z"/><circle cx="200" cy="200" r="55"/><path d="M145 200h110M200 145v110M160 160l80 80M240 160l-80 80"/></g><circle cx="200" cy="200" r="11" fill="#78b7ff"/>
+</svg>

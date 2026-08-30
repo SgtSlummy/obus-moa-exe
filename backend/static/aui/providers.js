@@ -1,7 +1,7 @@
 "use strict";
 
 (function installObusProviders(root) {
-  const builtIn = new Set(["key-local-ollama", "key-codex-oauth", "key-nous-oauth", "key-nvidia-nim", "key-anthropic", "key-google-gemini", "key-openrouter", "key-mistral", "key-groq", "key-xai", "key-together", "key-fireworks", "key-deepseek", "key-cerebras", "key-huggingface", "key-azure-openai"]);
+  const builtIn = new Set(["key-local-ollama", "key-omniroute", "key-codex-oauth", "key-nous-oauth", "key-nvidia-nim", "key-anthropic", "key-google-gemini", "key-openrouter", "key-mistral", "key-groq", "key-xai", "key-together", "key-fireworks", "key-deepseek", "key-cerebras", "key-huggingface", "key-azure-openai"]);
   const OBusProviders = {
     create({api, state, $, $$, escapeHtml, formatTokens, toast, refresh, openKeyDialog, openKeySetup} = {}) {
       const render = (data) => {

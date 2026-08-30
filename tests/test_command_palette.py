@@ -12,7 +12,7 @@ class CommandPaletteTests(unittest.TestCase):
             self.assertIn(f'id="{control_id}"', html)
         for symbol in ("openCommandPalette", "runCommandPaletteAction", "Ctrl+K", "Escape"):
             self.assertIn(symbol, html)
-        for action in ("Route task", "Refresh live state", "Warm GPU", "Settings", "Memory", "Cards & Keys", "Rooms", "Export latest receipt"):
+        for action in ("Route task", "Refresh live state", "Warm GPU", "Settings", "Memory", "Providers & Keys", "Rooms", "Export latest receipt"):
             self.assertIn(action, html)
 
 

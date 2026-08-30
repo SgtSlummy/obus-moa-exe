@@ -48,7 +48,7 @@ class VoiceController:
             self._listening = bool(listening)
         return self.status()
 
-    def submit_transcript(self, transcript: str, workspace: Path | str | None = None, provider: str = "codex",
+    def submit_transcript(self, transcript: str, workspace: Path | str | None = None, provider: str = "autoagent",
                           model: str | None = None, source: str = "voice") -> dict[str, Any]:
         text = transcript.strip()
         if not text:

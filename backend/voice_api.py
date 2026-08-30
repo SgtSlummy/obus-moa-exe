@@ -25,7 +25,7 @@ class VoiceListening(BaseModel):
 class VoiceTranscript(BaseModel):
     transcript: str = Field(min_length=1, max_length=50_000)
     workspace: str | None = None
-    provider: str = Field(default="codex", pattern=r"^[a-zA-Z0-9_-]+$")
+    provider: str = Field(default="autoagent", pattern=r"^[a-zA-Z0-9_-]+$")
     model: str | None = None
 
 

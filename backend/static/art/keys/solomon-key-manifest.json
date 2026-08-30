@@ -5,6 +5,21 @@
   "provider": "Wikimedia Commons public-domain files",
   "keys": [
     {
+      "key_id": "key-omniroute",
+      "provider": "OMNIROUTE",
+      "seal": "Marax",
+      "number": 21,
+      "reason": "knowledge, astronomy, and wise counsel",
+      "file": "key-omniroute.svg",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:21-Marax_seal.png",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/38/21-Marax_seal.png",
+      "source_width": 450,
+      "source_height": 450,
+      "source_sha256": "",
+      "final_sha256": "50cd59d29d1d45736344f1f522898cd801032e083150ffe22967031e06a75cf3"
+    },
+    {
       "key_id": "key-local-ollama",
       "provider": "OLLAMA",
       "seal": "Buer",

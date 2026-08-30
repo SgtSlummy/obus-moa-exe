@@ -13,10 +13,10 @@ from backend import autonomy_api
 from backend.autonomy import ObjectiveScheduler, ProviderRegistry
 
 
-def test_harness_migrates_existing_database_and_preserves_codex_default(tmp_path: Path) -> None:
+def test_harness_preserves_an_explicit_legacy_codex_task(tmp_path: Path) -> None:
     database = tmp_path / "harness.sqlite3"
     store = HarnessStore(database)
-    first = store.create_task("before migration", tmp_path, "test", 50, 1)
+    first = store.create_task("before migration", tmp_path, "test", 50, 1, provider="codex")
     runtime = AgentHarnessRuntime(database, runner=lambda task, cancellation, emit: "done", max_workers=1)
     migrated = runtime.store.get_task(first["id"])
     assert migrated["provider"] == "codex"
@@ -41,7 +41,7 @@ def test_runtime_accepts_explicit_local_provider_with_fake_runner(tmp_path: Path
     assert seen[0]["provider"] == "ollama"
 
 
-def test_provider_discovery_reports_codex_and_ollama(monkeypatch) -> None:
+def test_provider_discovery_reports_autoagent_codex_and_ollama(monkeypatch) -> None:
     class Response:
         def __enter__(self):
             return self
@@ -55,9 +55,10 @@ def test_provider_discovery_reports_codex_and_ollama(monkeypatch) -> None:
     monkeypatch.setattr("backend.autonomy.shutil.which", lambda command: "/usr/bin/codex")
     monkeypatch.setattr("backend.autonomy.urllib.request.urlopen", lambda request, timeout=0: Response())
     providers = ProviderRegistry().capabilities()
-    assert providers["default"] == "codex"
-    assert providers["available"] == ["codex", "ollama"]
-    assert providers["providers"][1]["models"] == ["qwen2.5"]
+    assert providers["default"] == "autoagent"
+    assert providers["secondary"] == "codex"
+    assert providers["available"] == ["autoagent", "codex", "ollama"]
+    assert providers["providers"][2]["models"] == ["qwen2.5"]
 
 
 def test_objective_scheduler_persists_and_submits_due_objective(tmp_path: Path) -> None:

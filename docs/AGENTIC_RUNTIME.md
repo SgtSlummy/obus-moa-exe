@@ -53,6 +53,17 @@ The shared task ledger records each branch's findings without merging private hi
 - `GET /api/runtime/task-ledgers`
 - `GET /api/runtime/task-ledgers/{task_ledger_id}`
 
+### Parallel-lane isolation and integration
+
+Inspired by Orca's worktree-per-agent model, each newly created OBus parallel ledger now makes its isolation and integration boundary explicit. OBus's built-in parallel route is an **evidence lane**, not a repository-writing runner: each agent has a private context and a separately reviewable result; shared material is redacted ledger evidence only. The ledger and launch response declare:
+
+- `workspace_isolation.mode: "private-context-evidence-lanes"`
+- `workspace_writes: false`
+- `automatic_merge: false`
+- `integration_status: "review_required"`
+
+This is intentional. Orca can safely give code-writing agents separate Git worktrees and let a user compare diffs. OBus does not silently create worktrees, write to the selected workspace, merge branches, or delete worktrees from a review team. A synthesis is therefore a decision artifact for the user to review and apply through OBus's separately approved workspace-task flow.
+
 ## Settings
 
 ```json

@@ -1,3 +1,4 @@
+import io
 import threading
 import time
 from pathlib import Path
@@ -61,6 +62,60 @@ def test_harness_resolves_ephemeral_provider_context_before_running_task(tmp_pat
     assert received[0]["context_window"] == 65_536
     configured = [event for event in runtime.store.events(task["id"]) if event["event_type"] == "provider.configured"]
     assert configured[0]["payload"] == {"provider": "ollama", "model": "local:test", "context_window": 65_536}
+
+
+def test_autoagent_is_primary_and_codex_is_secondary(monkeypatch):
+    registry = ProviderRegistry()
+    monkeypatch.setattr("backend.autonomy.shutil.which", lambda command: f"C:/tools/{command}.exe")
+
+    capabilities = registry.capabilities()
+
+    assert capabilities["default"] == "autoagent"
+    assert capabilities["secondary"] == "codex"
+    providers = {provider["id"]: provider for provider in capabilities["providers"]}
+    assert providers["autoagent"]["primary"] is True
+    assert providers["codex"]["primary"] is False
+
+
+def test_autoagent_failure_falls_back_to_codex(tmp_path: Path, monkeypatch):
+    registry = ProviderRegistry()
+    events: list[tuple[str, dict]] = []
+    monkeypatch.setattr(registry, "_run_autoagent", lambda *_args: (_ for _ in ()).throw(RuntimeError("unavailable")))
+    monkeypatch.setattr(registry, "_run_codex", lambda *_args: "Codex completed the task")
+
+    result = registry.run(
+        {"provider": "autoagent", "workspace": str(tmp_path), "objective": "Inspect safely."},
+        threading.Event(), lambda kind, payload: events.append((kind, payload)),
+    )
+
+    assert result == "Codex completed the task"
+    assert events == [("provider.fallback", {"from": "autoagent", "to": "codex", "reason": "RuntimeError: unavailable"})]
+
+
+def test_autoagent_uses_noninteractive_agent_command(tmp_path: Path, monkeypatch):
+    registry = ProviderRegistry()
+    commands: list[list[str]] = []
+
+    class Process:
+        returncode = 0
+        stdout = io.StringIO("AutoAgent completed the task")
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setenv("OBUS_AUTOAGENT_COMMAND", "auto")
+    monkeypatch.setenv("OBUS_AUTOAGENT_AGENT_FUNCTION", "get_system_triage_agent")
+    monkeypatch.setattr("backend.autonomy.subprocess.Popen", lambda args, **_kwargs: commands.append(args) or Process())
+    events: list[tuple[str, dict]] = []
+
+    result = registry._run_autoagent(
+        {"workspace": str(tmp_path), "objective": "Inspect safely.", "model": "openai/gpt-4o"},
+        threading.Event(), lambda kind, payload: events.append((kind, payload)),
+    )
+
+    assert result == "AutoAgent completed the task"
+    assert commands == [["auto", "agent", "--agent_func", "get_system_triage_agent", "--query", "Inspect safely.", "--model", "openai/gpt-4o"]]
+    assert events[0][0] == "provider.started"
 
 
 def test_ollama_provider_uses_a_bounded_workspace_tool_loop(tmp_path: Path, monkeypatch):
@@ -231,7 +286,7 @@ def test_local_workspace_verification_redacts_command_output(tmp_path: Path):
 def test_local_verification_receipt_event_is_bounded_and_redacted(tmp_path: Path, monkeypatch):
     registry = ProviderRegistry()
     (tmp_path / "test_safe_receipt.py").write_text(
-        "import unittest\n\nclass SafeReceipt(unittest.TestCase):\n    def test_output(self):\n        print('API_KEY=not-for-receipts')\n",
+        "import unittest\n\nclass SafeReceipt(unittest.TestCase):\n    def test_output(self):\n        print('API_KEY=not-for-receipts')\n        print('x' * 2500)\n",
         encoding="utf-8",
     )
     responses = iter([

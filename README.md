@@ -1,6 +1,6 @@
 # Obus
 
-Obus is a local-first full-stack agent workspace with a FastAPI backend, browser-based operator UI, persistent local state, desktop launcher, and multi-provider agent runtime. Codex is the default primary agent; other configured providers remain available.
+Obus is a local-first full-stack agent workspace with a FastAPI backend, browser-based operator UI, persistent local state, desktop launcher, and multi-provider agent runtime. AutoAgent is the default primary autonomous harness; Codex is its secondary fallback and remains available for explicit selection.
 
 ## Requirements
 
@@ -26,9 +26,17 @@ Open <http://127.0.0.1:38173>. Runtime data is stored outside the repository und
 
 On macOS or Linux, activate with `source .venv/bin/activate`; desktop packaging is Windows-specific, but the web application is cross-platform.
 
-## Codex-first operation
+## AutoAgent-primary harness with Codex fallback
 
-Codex (`key-codex-oauth`) is the default aggregator and primary runtime key for new or implicit state. Existing explicit provider selections are preserved.
+Install [HKUDS AutoAgent](https://github.com/HKUDS/AutoAgent) in a dedicated environment and make its `auto` command available on `PATH`. Obus invokes AutoAgent's non-interactive `auto agent` command with `get_system_triage_agent` by default. Set `OBUS_AUTOAGENT_AGENT_FUNCTION` only when you have verified a different AutoAgent agent function in your installation.
+
+```powershell
+git clone https://github.com/HKUDS/AutoAgent.git
+cd AutoAgent
+python -m pip install -e .
+```
+
+For every ordinary harness task, Obus starts AutoAgent first. If it is unavailable or fails, Obus emits a `provider.fallback` event and uses Codex. Set `OBUS_AUTOAGENT_FALLBACK_CODEX=false` to require AutoAgent instead. Codex (`key-codex-oauth`) remains available for explicit selection and fallback; existing explicit provider selections are preserved.
 
 ```powershell
 codex --version

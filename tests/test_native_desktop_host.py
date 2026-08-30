@@ -56,6 +56,7 @@ def test_native_window_close_hides_to_tray_until_explicit_exit_is_requested():
     webview = SimpleNamespace(create_window=Mock(return_value=window), start=Mock())
     previous = obus_launcher.NATIVE_WINDOW
     try:
+        obus_launcher.NATIVE_WINDOW_EXIT_REQUESTED.clear()
         with patch.dict(sys.modules, {"webview": webview}), patch.object(
             obus_launcher, "native_desktop_host_enabled", return_value=True
         ):

@@ -34,7 +34,7 @@ class TaskCreate(BaseModel):
     workspace: str | None = None
     priority: int = Field(default=50, ge=0, le=100)
     max_attempts: int = Field(default=3, ge=1, le=10)
-    provider: str = Field(default="codex", pattern="^(codex|ollama|openai-compatible)$")
+    provider: str = Field(default="autoagent", pattern="^(autoagent|codex|ollama|openai-compatible)$")
     model: str | None = Field(default=None, max_length=256)
     approval_id: str | None = Field(default=None, pattern=r"^approval-[a-f0-9]{16}$")
 
@@ -44,7 +44,7 @@ class ApprovalCreate(BaseModel):
     workspace: str | None = None
     priority: int = Field(default=50, ge=0, le=100)
     max_attempts: int = Field(default=3, ge=1, le=10)
-    provider: str = Field(default="codex", pattern="^(codex|ollama|openai-compatible)$")
+    provider: str = Field(default="autoagent", pattern="^(autoagent|codex|ollama|openai-compatible)$")
     model: str | None = Field(default=None, max_length=256)
 
 

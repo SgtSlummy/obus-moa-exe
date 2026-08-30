@@ -3,6 +3,7 @@ from __future__ import annotations
 
 SOLOMON_SEALS = {
     "key-local-ollama": {"name": "Buer", "number": 10, "file": "File:10-Buer seal.png", "reason": "philosophy, logic, and teaching"},
+    "key-omniroute": {"name": "Marax", "number": 21, "file": "File:21-Marax seal.png", "reason": "knowledge, astronomy, and wise counsel"},
     "key-codex-oauth": {"name": "Paimon", "number": 9, "file": "File:09-Paimon seal01.png", "reason": "arts, sciences, and hidden knowledge"},
     "key-nous-oauth": {"name": "Stolas", "number": 36, "file": "File:36-Stolas seal.png", "reason": "astronomy, plants, and precious stones"},
     "key-nvidia-nim": {"name": "Vapula", "number": 60, "file": "File:60-Vapula seal.png", "reason": "mechanics, crafts, and sciences"},
