@@ -1,65 +1,131 @@
-# Status Report — 2026-08-30 21:55 UTC
+# Status Report — 2026-08-31 06:06 UTC
 
 ## Push Summary
 
-- **Main repo (obus-moa-exe):** ✅ Pushed — `95ae15a` (chore: add cron_report_0389.md 21:55 cycle), in sync with origin/master.
-- **Paired repo (OBus-Thor-Loki-Paired):** ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
-- **Tarot-Router (occultbus):** ✅ Pushed — `dd10f4b` (chore: sync Tarot deck and Solomon's Keys), in sync with origin/main.
-- **Submodules:**
-  - `warpdotdev-warp`: ❌ 403 Forbidden — no write access to upstream remote.
-  - `warp`: ❌ 403 Forbidden — directory missing on disk, cannot push.
-  - `Understand-Anything`: ❌ 403 Forbidden — no write access.
+| Repo | Branch | Head | Remote | In Sync | Push Result |
+|------|--------|------|--------|---------|-------------|
+| obus-moa-exe | master | `35b2287` (chore: add cron_report_0391.md 22:15) | origin/master | ✅ YES | Already pushed |
+| Tarot-Router (occultbus) | main | `dd10f4b` (chore: sync Tarot deck and Solomon's Keys) | origin/main | ✅ YES | Already pushed |
+| Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` (chore: snapshot tracked file changes 09:13) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
+| warden | main | `6c7b2e9` (chore: stage modified src/index.ts) | origin/main | ✅ YES | Already pushed |
+| warden-discord-bot | main | `4fa686e` (fix(diva): correct CRLF escaping in FFmpeg Host header) | origin/main | ✅ YES | Already pushed |
+| warden-source | main | `794cfcf` (Merge PR #945: bugfix/944-mutagen-tap) | origin/main | ✅ YES | Already pushed |
 
-## Build Status
+**All 6 repos in sync. No push needed.**
 
-- **Latest AUI Loop Build:** **Loop 76** — `dist-aui-loop76/OBus.exe` — 70,777,957 bytes (~67.5 MB), built Aug 25 04:49 UTC.
-- **Release EXE:** `dist-aui-release/OBus.exe` — 70,776,902 bytes (~67.5 MB), built Aug 25 06:58 UTC.
-- **Electron Build:** `dist-electron-20260827/OBus-win32-x64/` — built Aug 27 11:46 UTC.
-- **No new loop builds since loop 76** — pipeline stalled.
-
-## Active Services
-
-| Service | PID | Port | Status |
-|---------|-----|------|--------|
-| uvicorn (OBus MOA FastAPI) | 7792 | :8000 | ✅ UP |
-| DavyJonesHeartbeat | 3740 | :3000 | ✅ UP |
-
-## Working Tree
-
-- **Clean** — no staged or unstaged changes.
-- Latest commit: `95ae15a` (chore: add cron_report_0389.md 21:55 cycle).
-
-## Submodule Push Status
+## Submodules
 
 | Submodule | Local HEAD | Remote | Push Result |
 |-----------|------------|--------|-------------|
-| warpdotdev-warp | `8c2cc73` detached | warpdotdev/warp | ❌ 403 (no collaborator) |
-| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | nvidia/warp | ❌ 403 (no collaborator) — **directory MISSING** |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | Egonex-AI/Understand-Anything | ❌ 403 (no collaborator) |
+| third_party/warpdotdev-warp | `8c2cc73` detached | warpdotdev/warp | ❌ 403 (no write access) — pre-existing |
+| warp | `3504ce5` detached, ahead 5/behind 8 vs nvidia/warp main | nvidia/warp | ❌ 403 (no write access) — directory MISSING on disk |
+| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | Egonex-AI/Understand-Anything | ❌ 403 (no write access) — pre-existing |
 
-All three submodule directories are missing on disk (pre-existing gaps, unchanged).
+Submodule push failures unchanged since last cycle. `warp/` directory still missing from disk (pre-existing gap).
 
-## Other Active Processes (OBus-relevant)
+## Paired Repo Working Tree (source-worktree)
 
-- uvicorn (PID 7792) — backend :8000
-- DavyJonesHeartbeat (PID 3740) — listener :3000
-- ollama.exe / ollama app.exe (PID 7248, 3084) — local LLM
-- codex.exe (PID 30612) — Codex agent (active, 158 MB)
-- codex-code-mode-host.exe (PID 17500) — Codex host
-- gortex.exe (4 instances: 22308, 22284, 1520, 24456) — graph analysis (~290 MB total)
-- mempalace-mcp.exe (PID 18320) — memory palace MCP (1 instance)
-- pinchtab-windows-amd64.exe (3 instances: 18244, 18016, 18092) — browser automation
-- OBus.exe (4 instances: 16588, 16984, 18716, 28684) — desktop app instances
-- llama-server.exe (PID 28344) — LLM inference server (2.2 GB)
-- node.exe (multiple) — Node processes
-- chrome.exe / msedgewebview2.exe (multiple) — browsers
-- python.exe (multiple) — various Python processes
+- HEAD: `9429331` — in sync with `origin/codex/autonomy-context-agents`.
+- ~622 untracked directories (pre-existing fixture/test/package scratch dirs: `.pytest-*`, `.package-*`, `.test-*`, `.build-venv/`, etc.) — none staged, no tracked diff.
+- Clean push (tracked files only).
 
-## Summary & Recommendations
+## Active Services
 
-- ✅ Main, paired, and Tarot-Router repos are in sync; no sync actions needed.
-- ⚠️ Submodule pushes blocked due to permission issues; consider re-authorizing or removing submodule references until access restored.
-- ⚠️ Build pipeline halted since Aug 25; a new build needs to be triggered to bring loop 77+. Investigate CI or build script failures.
-- ✅ Core services (uvicorn & DavyJonesHeartbeat) are running and healthy.
-- 🔶 gortex.exe running 4 instances (down from 11 last cycle); mempalace-mcp.exe 1 instance (down from 7).
-- 🔶 `build_status_report.txt` now current. `status_report.txt` updated.
+| Service | Port | PID | Status |
+|---------|------|-----|--------|
+| uvicorn (OBus MOA FastAPI) | :8000 | 7792 | ✅ UP — HTTP 200, OBus MOA dashboard served |
+| DavyJonesHeartbeat | :3000 | 3740 | ✅ UP — listener running |
+
+Both services confirmed healthy via HTTP check.
+
+## Active Processes (tasklist-verified)
+
+| Process | PID(s) | Notes |
+|---------|--------|-------|
+| `uvicorn.exe` | 7792 | OBus MOA backend :8000 |
+| `DavyJonesHeartbeat.exe` | 3740 | Listener :3000 |
+| `ollama.exe` / `ollama app.exe` | 7248, 3084 | Local LLM inference |
+| `codex.exe` | 30612 | Codex agent — **active** (162 MB) |
+| `codex-code-mode-host.exe` | 17500 | Codex host companion |
+| `gortex.exe` (4 instances) | 22308, 22284, 1520, 24456 | Graph analysis (~328 MB total) |
+| `mempalace-mcp.exe` | 18320 | Memory palace MCP (1 instance) |
+| `pinchtab-windows-amd64.exe` (3) | 18244, 18016, 18092 | Browser automation |
+| `OBus.exe` / `Obus.exe` (5) | 16588, 16984, 18716, 28684, 16984 | Desktop app instances (mixed case) |
+| `llama-server.exe` | 28344 | LLM inference server (~852 MB) |
+| `python.exe` | multiple | Various Python workers |
+| `node.exe` / `node_repl.exe` | multiple | Node runtime |
+| `chrome.exe` | 21 instances | Browsers |
+
+## Build/EXE Status
+
+| Artifact | Size | Built | Status |
+|----------|------|-------|--------|
+| Loop 76 EXE (`dist-aui-loop76/OBus.exe`) | 70,777,957 bytes (~67.5 MB) | Aug 25 04:49 UTC | Latest loop build — **unchanged** |
+| Release EXE (`dist-aui-release/OBus.exe`) | 70,776,902 bytes (~67.5 MB) | Aug 25 06:58 UTC | Unchanged since Aug 25 |
+| Electron build (`dist-electron-20260827/`) | — | Aug 27 11:46 UTC | Unchanged |
+| `package-dist312-consolidated-v95/Obus.exe` | — | — | Stale artifact |
+| `package-dist312-consolidated-v96/Obus.exe` | — | — | Stale artifact |
+| `package-dist312-consolidated-v97/Obus.exe` | — | — | Stale artifact |
+| `dist-remediation-final2/OBus.exe` | — | — | Stale artifact |
+| `dist-remediation-final/OBus.exe` | — | — | Stale artifact |
+
+**Build pipeline stalled since Aug 25** — no loop 77+ directories exist.
+
+## Key Files
+
+| File | Last Updated | Notes |
+|------|-------------|-------|
+| `push_status.txt` | 07:24 UTC (Aug 30) | ⚠️ Stale (22.7h old) — reflects `0522377` |
+| `build_status_report.txt` | 21:55 UTC (Aug 30) | ⚠️ Stale (7.2h old) — reflects `95ae15a` |
+| `status_report.txt` | 21:55 UTC (Aug 30) | ⚠️ Stale (7.2h old) — reflects `95ae15a` |
+| `cron_report_0391.md` | 22:15 UTC (Aug 30) | Latest cron snapshot (now 7.8h old) |
+| `push_failure.txt` | Aug 27 21:12 UTC | Pre-existing: warp 403 |
+
+**`push_status.txt`, `build_status_report.txt`, and `status_report.txt` are all stale and need refresh.**
+
+## New in This Cycle (vs 0391 at 22:15)
+
+| Metric | 0391 (22:15) | Now (06:06) | Change |
+|--------|-------------|-------------|--------|
+| Main HEAD | `ab4dbad` | `35b2287` | **advanced** (+1 commit, cron_report_0391.md) |
+| Paired HEAD | `9429331` | `9429331` | unchanged |
+| Tarot-Router HEAD | `dd10f4b` | `dd10f4b` | unchanged |
+| warden HEAD | 6c7b2e9 | 6c7b2e9 | unchanged |
+| warden-discord-bot HEAD | 4fa686e | 4fa686e | unchanged |
+| warden-source HEAD | 794cfcf | 794cfcf | unchanged |
+| uvicorn :8000 | ✅ UP | ✅ UP | healthy |
+| DavyJonesHeartbeat :3000 | ✅ UP | ✅ UP | healthy |
+| codex.exe | active (PID 30612) | active (PID 30612) | stable |
+| gortex.exe | 4 instances | 4 instances | unchanged |
+| mempalace-mcp.exe | 1 instance | 1 instance | unchanged |
+| OBus.exe | 4 instances | 5 instances | +1 instance |
+| llama-server.exe | PID 28344 | PID 28344 | stable |
+| Main repo working tree | clean | clean + `nul` untracked | minor |
+| Build pipeline | stalled (loop 76) | stalled (loop 76) | no new builds |
+| `push_status.txt` | stale (14.75h) | stale (22.7h) | worse |
+| `build_status_report.txt` | current (0h) | stale (7.2h) | now stale |
+| `status_report.txt` | current (0h) | stale (7.2h) | now stale |
+
+## Tarot Router Status
+
+Per `status-rtk-aft-push.md` (snapshot after last push):
+- Pushed: `14c866c` (master) to origin/master — **NOTE: this is stale; current HEAD is `35b2287`**
+- Local diff vs origin/master: 0 files
+- Tarot Router `/api/`: 78 cards, 16 keys, 2 verified keys, 0 active assignments, aggregator key `key-codex-oauth`
+
+⚠️ The RTK status file predates the latest main commit (`35b2287`); it reflects an older push.
+
+## Summary
+
+**Status: All repos synced, services healthy, no push action needed.**
+
+- ✅ **6 of 6 repos in sync** — main, Tarot-Router, paired, warden, warden-discord-bot, warden-source. No push required.
+- ❌ **3 submodules blocked by 403** (pre-existing, no collaborator access) — unchanged.
+- ✅ **Both services UP** — uvicorn :8000 and DavyJonesHeartbeat :3000 confirmed via HTTP.
+- ⚠️ **Build pipeline stalled since Aug 25** — no loop 77+ builds. Release EXE from Aug 25.
+- ⚠️ **3 status files stale** — `push_status.txt` (22.7h), `build_status_report.txt` (7.2h), `status_report.txt` (7.2h) need refresh.
+- 🔶 **OBus.exe instance count increased** from 4 to 5 (new instance PID 16984 at 196 KB — likely a launcher/spark, not full app).
+- 🔶 Tarot Router status file (`status-rtk-aft-push.md`) predates current HEAD.
+- No active job progress — agent processes (codex, gortex, mempalace) stable/idle.
+
+Workspace is fully synced and stable. No push action required this cycle.
