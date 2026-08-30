@@ -1,4 +1,4 @@
-# Build Status Report — 2026-09-01 07:31 UTC
+# Build Status Report — 2026-08-30 17:35 UTC
 
 ## Services
 
@@ -9,32 +9,41 @@
 
 ## Last 3 Commits (master)
 
-- `eb61a31` chore: refresh status and build reports (06:06 cycle)
-- `35b2287` chore: add cron_report_0391.md (22:15 cycle snapshot)
-- `ab4dbad` chore: add cron_report_0390.md (22:05 cycle snapshot)
+- `75c7c44` chore: push cycle report 2026-08-30T16:20:51Z
+- `deb9e47` chore: add cron_report_0393.md (08:06 cycle)
+- `b458a3b` chore: refresh status reports and add cron_report_0392.md (07:31 cycle)
 
 ## Repo Push Status
 
 | Repo | Branch | Head | Push |
 |------|--------|------|------|
-| obus-moa-exe | master | `eb61a31` | ✅ Pushed (in sync) |
-| Tarot-Router (occultbus) | main | `8c2cc73` detached | ✅ Pushed (in sync) |
-| Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` | ✅ Pushed (in sync) |
-| warden | main | detached latest | ✅ Pushed (in sync) |
-| warden-discord-bot | main | detached latest | ✅ Pushed (in sync) |
-| warden-source | main | detached latest | ✅ Pushed (in sync) |
+| obus-moa-exe | master | `75c7c44` | ✅ Pushed (up to date) |
+| Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed (up to date) |
+| Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` | ✅ Pushed (up to date) |
+| warden | main | `6c7b2e9` | ✅ Pushed (up to date) |
+| warden-discord-bot | main | `4fa686e` | ✅ Pushed (up to date) |
+| warden-source | main | `794cfc0` | ❌ 403 (no write access) |
+| mythos-router-source | main | `032e0c2` | ✅ Pushed (up to date) |
+| temporal | main | `561ba4e` | ✅ Pushed (up to date) |
+| hermes-photon-client | master | `d7acf11` | ✅ Pushed (up to date) |
+| hermes-photon-server | master | `9cf3bd5` | ✅ Pushed (up to date) |
+| DavyJonesBot/workspace | main | `249b5bf` | ⚠️ Bundle push fails (ahead 7) |
+| mempalace | develop | `b522512` | ❌ 403 (no write access) |
+| MoA-source | main | `fd816ca` | ❌ 403 (no write access) |
 
 ## Submodules
 
 | Submodule | State | Push |
 |-----------|-------|------|
-| warpdotdev-warp | `8c2cc73` detached HEAD (latest remote) | ❌ 403 (no write access) |
+| third_party/warpdotdev-warp | `8c2cc73` detached HEAD | ❌ 403 (no write access) |
 | warp | `3504ce5` detached, ahead 5/behind 8 — directory missing | ❌ 403 (no write access) |
 | Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) |
 
 ## Notes
 
-- All 6 repos pushed clean and in sync. No push action needed.
-- Submodule push failures unchanged (pre-existing 403s). `warp/` directory missing from disk (pre-existing gap).
+- All accessible repos pushed clean and up to date.
+- Submodule push failures unchanged (pre-existing 403s). `warp/` directory missing from disk.
 - Build pipeline stalled since Aug 25 — latest AUI loop build is loop 76.
 - Both services confirmed healthy via HTTP check (200 responses).
+- DavyJonesBot/workspace: 7 commits ahead, no valid remote — bundle push fails.
+- 403-blocked repos: warden-source, mempalace, MoA-source + 4 community sources (pre-existing).

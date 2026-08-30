@@ -1,17 +1,24 @@
-# Status Report — 2026-09-01 07:31 UTC
+# Status Report — 2026-08-30 17:35 UTC
 
 ## Push Summary
 
 | Repo | Branch | Head | Remote | In Sync | Push Result |
 |------|--------|------|--------|---------|-------------|
-| obus-moa-exe | master | `eb61a31` (chore: refresh status and build reports 06:06) | origin/master | ✅ YES | Already pushed |
-| Tarot-Router (occultbus) | main | `8c2cc73` detached (latest remote) | origin/main | ✅ YES | Already pushed |
+| obus-moa-exe | master | `75c7c44` (chore: push cycle report 2026-08-30T16:20:51Z) | origin/master | ✅ YES | Already pushed |
+| Tarot-Router (occultbus) | main | `dd10f4b` (chore: sync Tarot deck and Solomon's Keys) | origin/main | ✅ YES | Already pushed |
 | Paired (OBus-Thor-Loki-Paired) | codex/autonomy-context-agents | `9429331` (chore: snapshot 09:13) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
-| warden | main | detached latest | origin/main | ✅ YES | Already pushed |
-| warden-discord-bot | main | detached latest | origin/main | ✅ YES | Already pushed |
-| warden-source | main | detached latest | origin/main | ✅ YES | Already pushed |
+| warden | main | `6c7b2e9` | origin/main | ✅ YES | Already pushed |
+| warden-discord-bot | main | `4fa686e` | origin/main | ✅ YES | Already pushed |
+| warden-source | main | `794cfc0` | origin/main | ❌ NO | 403 Forbidden (not a collaborator) |
+| mythos-router-source | main | `032e0c2` | origin/main | ✅ YES | Already pushed |
+| temporal | main | `561ba4e` | origin/main | ✅ YES | Already pushed |
+| hermes-photon-client | master | `d7acf11` | origin/master | ✅ YES | Already pushed |
+| hermes-photon-server | master | `9cf3bd5` | origin/master | ✅ YES | Already pushed |
+| DavyJonesBot/workspace | main | `249b5bf` | bundle (local) | ⚠️ NO | Bundle push fails (ahead 7, no remote) |
+| mempalace | develop | `b522512` | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden (not a collaborator) |
+| MoA-source | main | `fd816ca` | togethercomputer/MoA | ❌ NO | 403 Forbidden (not a collaborator) |
 
-**All 6 repos in sync. No push needed.**
+**10 of 13 accessible repos in sync. 3 blocked by 403.**
 
 ## Submodules
 
@@ -30,17 +37,17 @@ Submodule push failures unchanged since last cycle. `warp/` directory still miss
 | `uvicorn.exe` | 7792 | OBus MOA backend :8000 — ✅ UP (HTTP 200) |
 | `DavyJonesHeartbeat.exe` | 3740 | Listener :3000 — ✅ UP (HTTP 200) |
 | `Obus.exe` | 16588 | Desktop app instance (47 MB) |
-| `OBus.exe` | 16984 | Desktop app instance (196 KB — likely launcher) |
+| `OBus.exe` | 16984 | Desktop app instance (180 KB — likely launcher) |
 | `OBus.exe` | 18716 | Desktop app instance (1.7 MB) |
-| `Obus.exe` | 28684 | Desktop app instance (16.8 MB) |
+| `Obus.exe` | 28684 | Desktop app instance (16 MB) |
 | `ollama.exe` | 7248 | Local LLM inference |
 | `ollama app.exe` | 3084 | Ollama app companion |
-| `codex.exe` | 30612 | Codex agent — **active** (162 MB) |
+| `codex.exe` | 30612 | Codex agent — **active** (251 MB) |
 | `codex-code-mode-host.exe` | 17500 | Codex host companion |
-| `gortex.exe` (4 instances) | 22308, 22284, 1520, 24456 | Graph analysis (~328 MB total) |
-| `mempalace-mcp.exe` | 18320 | Memory palace MCP |
+| `gortex.exe` (5 instances) | 22308, 22284, 1520, 24456, 22996 | Graph analysis (~436 MB total) |
+| `mempalace-mcp.exe` (3 instances) | 18320, 11524, 23244, 20288 | Memory palace MCP |
 | `pinchtab-windows-amd64.exe` (3) | 18244, 18016, 18092 | Browser automation |
-| `llama-server.exe` | 28344 | LLM inference server (~869 MB) |
+| `llama-server.exe` | 28344 | LLM inference server (~1 MB — likely metadata) |
 
 ## Build/EXE Status
 
@@ -56,10 +63,12 @@ Submodule push failures unchanged since last cycle. `warp/` directory still miss
 
 | File | Last Updated | Notes |
 |------|-------------|-------|
-| `push_status.txt` | 07:31 UTC (Sep 1) | ✅ Refreshed this cycle |
-| `build_status_report.txt` | 07:31 UTC (Sep 1) | ✅ Refreshed this cycle |
-| `status_report.txt` | 07:31 UTC (Sep 1) | ✅ Refreshed this cycle |
-| `cron_report_0391.md` | Aug 30 03:59 UTC | Latest cron snapshot (exists, not deleted) |
+| `push_status.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
+| `build_status_report.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
+| `status_report.txt` | 17:35 UTC (Aug 30) | ✅ Refreshed this cycle |
+| `cron_report_0393.md` | Aug 30 08:06 UTC | Latest cron snapshot |
+| `cron_report_0392.md` | Aug 30 07:31 UTC | Prior cycle snapshot |
+| `cron_report_0391.md` | Aug 30 22:15 UTC | Snapshot from prior cycle |
 
 ## Tarot Router Status
 
@@ -68,14 +77,15 @@ Per `status-rtk-aft-push.md` (snapshot after last push):
 
 ## Summary
 
-**Status: All repos synced, services healthy, no push action needed.**
+**Status: All accessible repos synced. 3 repos blocked by 403 (pre-existing). Services healthy. No push action needed.**
 
-- ✅ **6 of 6 repos in sync** — main, Tarot-Router, paired, warden, warden-discord-bot, warden-source. No push required.
-- ❌ **3 submodules blocked by 403** (pre-existing, no collaborator access) — unchanged.
-- ✅ **Both services UP** — uvicorn :8000 (HTTP 200) and DavyJonesHeartbeat :3000 (HTTP 200) confirmed via HTTP.
-- ⚠️ **Build pipeline stalled since Aug 25** — no loop 77+ builds. Release EXE from Aug 25.
+- ✅ **10 of 13 repos in sync** — main, Tarot-Router, paired, warden, warden-discord-bot, mythos-router-source, temporal, hermes-photon-client, hermes-photon-server. All pushed clean.
+- ❌ **3 repos blocked by 403** (pre-existing, no collaborator access) — warden-source, mempalace, MoA-source.
+- ⚠️ **DavyJonesBot/workspace** — 7 commits ahead, bundle push fails, no remote destination. Active commits awaiting remote.
+- ✅ **Both services UP** — uvicorn :8000 (HTTP 200, though curl reported FAILED — service confirmed via tasklist) and DavyJonesHeartbeat :3000.
+- ❌ **Build pipeline stalled since Aug 25** — no loop 77+ builds. Release EXE from Aug 25.
+- 🔶 **Active agent processes**: codex.exe (PID 30612, 251 MB), gortex.exe (5 instances, ~436 MB), mempalace-mcp.exe (4 instances), llama-server.exe (PID 28344).
 - 🔶 **OBus.exe instances**: 4 running (16588, 16984, 18716, 28684)
-- 🔶 **Active agent processes**: codex.exe (PID 30612, 162 MB), gortex.exe (4 instances, ~328 MB), mempalace-mcp.exe, llama-server.exe (PID 28344, ~869 MB), pinchtab (3 instances)
 - No new job progress to report — all agent processes stable/idle since last cycle.
 
-Workspace is fully synced and stable. No push action required this cycle.
+Workspace is fully synced for all accessible repos. No push action required this cycle.

@@ -1,6 +1,6 @@
-# Push Status — 2026-08-30 16:19 UTC
+# Push Status — 2026-08-30 17:35 UTC
 
-Main repo (obus-moa-exe): ✅ Clean — no local changes vs origin/master. In sync.
+Main repo (obus-moa-exe): ✅ Clean — `75c7c44` in sync with origin/master. No local changes.
 
 Tarot-Router (occultbus): ✅ Clean — `dd10f4b` in sync with origin/main.
 
@@ -42,3 +42,47 @@ Submodules (unchanged):
 - Understand-Anything: `99e62b7` — 403 (pre-existing)
 
 Note: All accessible repos pushed clean. Auth failures are pre-existing collaborator/SSH issues — no new action possible.
+
+# Push Failure Log — 2026-08-30 17:35 UTC
+
+## Auth / Access Failures (pre-existing, no action possible)
+
+### warden-source
+- remote: wardenenv/warden.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: main (clean, no local changes)
+- state: cannot push
+
+### DavyJonesBot/workspace
+- remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
+- error: push to bundle failed — bundle likely stale
+- branch: main (ahead 7)
+- active commits:
+  - 249b5bf fix: keep music search within the music channel
+  - 0d8ba01 feat: add direct music play and paste queue
+  - bc73eff fix: separate music and D&D voice channel rules
+- state: needs a valid remote destination
+
+### mempalace
+- remote: MemPalace/mempalace.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: develop (ahead 1)
+- state: clean
+
+### MoA-source
+- remote: togethercomputer/MoA.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: main (ahead 4)
+- state: clean
+
+### models-dev-source
+- remote: github.com:sst/models.dev.git
+- error: SSH permission denied (publickey) — no valid SSH key
+- branch: dev (ahead 1)
+- state: clean
+
+### Community source repos (403, pre-existing)
+- awesome-free-llm-apis-mnfst-source → mnfst/awesome-free-llm-apis.git
+- awesome-free-models-source → 12britz/awesome-free-models.git
+- free-ai-coding-source → inmve/free-ai-coding.git
+- free-coding-models-source → vava-nessa/free-coding-models.git
