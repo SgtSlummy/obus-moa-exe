@@ -1,4 +1,4 @@
-# Build Status Report — 2026-08-30 21:20 UTC
+# Build Status Report — 2026-08-30 21:45 UTC
 
 ## Services
 
@@ -9,15 +9,15 @@
 
 ## Last 3 Commits (master)
 
-- `02dec92` chore: update status and build reports (21:20 cycle)
-- `0522377` chore: add cron_report_0386.md (07:24 cycle snapshot)
-- `d5658fe` chore: add cron_report_0385.md (23:08 cycle)
+- `4aa18ee` chore: add cron_report_0388.md (21:45 cycle snapshot)
+- `9949f4b` fix: restore provider_statuses(ollama) snapshot reuse for dashboard
+- `5ce12ff` chore: add cron_report_0387.md (21:20 cycle snapshot)
 
 ## Repo Push Status
 
 | Repo | Branch | Head | Push |
 |------|--------|------|------|
-| obus-moa-exe | master | `02dec92` | ✅ Pushed |
+| obus-moa-exe | master | `4aa18ee` | ✅ Pushed |
 | Tarot-Router (occultbus) | main | `dd10f4b` | ✅ Pushed |
 | Warden | — | — | ❌ Repo missing on disk |
 | warden-discord-bot | — | — | ❌ Repo missing on disk |
@@ -33,8 +33,9 @@
 
 ## Notes
 
-- Main repo (`obus-moa-exe`) pushed clean at `02dec92`.
+- Main repo (`obus-moa-exe`) pushed clean at `4aa18ee`.
 - Tarot-Router (`occultbus`) pushed clean at `dd10f4b`.
 - Warden repos (warden, warden-discord-bot, warden-source) no longer present on disk — previously tracked under Documents/.
 - Submodule push failures unchanged (pre-existing 403s).
 - `warp/` directory missing from disk (pre-existing gap, not new).
+- Build pipeline stalled since Aug 25 — latest AUI loop build is loop 76.
