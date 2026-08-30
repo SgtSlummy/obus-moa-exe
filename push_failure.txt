@@ -1,3 +1,43 @@
-# Push Failure Log — 2026-08-27 21:12 UTC
+# Push Failure Log — 2026-08-30 16:19 UTC
 
-- warp (nvidia/warp): 403 Forbidden — not a collaborator (prior attempt, current state clean)
+## Auth / Access Failures (pre-existing, no action possible)
+
+### warden-source
+- remote: wardenenv/warden.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: main (1 commit behind remote merge base, no local changes)
+- state: clean
+
+### DavyJonesBot/workspace
+- remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
+- error: push to bundle failed — bundle likely stale
+- branch: main (ahead 7)
+- active commits:
+  - 249b5bf fix: keep music search within the music channel
+  - 0d8ba01 feat: add direct music play and paste queue
+  - bc73eff fix: separate music and D&D voice channel rules
+- state: needs a valid remote destination
+
+### mempalace
+- remote: MemPalace/mempalace.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: develop (ahead 1)
+- state: clean
+
+### MoA-source
+- remote: togethercomputer/MoA.git
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- branch: main (ahead 4)
+- state: clean
+
+### models-dev-source
+- remote: github.com:sst/models.dev.git
+- error: SSH permission denied (publickey) — no valid SSH key
+- branch: dev (ahead 1)
+- state: clean
+
+### Community source repos (403, pre-existing)
+- awesome-free-llm-apis-mnfst-source → mnfst/awesome-free-llm-apis.git
+- awesome-free-models-source → 12britz/awesome-free-models.git
+- free-ai-coding-source → inmve/free-ai-coding.git
+- free-coding-models-source → vava-nessa/free-coding-models.git

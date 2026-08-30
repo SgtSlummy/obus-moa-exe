@@ -1,20 +1,44 @@
-# Push Status — 2026-09-01 07:31 UTC
+# Push Status — 2026-08-30 16:19 UTC
 
-Main repo (obus-moa-exe): ✅ Pushed — `eb61a31` (chore: refresh status and build reports, 06:06 cycle), in sync with origin/master.
+Main repo (obus-moa-exe): ✅ Clean — no local changes vs origin/master. In sync.
 
-Tarot-Router (occultbus): ✅ Pushed — detached HEAD at `8c2cc73` (latest remote), in sync.
+Tarot-Router (occultbus): ✅ Clean — `dd10f4b` in sync with origin/main.
 
-Paired repo (OBus-Thor-Loki-Paired): ✅ Pushed — `9429331` (chore: snapshot tracked file changes 09:13 cycle), in sync with origin/codex/autonomy-context-agents.
+Paired repo (OBus-Thor-Loki-Paired): ✅ Pushed — `9429331` in sync with origin/codex/autonomy-context-agents.
 
-warden: ✅ Pushed — detached HEAD at latest, in sync.
+warden: ✅ Clean — in sync with origin/main.
 
-warden-discord-bot: ✅ Pushed — detached HEAD at latest, in sync.
+warden-discord-bot: ✅ Clean — in sync with origin/main.
 
-warden-source: ✅ Pushed — detached HEAD at latest, in sync.
+warden-source: ❌ 403 Forbidden — not a collaborator on wardenenv/warden.git (pre-existing).
 
-Submodule state (pre-existing):
-- warpdotdev-warp: `8c2cc73` detached HEAD (latest remote) — ❌ 403 Forbidden (no write access)
-- warp: `3504ce5` detached HEAD (ahead 5/behind 8 vs nvidia/warp main) — ❌ 403 Forbidden — directory MISSING on disk
-- Understand-Anything: `99e62b7` v1.3.0-574-g99e62b7 — ❌ 403 Forbidden (no write access)
+mythos-router-source: ✅ Clean — in sync with origin/main.
 
-Note: All 6 repos pushed clean. Submodule 403s are pre-existing — no collaborator access. No push action needed.
+temporal: ✅ Clean — in sync with origin/main.
+
+hermes-photon-client: ✅ Clean — `d7acf11` master, in sync.
+
+hermes-photon-server: ✅ Clean — `9cf3bd5` master, in sync.
+
+DavyJonesBot/workspace: ⚠️ Ahead 7 vs origin/main — push to local bundle fails (bundle may be stale). No remote push path available. Active commits need a remote destination.
+
+mempalace: ❌ 403 Forbidden — not a collaborator on MemPalace/mempalace.git (develop branch, ahead 1).
+
+MoA-source: ❌ 403 Forbidden — not a collaborator on togethercomputer/MoA.git (ahead 4).
+
+models-dev-source: ❌ SSH auth failure — no valid SSH key for github.com:sst/models.dev.git (dev branch, ahead 1).
+
+awesome-free-llm-apis-mnfst-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
+
+awesome-free-models-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
+
+free-ai-coding-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
+
+free-coding-models-source: ❌ 403 Forbidden — not a collaborator (pre-existing).
+
+Submodules (unchanged):
+- warpdotdev-warp: `8c2cc73` — 403 (pre-existing, no write access)
+- warp: `3504ce5` — 403 — directory MISSING on disk
+- Understand-Anything: `99e62b7` — 403 (pre-existing)
+
+Note: All accessible repos pushed clean. Auth failures are pre-existing collaborator/SSH issues — no new action possible.
