@@ -1,10 +1,10 @@
-# Push Status — 2026-08-30 21:29 UTC
+# Push Status — 2026-08-30 21:39 UTC
 
 ## Push Summary
 
 | Repo | Branch | Head | Remote | In Sync | Push Result |
 |------|--------|------|--------|---------|-------------|
-| obus-moa-exe | master | `33b78af` (chore: refresh push failure log (cycle 0395)) | origin/master | ✅ YES | Already pushed |
+| obus-moa-exe | master | `47a89b8` (chore: refresh status reports (cycle 0396)) | origin/master | ✅ YES | Already pushed |
 | Tarot-Router | main | — (no git worktree) | origin/main | ⚠️ UNKNOWN | Cannot verify |
 | warden | main | `6c7b2e9` (chore: stage modified src/index.ts) | origin/main | ✅ YES | Already pushed |
 | warden-discord-bot | main | `4fa686e` (fix(diva): correct CRLF escaping in FFmpeg Host header for direct streams) | origin/main | ✅ YES | Already pushed |
@@ -12,7 +12,7 @@
 | temporal | main | `561ba4ee4` (Initial temporal clone with full Go codebase) | origin/main | ✅ YES | Already pushed |
 | hermes-photon-client | master | `d7acf11` (feat: initial hermes-photon-client setup with send.ts and skills) | origin/master | ✅ YES | Already pushed |
 | hermes-photon-server | master | `9cf3bd5` (feat: initial hermes-photon-server setup) | origin/master | ✅ YES | Already pushed |
-| DavyJonesBot/workspace | main | `249b5bf` (fix: keep music search within the music channel) | bundle (local) | ⚠️ NO | Bundle push fails (ahead 7, new untracked dir) |
+| DavyJonesBot/workspace | main | `249b5bf` (fix: keep music search within the music channel) | bundle (local) | ⚠️ NO | Bundle push fails (ahead 10, new untracked dir) |
 | mempalace | develop | `b522512` (chore: sync with upstream develop) | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden |
 | MoA-source | main | `fd816ca` (feat: provider usage tracking with UsageTracker, fast-route verification skip, and coverage tests) | togethercomputer/MoA | ❌ NO | 403 Forbidden |
 | models-dev-source | dev | `aa6d1fb5d` (Remove deleted workflow/agent files) | github.com:sst/models.dev.git | ❌ NO | SSH auth failure |
@@ -33,7 +33,7 @@
 ### DavyJonesBot/workspace (active)
 - remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
 - error: push to bundle failed — bundle likely stale
-- branch: main (ahead 7)
+- branch: main (ahead 10)
 - active commits:
   - 249b5bf fix: keep music search within the music channel
   - 0d8ba01 feat: add direct music play and paste queue
@@ -42,7 +42,10 @@
   - e81dd48 security: harden LLM prompt and output handling
   - a02cc31 ci: scope CodeQL to deployable sources
   - 98ef89f ci: retain and enforce private CodeQL SARIF
-- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir
+  - b740823 docs: record unpinned button-only deck
+  - 7c48d1b feat: make discord launchers button-only and unpinned
+  - 19ab1af fix: avoid repeated launcher pinning
+- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir with verified SLSA provenance
 
 ### mempalace
 - remote: MemPalace/mempalace.git (develop, ahead 1)

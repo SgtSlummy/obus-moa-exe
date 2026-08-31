@@ -1,11 +1,11 @@
-# Push Failure Log — 2026-08-30 21:29 UTC
+# Push Failure Log — 2026-08-30 21:39 UTC
 
 ## Auth / Access Failures (pre-existing, no action possible)
 
 ### DavyJonesBot/workspace
 - remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
 - error: push to bundle failed — bundle likely stale
-- branch: main (ahead 7)
+- branch: main (ahead 10)
 - active commits:
   - 249b5bf fix: keep music search within the music channel
   - 0d8ba01 feat: add direct music play and paste queue
@@ -14,8 +14,11 @@
   - e81dd48 security: harden LLM prompt and output handling
   - a02cc31 ci: scope CodeQL to deployable sources
   - 98ef89f ci: retain and enforce private CodeQL SARIF
+  - b740823 docs: record unpinned button-only deck
+  - 7c48d1b feat: make discord launchers button-only and unpinned
+  - 19ab1af fix: avoid repeated launcher pinning
 - state: needs a valid remote destination
-- NEW: untracked directory `.candidate-evidence-inspect/` detected
+- NEW: untracked directory `.candidate-evidence-inspect/` — contains verified SLSA provenance attestations for ghcr.io/sgtslummy/davy-jones-bot candidate image (built 2026-08-27, verified)
 
 ### mempalace
 - remote: MemPalace/mempalace.git

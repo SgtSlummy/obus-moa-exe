@@ -1,7 +1,7 @@
-# Status Report — 2026-08-30 21:29 UTC
+# Status Report — 2026-08-30 21:39 UTC
 
 ## Repos
-- obus-moa-exe: ✅ Synced (HEAD 33b78af)
+- obus-moa-exe: ✅ Synced (HEAD 47a89b8)
 - Tarot-Router: ⚠️ No git worktree (HEAD unknown)
 - warden: ✅ Synced (HEAD 6c7b2e9)
 - warden-discord-bot: ✅ Synced (HEAD 4fa686e)
@@ -9,7 +9,7 @@
 - temporal: ✅ Synced (HEAD 561ba4ee4)
 - hermes-photon-client: ✅ Synced (HEAD d7acf11)
 - hermes-photon-server: ✅ Synced (HEAD 9cf3bd5)
-- DavyJonesBot/workspace: ⚠️ Ahead 7 (HEAD 249b5bf), new untracked dir
+- DavyJonesBot/workspace: ⚠️ Ahead 10 (HEAD 249b5bf), new untracked dir with verified SLSA attestations
 - mempalace: ❌ 403 (HEAD b522512)
 - MoA-source: ❌ 403 (HEAD fd816ca)
 - models-dev-source: ❌ SSH (HEAD aa6d1fb5d)
@@ -21,3 +21,7 @@
 
 ## Build
 - Pipeline stalled since Aug 25 — no loop 77+
+
+## Notable
+- DavyJonesBot: 3 new commits since last cycle (b740823, 7c48d1b, 19ab1af) — button-only unpinned deck work
+- `.candidate-evidence-inspect/`: verified SLSA provenance for candidate Docker image
