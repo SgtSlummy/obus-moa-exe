@@ -1,14 +1,5 @@
-# Build Status Report — 2026-08-30 21:39 UTC
+# Build Status Report — 2026-08-31 05:52 UTC
 
 ## Loop Builds
 - Latest loop build: loop 76 (`dist-aui-loop76/OBus.exe`, ~67.5 MB, Aug 25 04:49 UTC)
 - Build pipeline **STALLED** since Aug 25 — no loop 77+
-- Next expected: loop 77 (unbuilt)
-
-## Release EXE
-- `dist-aui-release/OBus.exe` — unchanged since Aug 25
-- `dist-electron-20260827/` — unchanged since Aug 27
-
-## Status
-- No new builds in last 24 hours
-- Build queue: empty

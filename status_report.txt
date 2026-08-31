@@ -1,7 +1,7 @@
-# Status Report — 2026-08-30 21:39 UTC
+# Status Report — 2026-08-31 05:52 UTC
 
 ## Repos
-- obus-moa-exe: ✅ Synced (HEAD 47a89b8)
+- obus-moa-exe: ✅ Synced (HEAD de28888)
 - Tarot-Router: ⚠️ No git worktree (HEAD unknown)
 - warden: ✅ Synced (HEAD 6c7b2e9)
 - warden-discord-bot: ✅ Synced (HEAD 4fa686e)
@@ -23,5 +23,6 @@
 - Pipeline stalled since Aug 25 — no loop 77+
 
 ## Notable
-- DavyJonesBot: 3 new commits since last cycle (b740823, 7c48d1b, 19ab1af) — button-only unpinned deck work
-- `.candidate-evidence-inspect/`: verified SLSA provenance for candidate Docker image
+- Source worktree gained large untracked experiment dump (56 new backend .py files, hundreds of test/build dirs)
+- No new commits in any tracked repo since cycle 0397
+- gortex: 7 instances, mempalace-mcp: 6 instances, codex: 2 instances — all stable

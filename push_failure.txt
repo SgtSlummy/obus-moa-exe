@@ -1,4 +1,4 @@
-# Push Failure Log — 2026-08-30 21:39 UTC
+# Push Failure Log — 2026-08-31 05:52 UTC
 
 ## Auth / Access Failures (pre-existing, no action possible)
 
@@ -6,42 +6,28 @@
 - remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
 - error: push to bundle failed — bundle likely stale
 - branch: main (ahead 10)
-- active commits:
-  - 249b5bf fix: keep music search within the music channel
-  - 0d8ba01 feat: add direct music play and paste queue
-  - bc73eff fix: separate music and D&D voice channel rules
-  - 8b98d70 docs: record verified CodeQL evidence
-  - e81dd48 security: harden LLM prompt and output handling
-  - a02cc31 ci: scope CodeQL to deployable sources
-  - 98ef89f ci: retain and enforce private CodeQL SARIF
-  - b740823 docs: record unpinned button-only deck
-  - 7c48d1b feat: make discord launchers button-only and unpinned
-  - 19ab1af fix: avoid repeated launcher pinning
+- active commits: 249b5bf, 0d8ba01, bc73eff, 8b98d70, e81dd48, a02cc31, 98ef89f, b740823, 7c48d1b, 19ab1af
 - state: needs a valid remote destination
 - NEW: untracked directory `.candidate-evidence-inspect/` — contains verified SLSA provenance attestations for ghcr.io/sgtslummy/davy-jones-bot candidate image (built 2026-08-27, verified)
 
 ### mempalace
-- remote: MemPalace/mempalace.git
+- remote: MemPalace/mempalace.git (develop, ahead 1)
 - error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: develop (ahead 1)
 - state: clean
 
 ### MoA-source
-- remote: togethercomputer/MoA.git
+- remote: togethercomputer/MoA.git (main, ahead 4)
 - error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: main (ahead 4)
 - state: clean
 
 ### models-dev-source
-- remote: github.com:sst/models.dev.git
+- remote: github.com:sst/models.dev.git (dev, ahead 1)
 - error: SSH permission denied (publickey) — no valid SSH key
-- branch: dev (ahead 1)
 - state: clean
 
 ### warden-source
-- remote: wardenenv/warden.git
+- remote: wardenenv/warden.git (main, ahead 1)
 - error: 403 Forbidden — SgtSlummy not a collaborator
-- branch: main (ahead 1)
 - state: clean
 
 ### Community source repos (403, pre-existing)
@@ -49,3 +35,5 @@
 - awesome-free-models-source → 12britz/awesome-free-models.git
 - free-ai-coding-source → inmve/free-ai-coding.git
 - free-coding-models-source → vava-nessa/free-coding-models.git
+
+Note: All accessible repos pushed clean. Auth failures are pre-existing — no new action possible.
