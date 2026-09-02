@@ -1,18 +1,19 @@
-# Cron Report — 2026-09-01 23:24 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #410
+# Cron Report — 2026-09-02 00:12 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #411
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Status:** ✅ In sync with origin/master
-- **HEAD:** `0c38446` (Add cron report)
-- **Local changes:** `venv/Scripts/python.exe` (modified), `venv/Scripts/pythonw.exe` (modified), `obus_venv/` (untracked)
+- **HEAD:** `2f49f80` (Cron: add report 0411 (push check, active jobs))
+- **Local changes:** Clean working tree (porcelain: empty)
 - **Push:** Already pushed | No new commits to push
 
 ### obus-moa-exe/codex/autonomy-context-agents (worktree)
-- **Status:** ⚠️ Dirty working tree — 50+ untracked candidate dirs + uncommitted backend/ docs/ package-build/ scripts/ tests/ changes
+- **Status:** ⚠️ Dirty working tree — 23 untracked candidate dirs (reduced from 50+ since last cycle)
 - **HEAD:** `9429331` (chore: snapshot tracked file changes (09:13 cycle))
 - **Push:** Cannot push — needs cleanup or commit
+- **Note:** Worktree directory still exists at `OBus-Thor-Loki-Paired/source-worktree`
 
 ### All Other Repos (from push_status.txt, unchanged since 05:55 UTC)
 
@@ -39,80 +40,89 @@
 - **Blocked:** 4 (3×403, 1×SSH) — pre-existing, no change possible
 - **No remote:** 1 (DavyJonesBot/workspace — stale bundle)
 - **No worktree:** 1 (Tarot-Router)
-- **Dirty worktree:** 1 (codex/autonomy-context-agents — needs attention)
+- **Dirty worktree:** 1 (codex/autonomy-context-agents — reduced but still dirty)
 
 ---
 
-## Tarot Router Deck Status
+## Active Background Jobs
 
-### Cards
-- **Ready (3):** The High Priestess (codex final aggregator), The Star (NVIDIA NIM), The Seeker (local Ollama orchestrator/scout), Wise · Local OSS 20
-- **Staged (50+):** The Sun (Nous), The Magician (OpenRouter), The Hermit (DeepSeek), The Moon (Gemini), The Chariot (Groq), World · HuggingFace, plus 46+ OpenCode Zen workspace models
+**No Hermes-managed background jobs.** `process list` returned empty — no tracked background processes registered with Hermes.
 
-### Solomon's Keys
-- **Ready (3):** key-codex-oauth (Hermes-managed OAuth), key-local-ollama (local endpoint), key-nvidia-nim (env reference, not configured)
-- **Staged (18):** All other provider keys — none configured, all environment-reference based
-
-### OBus Runtime
-- **Ollama:** Connected, models loaded: Qwen3.8-27B-OBLITERATED:Q4_K_M (262K ctx), gpt-oss:20b, nomic-embed-text, llama3.2:latest
-- **Warm runtime:** Qwen3.8-27B active since 22:15 UTC
-- **NVIDIA Warp:** Unavailable — fallback to CPU
-- **Active providers:** Local Ollama (ready, verified at 23:15 UTC)
-
----
-
-## Build Pipeline Status
-
-### AUI Loop Builds
-- **Latest successful build:** Loop 76 (`dist-aui-loop76/OBus.exe`, ~67.5 MB, Aug 25 04:49 UTC)
-- **Pipeline status:** ⛔ STALLED — 7+ days since last build (Aug 25 → Sep 1)
-- **No loop 77+ attempted**
-- **Build source:** `build-aui-loop76/OBus/` — frozen since Aug 25
-
-### Build timestamps (all loops show same Aug 25 date)
-- build-aui-loop70/ through build-aui-loop76/: all built Aug 25 04:48-04:49 UTC
+### System-wide relevant processes (observed via tasklist)
+| Process | PID | Notes |
+|---------|-----|-------|
+| `OBus.exe` (×9 instances) | 7956–31564 | Multiple OBus runtimes running |
+| `codex.exe` | 30612 | Codex CLI active (~615 MB) |
+| `codex-code-mode-host.exe` | 17500 | Codex code mode host |
+| `ollama app.exe` / `ollama.exe` | 3084 / 7248 | Ollama serving (~119 MB + 35 MB) |
+| `gortex.exe` (×4 instances) | 1520–22308 | Gortex graph tools active |
+| `mempalace-mcp.exe` (×2) | 13080 / 18320 | MemPalace MCP servers |
+| `uvicorn.exe` | 7792 | UVicorn ASGI server |
 
 ---
 
-## Active Services & Processes
+## Worktree Status
 
-### Running (detected via system state)
-- Multiple `python.exe` instances (Ollama, uvicorn, scripts)
-- `ollama serve` — model serving on :11434
-- Ollama models loaded: Qwen3.8-27B, gpt-oss:20b, llama3.2, nomic-embed-text
-- OBus warm runtime active (Qwen3.8-27B)
+### obus-moa-exe (main)
+- Clean. HEAD `2f49f80` matches origin/master.
 
-### No Hermes-managed background jobs
-- `process list` returned empty — no tracked background processes
+### codex/autonomy-context-agents (worktree)
+- Located at: `C:\Users\Hermes\Documents\OBus-Thor-Loki-Paired\source-worktree`
+- Branch: `codex/autonomy-context-agents` tracking `origin/codex/autonomy-context-agents`
+- HEAD: `9429331` — same as last cycle, no new commits
+- Untracked dirs (23): `.browser-live-tool-progress-v20/`, `.browser-occult-live-tool-progress-v20/`, `.build-venv/`, `.cache/`, plus 19 `.candidate-*` dirs (approval, auto-aid, native-tray, safe-resume, voice-auto-aid variants)
+- Reduction from ~50+ to 23 untracked dirs suggests some cleanup occurred, but still not pushable.
 
 ---
 
-## Blockers (unchanged since last cycle)
+## Push Failures (pre-existing, unchanged)
 
-1. **Build pipeline stalled** — Loop 76 last build Aug 25. No build script or trigger running. 7+ days idle.
-2. **DavyJonesBot has no push destination** — 10 commits sitting local, stale bundle remote. Needs new bundle path or real git remote.
-3. **codex/autonomy-context-agents worktree dirty** — 50+ untracked candidate dirs from agentic runtime testing. Cannot push until cleaned or committed.
-4. **Auth blocks permanent** — mempalace, MoA-source, warden-source, models-dev-source all unreachable. No change possible from this account.
+### DavyJonesBot/workspace (active)
+- remote: `C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle`
+- error: push to bundle failed — bundle likely stale
+- branch: main (ahead 10)
+- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir with verified SLSA provenance
+
+### mempalace
+- remote: MemPalace/mempalace.git (develop, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+
+### MoA-source
+- remote: togethercomputer/MoA.git (main, ahead 4)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+
+### models-dev-source
+- remote: github.com:sst/models.dev.git (dev, ahead 1)
+- error: SSH permission denied (publickey) — no valid SSH key
+
+### warden-source
+- remote: wardenenv/warden.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+
+---
+
+## Blockers (unchanged)
+
+1. **Build pipeline stalled** — Loop 76 last build Aug 25. No build script or trigger running. 8+ days idle.
+2. **DavyJonesBot has no push destination** — 10 commits sitting local, stale bundle remote.
+3. **codex/autonomy-context-agents worktree dirty** — 23 untracked candidate dirs. Cannot push until cleaned or committed.
+4. **Auth blocks permanent** — mempalace, MoA-source, warden-source, models-dev-source all unreachable.
 5. **Tarot-Router unverifiable** — No git worktree; status unknown.
 
 ---
 
-## No Changes Since Last Cycle (15:38 UTC)
+## Changes Since Last Cycle (#410, 23:24 UTC)
 
-- obus-moa-exe master: new commit `0c38446` (Add cron report) — pushed clean
-- push_status.txt unchanged (all auth blocks pre-existing)
-- Tarot Router deck unchanged — same 3 ready, 50+ staged cards
-- Solomon's Keys unchanged — same 3 ready, 18 staged keys
-- OBus runtime: Qwen3.8-27B warm and serving
-- Build pipeline remains stalled — no new loop attempted
-- DavyJonesBot still blocked — no new remote configured
-- codex worktree still dirty — no cleanup
+- New commit `2f49f80` on master: "Cron: add report 0411 (push check, active jobs)" — pushed clean
+- codex worktree untracked dirs reduced from ~50+ to 23 (some cleanup occurred)
+- No other state changes detected
 
 ---
 
-## Action Items
+## Action Items (carry forward)
 
-1. **Start AUI loop 77 build** — check `build-aui-loop76/` for build scripts/logs; investigate why pipeline stopped after loop 76
-2. **Clean up codex worktree** — `OBus-Thor-Loki-Paired/source-worktree` has 50+ untracked candidate dirs; decide whether to commit, clean, or ignore
-3. **DavyJonesBot remote** — create new bundle path or push to a real remote
-4. **Tarot-Router** — provide git worktree if verification needed
+1. Start AUI loop 77 build — pipeline stalled 8+ days
+2. Clean up codex worktree — decide: commit, clean, or remove worktree
+3. DavyJonesBot remote — create new bundle path or push to real remote
+4. Tarot-Router — provide git worktree if verification needed
+5. No Hermes-managed background jobs to report this cycle
