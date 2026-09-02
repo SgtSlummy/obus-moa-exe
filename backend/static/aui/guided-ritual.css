@@ -1,0 +1,855 @@
+:root {
+  --guided-sidebar: clamp(12.5rem, 15vw, 14.5rem);
+  --guided-rail: clamp(18.5rem, 23vw, 22rem);
+  --guided-command: #10151f;
+  --guided-command-high: #151c28;
+  --guided-rule: color-mix(in srgb, var(--parchment) 13%, transparent);
+}
+
+body.guided-ritual {
+  background:
+    radial-gradient(circle at 58% -20%, color-mix(in srgb, var(--indigo) 15%, transparent), transparent 38rem),
+    var(--ink);
+  background-attachment: fixed;
+  font-size: 15px;
+}
+
+body.guided-ritual .shell {
+  grid-template-columns: var(--guided-sidebar) minmax(0, 1fr);
+}
+
+body.guided-ritual .side {
+  display: flex !important;
+  flex-direction: column;
+  padding: 24px 16px;
+  background: color-mix(in srgb, var(--ink) 96%, var(--brass) 4%);
+}
+
+body.guided-ritual .brand {
+  align-items: flex-start;
+  padding: 0 8px 24px;
+}
+
+body.guided-ritual .brand .emblem {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brass) 72%, transparent), 0 0 30px #000;
+}
+
+body.guided-ritual .brand .emblem img {
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+body.guided-ritual .brand h1 {
+  margin-top: 2px;
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+body.guided-ritual .brand small {
+  display: block;
+  margin-top: 8px;
+  color: var(--verdigris);
+  font-size: .67rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+body.guided-ritual .mobile-nav-drawer,
+body.guided-ritual .nav {
+  min-height: 0;
+}
+
+body.guided-ritual .nav {
+  align-content: start;
+  gap: 4px;
+}
+
+body.guided-ritual .nav button,
+body.guided-ritual .guided-workspace-nav {
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 11px 14px;
+  background: transparent;
+  color: var(--parchment-muted);
+  font-size: .93rem;
+  font-weight: 570;
+  text-align: left;
+}
+
+body.guided-ritual .nav button:hover,
+body.guided-ritual .nav button.active,
+body.guided-ritual .guided-workspace-nav:hover {
+  border-color: var(--guided-rule);
+  background: color-mix(in srgb, var(--parchment) 6%, transparent);
+  color: var(--parchment);
+  box-shadow: none;
+}
+
+body.guided-ritual .nav button.active {
+  border-left-color: var(--verdigris);
+  box-shadow: inset 3px 0 var(--verdigris);
+}
+
+.guided-nav-label {
+  display: block;
+  margin: 20px 14px 7px;
+  color: color-mix(in srgb, var(--parchment-muted) 76%, transparent);
+  font-size: .66rem;
+  font-weight: 760;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.guided-advanced-nav {
+  margin-top: 12px;
+  border-top: 1px solid var(--guided-rule);
+  padding-top: 10px;
+}
+
+.guided-task-switcher {
+  margin: 14px 0 2px;
+  border: 1px solid color-mix(in srgb, var(--verdigris) 35%, var(--guided-rule));
+  border-radius: 10px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--guided-command-high) 82%, transparent);
+}
+
+.guided-task-switcher-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 7px; color: var(--parchment-muted); font-size: .67rem; font-weight: 760; letter-spacing: .1em; text-transform: uppercase; }
+.guided-task-switcher-open { border: 0; background: transparent; color: var(--verdigris); font: inherit; cursor: pointer; }
+.guided-task-switcher-open:disabled { opacity: .5; cursor: default; }
+.guided-task-switcher-task { display: block; width: 100%; border: 0; border-radius: 7px; padding: 8px; background: color-mix(in srgb, var(--ink) 74%, transparent); color: var(--parchment); text-align: left; cursor: pointer; }
+.guided-task-switcher-task:hover { background: color-mix(in srgb, var(--verdigris) 12%, var(--ink)); }
+.guided-task-switcher-task:focus-visible,.guided-task-switcher-open:focus-visible { outline: 2px solid var(--verdigris); outline-offset: 2px; }
+.guided-task-switcher-task strong,.guided-task-switcher-task small { display: block; }
+.guided-task-switcher-task strong { font-size: .78rem; }
+.guided-task-switcher-task small { margin-top: 3px; color: var(--parchment-muted); font-size: .71rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.guided-advanced-nav > summary {
+  min-height: 42px;
+  border-radius: 9px;
+  padding: 11px 14px;
+  color: var(--parchment-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.guided-advanced-nav > summary::-webkit-details-marker { display: none; }
+.guided-advanced-nav > summary::after { content: "Show"; float: right; color: var(--verdigris); font-size: .75rem; }
+.guided-advanced-nav[open] > summary::after { content: "Hide"; }
+.guided-advanced-nav > div { display: grid; gap: 3px; padding-top: 5px; }
+.guided-advanced-nav button { font-size: .82rem !important; }
+
+body.guided-ritual main {
+  max-width: none;
+  padding: 0 28px 48px;
+}
+
+body.guided-ritual .top {
+  min-height: 70px;
+  margin: 0 -28px 30px;
+  border-bottom: 1px solid var(--guided-rule);
+  padding: 12px 28px;
+}
+
+body.guided-ritual:not([data-guided-page="dashboard"]) #home-status-header,
+#home-status-header[hidden] {
+  display: none !important;
+}
+
+body.guided-ritual .home-setup-assistant {
+  margin: 0 0 20px;
+  border-color: color-mix(in srgb, var(--verdigris) 42%, var(--guided-rule));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--verdigris) 8%, var(--ink)), var(--ink));
+}
+
+.home-setup-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-setup-check {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  min-height: 62px;
+  border: 1px solid var(--guided-rule);
+  border-radius: 10px;
+  padding: 11px;
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+}
+
+.home-setup-check > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.home-setup-check.ready > span { color: var(--verdigris); }
+.home-setup-check strong,
+.home-setup-check small { display: block; }
+.home-setup-check strong { color: var(--parchment-soft); font-size: .86rem; }
+.home-setup-check small { margin-top: 3px; color: var(--parchment-muted); font-size: .76rem; line-height: 1.35; overflow-wrap: anywhere; }
+.home-setup-actions { margin-top: 13px; }
+
+body.guided-ritual .terminal-workbench {
+  grid-template-columns: minmax(0, 1.618fr) 1px minmax(18.5rem, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 30px;
+}
+
+body.guided-ritual #run-workbench-splitter {
+  width: 1px;
+  min-width: 1px;
+  border: 0;
+  background: var(--guided-rule);
+  pointer-events: none;
+}
+
+body.guided-ritual #run-workbench-splitter::before { display: none; }
+body.guided-ritual .terminal-stack { gap: 16px; }
+
+/* Keep the active agent stream in view, then put the next instruction directly beneath it. */
+body.guided-ritual .terminal-stack > #route-output-panel { order: 1; }
+body.guided-ritual .terminal-stack > #route-command-panel { order: 2; }
+body.guided-ritual .terminal-stack > #home-autonomous-monitor,
+body.guided-ritual .terminal-stack > #home-autonomous-history,
+body.guided-ritual .terminal-stack > #shell-panel { order: 3; }
+
+body.guided-ritual .guided-command-surface {
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--parchment) 18%, transparent);
+  border-radius: 16px;
+  background: var(--guided-command);
+  box-shadow: 0 20px 54px #0007, inset 0 1px #fff1;
+}
+
+body.guided-ritual .guided-command-surface .terminal-toolbar {
+  display: none;
+}
+
+body.guided-ritual .guided-command-surface .terminal-tabs {
+  display: none;
+}
+
+body.guided-ritual .guided-command-surface #selection-summary {
+  margin: 0 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--verdigris);
+}
+
+body.guided-ritual .guided-command-surface .terminal-command {
+  padding: 14px 18px 0;
+  background: transparent;
+}
+
+body.guided-ritual .guided-command-surface .terminal-block-head {
+  display: none;
+}
+
+body.guided-ritual .guided-command-surface .terminal-block-head strong {
+  color: var(--parchment-soft);
+  font-size: .88rem;
+}
+
+body.guided-ritual .guided-command-surface #route-submit-hint { display: none; }
+
+body.guided-ritual .guided-command-surface .hermes-composer {
+  min-height: 76px;
+  border: 1px solid var(--guided-rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--ink) 63%, var(--guided-command-high));
+  box-shadow: inset 0 1px #fff1;
+}
+
+body.guided-ritual .guided-command-surface .prompt-glyph { display: none; }
+
+body.guided-ritual .guided-command-surface .hermes-composer textarea {
+  min-height: 48px;
+  color: var(--parchment);
+  font-family: var(--font-reading);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+body.guided-ritual .guided-command-surface .composer-foot { margin: 0; }
+
+.guided-composer-primary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.home-autonomous-monitor { margin: 0; }
+.home-autonomous-monitor[hidden] { display: none; }
+.home-autonomous-monitor-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px 18px;
+}
+.home-autonomous-monitor-body .context { margin: 0; color: var(--parchment-soft); }
+.home-autonomous-monitor-body .code-output { margin: 0; max-block-size: 180px; overflow: auto; }
+
+.guided-project-context {
+  min-width: 0;
+  color: var(--parchment-muted);
+  font-size: .84rem;
+  overflow-wrap: anywhere;
+}
+
+.guided-project-context strong { color: var(--parchment-soft); font-weight: 650; }
+
+body.guided-ritual #route-btn {
+  min-width: 126px;
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--brass-bright) 74%, transparent);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--brass-bright), var(--brass));
+  color: #22180b;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 8px 24px #0006, inset 0 1px #fff8;
+}
+
+.guided-safety-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 -18px;
+  border-top: 1px solid var(--guided-rule);
+  color: var(--parchment-muted);
+  font-size: .77rem;
+}
+
+.guided-safety-strip span {
+  min-height: 42px;
+  padding: 12px 18px;
+  overflow-wrap: anywhere;
+}
+
+.guided-safety-strip span + span { border-left: 1px solid var(--guided-rule); }
+
+.guided-route-context {
+  margin-top: 16px;
+  border-top: 1px solid var(--guided-rule);
+}
+
+.guided-route-context .guided-project-context {
+  padding: 13px 0;
+}
+
+.guided-route-context .guided-safety-strip {
+  margin: 0;
+  border-bottom: 1px solid var(--guided-rule);
+}
+
+body.guided-ritual .harness-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.harness-card-art {
+  width: 48px;
+  height: 64px;
+  border: 1px solid var(--guided-rule);
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--ink);
+}
+
+.harness-card-art-fallback {
+  display: grid;
+  width: 48px;
+  height: 64px;
+  place-items: center;
+  border: 1px solid var(--guided-rule);
+  border-radius: 7px;
+  color: var(--brass-bright);
+}
+
+.harness-card-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.harness-card-copy small { margin: 0; }
+
+.guided-advanced-options {
+  margin: 0 -18px;
+  border-top: 1px solid var(--guided-rule);
+}
+
+.guided-advanced-options > summary {
+  min-height: 44px;
+  padding: 12px 18px;
+  color: var(--parchment-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.guided-advanced-options > summary::-webkit-details-marker { display: none; }
+.guided-advanced-options > summary::after { content: "+"; float: right; color: var(--verdigris); }
+.guided-advanced-options[open] > summary::after { content: "−"; }
+.guided-advanced-options > .actions { padding: 0 18px 16px; }
+
+.guided-plan-preview {
+  padding: 8px 4px 2px;
+}
+
+.guided-plan-preview h3 {
+  margin: 0;
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+
+.guided-plan-preview > p {
+  margin: 4px 0 20px;
+  color: var(--parchment-muted);
+  font-size: .85rem;
+}
+
+.guided-plan-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guided-plan-steps li {
+  position: relative;
+  min-width: 0;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.guided-plan-steps li:first-child { padding-left: 0; }
+.guided-plan-steps li:last-child { padding-right: 0; }
+
+.guided-step-number {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  place-items: center;
+  border: 1px solid var(--brass);
+  border-radius: 50%;
+  background: var(--ink-soft);
+  color: var(--brass-bright);
+  font-family: var(--font-editorial);
+  font-size: 1.1rem;
+}
+
+.guided-plan-steps li::before {
+  content: "";
+  position: absolute;
+  top: 27px;
+  left: 0;
+  width: 50%;
+  height: 1px;
+  background: var(--guided-rule);
+}
+
+.guided-plan-steps li::after {
+  content: "";
+  position: absolute;
+  top: 27px;
+  right: 0;
+  width: 50%;
+  height: 1px;
+  background: var(--guided-rule);
+}
+
+.guided-plan-steps li:first-child::before,
+.guided-plan-steps li:last-child::after { display: none; }
+
+.guided-plan-steps strong { display: block; color: var(--parchment-soft); font-size: .9rem; }
+.guided-plan-steps small { display: block; max-width: 19ch; margin: 5px auto 0; color: var(--parchment-muted); line-height: 1.45; }
+
+body.guided-ritual #route-output-panel {
+  border-radius: 13px;
+  background: var(--ink-soft);
+  box-shadow: none;
+}
+
+body.guided-ritual #route-output-panel > .terminal-block-head {
+  min-height: 48px;
+  background: transparent;
+  font-family: var(--font-reading);
+}
+
+body.guided-ritual #route-output-panel > .terminal-block-head strong { color: var(--parchment-soft); }
+body.guided-ritual #route-output-panel .output-options { justify-content: flex-end; }
+body.guided-ritual #route-output-panel .agent-stage-grid { grid-template-columns: 1fr; }
+body.guided-ritual #route-output-panel .terminal-result { min-height: 96px; }
+
+.guided-idle-activity {
+  display: none;
+  gap: 5px;
+  min-height: 118px;
+  align-content: center;
+  padding: 20px 22px;
+  border: 1px dashed color-mix(in srgb, var(--verdigris) 42%, var(--guided-rule));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--verdigris) 4%, transparent);
+}
+
+.guided-idle-activity strong {
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: 1.18rem;
+  font-weight: 560;
+}
+
+.guided-idle-activity span {
+  max-width: 60ch;
+  color: var(--parchment-muted);
+  line-height: 1.55;
+}
+
+.guided-idle-activity em {
+  color: var(--brass-bright);
+  font-style: normal;
+  font-weight: 700;
+}
+
+body.guided-ritual[data-guided-route-state="idle"] #route-output-panel .terminal-output > :not(#guided-idle-activity) {
+  display: none;
+}
+
+body.guided-ritual[data-guided-route-state="idle"] #guided-idle-activity {
+  display: grid;
+}
+
+body.guided-ritual[data-guided-route-state="idle"] #route-output-panel .output-options > :not(#run-state):not(#terminal-open) {
+  display: none;
+}
+
+body.guided-ritual #shell-panel { display: none; }
+body.guided-ritual #shell-panel.guided-shell-open { display: block; }
+
+body.guided-ritual .terminal-rail {
+  position: sticky;
+  top: 18px;
+  gap: 14px;
+}
+
+.guided-context-panel {
+  border-left: 1px solid var(--guided-rule);
+  padding: 0 0 8px 24px;
+}
+
+.guided-context-panel h3 {
+  margin: 0;
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.guided-context-panel > p {
+  margin: 5px 0 20px;
+  color: var(--parchment-muted);
+  font-size: .82rem;
+}
+
+.guided-context-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--guided-rule);
+}
+
+.guided-context-row:first-of-type { border-top: 0; }
+.guided-status-dot { width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 12px color-mix(in srgb, var(--brass) 48%, transparent); }
+.guided-status-dot.ready { background: var(--verdigris); box-shadow: 0 0 12px color-mix(in srgb, var(--verdigris) 52%, transparent); }
+.guided-context-row strong { display: block; color: var(--parchment-soft); font-size: .9rem; }
+.guided-context-row span:not(.guided-status-dot) { display: block; margin-top: 3px; color: var(--parchment-muted); font-size: .78rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.guided-rail-advanced {
+  border-left: 1px solid var(--guided-rule);
+  padding-left: 24px;
+}
+
+.guided-rail-advanced > summary,
+.guided-dashboard-advanced > summary {
+  min-height: 44px;
+  border: 1px solid var(--guided-rule);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--parchment-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.guided-rail-advanced > summary::-webkit-details-marker,
+.guided-dashboard-advanced > summary::-webkit-details-marker { display: none; }
+.guided-rail-advanced > summary::after,
+.guided-dashboard-advanced > summary::after { content: "+"; float: right; color: var(--verdigris); }
+.guided-rail-advanced[open] > summary::after,
+.guided-dashboard-advanced[open] > summary::after { content: "−"; }
+.guided-rail-advanced > .panel { margin-top: 14px; box-shadow: none; }
+
+.guided-dashboard-advanced {
+  margin-top: 24px;
+}
+
+.guided-dashboard-advanced > .panel { margin-top: 16px; }
+
+body.guided-ritual .panel,
+body.guided-ritual .terminal-block {
+  border-color: var(--guided-rule);
+}
+
+body.guided-ritual .button,
+body.guided-ritual .select,
+body.guided-ritual input,
+body.guided-ritual textarea,
+body.guided-ritual select,
+body.guided-ritual summary {
+  min-height: 42px;
+}
+
+body.guided-ritual :focus-visible {
+  outline: 0;
+  box-shadow: var(--focus) !important;
+}
+
+body.guided-ritual [hidden] {
+  display: none !important;
+}
+
+body.guided-ritual .guided-primary-page {
+  width: min(100%, 1120px);
+  margin: 30px auto 0;
+}
+
+.guided-page-intro {
+  max-width: 720px;
+  margin: 2px 0 22px;
+}
+
+.guided-page-intro > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--verdigris);
+  font-size: .68rem;
+  font-weight: 760;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.guided-page-intro h2 {
+  margin: 0;
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 540;
+  letter-spacing: -.025em;
+  line-height: 1.05;
+}
+
+.guided-page-intro p {
+  margin: 9px 0 0;
+  color: var(--parchment-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+body.guided-ritual .guided-primary-page > .panel {
+  overflow: hidden;
+  border: 1px solid var(--guided-rule);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--guided-command) 91%, transparent);
+  box-shadow: 0 18px 50px #0005;
+}
+
+body.guided-ritual #guided-workspace-mount > #workspace-context {
+  overflow: hidden;
+  margin-bottom: 0 !important;
+  border: 1px solid var(--guided-rule);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--guided-command) 91%, transparent);
+  box-shadow: 0 18px 50px #0005;
+}
+
+body.guided-ritual #guided-workspace-mount > #workspace-context > .panel-head {
+  min-height: 76px;
+  padding: 18px 20px;
+  background: color-mix(in srgb, var(--parchment) 2.5%, transparent);
+}
+
+body.guided-ritual #guided-workspace-mount > #workspace-context > .panel-body {
+  padding: 20px;
+}
+
+body.guided-ritual .guided-primary-page > .panel > .panel-head {
+  min-height: 76px;
+  padding: 18px 20px;
+  background: color-mix(in srgb, var(--parchment) 2.5%, transparent);
+}
+
+body.guided-ritual .guided-primary-page > .panel > .panel-body {
+  padding: 20px;
+}
+
+body.guided-ritual .guided-primary-page .panel-head h3 {
+  color: var(--parchment);
+  font-family: var(--font-editorial);
+  font-size: 1.3rem;
+  font-weight: 560;
+}
+
+body.guided-ritual .guided-primary-page .integration,
+body.guided-ritual .guided-primary-page .row,
+body.guided-ritual .guided-primary-page .metric,
+body.guided-ritual .guided-primary-page .plan-node {
+  border-color: var(--guided-rule);
+  background: color-mix(in srgb, var(--parchment) 2.5%, transparent);
+}
+
+body.guided-ritual [data-page-panel="plan"] #plan-input,
+body.guided-ritual [data-page-panel="memory"] #memory-input {
+  border-color: color-mix(in srgb, var(--verdigris) 44%, var(--guided-rule)) !important;
+  background: color-mix(in srgb, var(--ink) 86%, var(--guided-command-high) 14%) !important;
+  box-shadow: inset 0 1px 7px #0005;
+}
+
+body.guided-ritual [data-page-panel="plan"] .plan-flow {
+  border: 1px solid var(--guided-rule);
+  border-radius: 13px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--ink) 78%, transparent);
+}
+
+.guided-secondary-disclosure {
+  margin-top: 6px;
+  border: 1px solid var(--guided-rule);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--parchment) 2%, transparent);
+}
+
+.guided-secondary-disclosure > summary {
+  min-height: 50px;
+  padding: 13px 15px;
+  color: var(--parchment);
+  cursor: pointer;
+  list-style: none;
+}
+
+.guided-secondary-disclosure > summary::-webkit-details-marker { display: none; }
+.guided-secondary-disclosure > summary::after { content: "+"; float: right; color: var(--verdigris); }
+.guided-secondary-disclosure[open] > summary::after { content: "−"; }
+.guided-secondary-disclosure > summary span {
+  margin-left: 8px;
+  color: var(--parchment-muted);
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.guided-secondary-disclosure > .integration-grid {
+  margin: 0;
+  border-top: 1px solid var(--guided-rule);
+  padding: 16px;
+}
+
+body.guided-ritual [data-page-panel="settings"] .row {
+  min-height: 74px;
+  border-radius: 11px;
+  padding: 14px 16px;
+}
+
+body.guided-ritual [data-page-panel="settings"] .row h4 {
+  margin-bottom: 4px;
+  color: var(--parchment);
+}
+
+body.guided-ritual [data-page-panel="settings"] .row p {
+  max-width: 66ch;
+  margin: 0;
+  color: var(--parchment-muted);
+}
+
+@media (max-width: 1180px) {
+  body.guided-ritual .terminal-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.guided-ritual #run-workbench-splitter { display: none; }
+  body.guided-ritual .terminal-rail { position: static; }
+  .guided-context-panel,
+  .guided-rail-advanced { border-left: 0; padding-left: 0; }
+  .guided-context-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
+  .guided-context-panel h3,
+  .guided-context-panel > p { grid-column: 1 / -1; }
+}
+
+/* Native desktop windows become cramped before phone width; switch to the
+   single-column navigation layout as soon as the main canvas narrows. */
+@media (max-width: 960px) {
+  body.guided-ritual .shell { display: block; }
+  body.guided-ritual .side { position: sticky; height: auto; padding: 9px 12px; }
+  body.guided-ritual .mobile-nav-drawer { width: 100%; }
+  body.guided-ritual .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.guided-ritual .guided-advanced-nav { grid-column: 1 / -1; }
+  body.guided-ritual .guided-advanced-nav > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.guided-ritual main { padding: 0 16px 34px; }
+  body.guided-ritual .top { margin-inline: -16px; padding-inline: 16px; }
+  .home-setup-checks { grid-template-columns: minmax(0, 1fr); }
+  .guided-page-intro { margin-top: 8px; }
+  body.guided-ritual .guided-primary-page > .panel > .panel-head,
+  body.guided-ritual .guided-primary-page > .panel > .panel-body { padding-inline: 15px; }
+  .guided-composer-primary { align-items: stretch; flex-direction: column; }
+  body.guided-ritual #route-btn { width: 100%; }
+  .guided-safety-strip,
+  .guided-plan-steps,
+  .guided-context-panel { grid-template-columns: minmax(0, 1fr); }
+  .guided-safety-strip span + span { border-top: 1px solid var(--guided-rule); border-left: 0; }
+  .guided-plan-steps { gap: 14px; }
+  .guided-plan-steps li { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 0 12px; padding: 0; text-align: left; }
+  .guided-step-number { width: 46px; height: 46px; grid-row: 1 / 3; margin: 0; }
+  .guided-plan-steps li::before,
+  .guided-plan-steps li::after { display: none; }
+  .guided-plan-steps small { max-width: none; margin-inline: 0; }
+}
+
+@media (max-width: 960px) { .guided-task-switcher { display: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body.guided-ritual *,
+  body.guided-ritual *::before,
+  body.guided-ritual *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
