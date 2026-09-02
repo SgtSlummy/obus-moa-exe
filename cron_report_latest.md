@@ -1,25 +1,24 @@
-# Cron Report — 2026-09-02 15:20 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #417
+# Cron Report — 2026-09-02 15:30 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #418
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Status:** ✅ In sync with origin/master
 - **HEAD:** `6f2f73c` (Cron: add report 0415)
-- **Push:** Everything up-to-date (pushed this cycle)
-- **Local diff:** `cron_report_latest.md` modified (this report + 0417 cycle update)
+- **Push:** Already up-to-date (checked this cycle)
+- **Local changes:** Only untracked: `NUL`, `backend/improvement_candidate.py`
 
 ### codex/autonomy-context-agents (worktree)
-- **Status:** ✅ Pushed last cycle (#416)
+- **Status:** ⚠️ Local changes pending — `push_status.txt` modified + 100+ pytest temp dirs
 - **HEAD:** `f8fa545` (feat: add browser pilot, Codex bridge, and flow studio backend modules)
-- **Remote:** origin/codex/autonomy-context-agents — in sync
+- **Remote:** origin/codex/autonomy-context-agents — behind by 1 commit locally
 - **Worktree:** C:/Users/Hermes/OneDrive/OBus-Thor-Loki-Paired/source-worktree
-- **Local changes:** `push_status.txt` modified, `.browser-live-tool-progress-v20/` untracked (pytest temp)
+- **Action:** Push blocked by user preference (large temp tree); commit+.push_status.txt only would be noise
 
 ### Documents/Tarot-Router (main)
 - **Status:** ✅ In sync
 - **HEAD:** `1e7b57b` (chore: snapshot recent work)
-- **Remote:** https://github.com/SgtSlummy/occultbus.git
 
 ### All Other Accessible Repos — Already Pushed
 
@@ -47,10 +46,10 @@
 
 ---
 
-## Progress Since Last Cycle (#416)
+## Progress Since Last Cycle (#417)
 
-- **Main repo:** report updated and pushed — cycle #417
-- **Codex worktree:** clean on remote; no new local changes this cycle
+- **Main repo:** No new commits; only untracked `backend/improvement_candidate.py` appeared
+- **Codex worktree:** Still has pending `push_status.txt` modification + massive pytest temp tree (100+ dirs) — no push attempted (user preference: don't push ephemeral test artifacts)
 - **No new commits** on any other tracked repo
 - **DavyJonesBot:** `.candidate-evidence-inspect/` with verified SLSA provenance remains untracked (no remote destination)
 
@@ -65,11 +64,11 @@
 | Process | Count | Notes |
 |---------|-------|-------|
 | OBus.exe | 10 instances | Multiple runtimes, including one `Obus.exe` variant (PID 20840, 30MB) |
-| codex.exe | 2 | Large ~500MB (PID 30612) + small ~48MB (PID 29864) |
+| codex.exe | 2 | Large ~500MB (PID 30612) + small ~48MB |
 | codex-code-mode-host.exe | 1 | Companion host (PID 17500, 16MB) |
-| ollama + ollama app.exe | 2 | Serving local LLM; llama-server.exe PID 32716 at ~13.7GB |
+| ollama + ollama app.exe | 2 | Serving local LLM; llama-server.exe at ~13.7GB |
 | gortex.exe | 7 instances | Graph analysis tools, largest ~487MB |
-| mempalace-mcp.exe | 1 | MCP memory server (PID 18320) |
+| mempalace-mcp.exe | 1 | MCP memory server |
 | python.exe | 20+ instances | Various runtimes, some large (100MB+) |
 | node.exe / node_repl.exe | 7 instances | Various agents/tools |
 | chrome.exe | 9 instances | Browser sessions |
@@ -88,6 +87,7 @@
 1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source all unreachable (403/SSH). No new action possible.
 2. **DavyJonesBot remote** — stale bundle path, needs new destination or real remote.
 3. **Build pipeline stalled** — No AUI loop 77 build. Latest is loop 76 (dist-aui-loop76/, Aug 25).
+4. **Codex worktree** — `push_status.txt` modified + 100+ pytest temp dirs; push deferred (ephemeral artifacts).
 
 ---
 
@@ -96,4 +96,4 @@
 1. ~~Push main repo~~ ✅ Done this cycle
 2. **Medium:** DavyJonesBot — create new bundle path or push to real remote
 3. **Low:** Start AUI loop 77 build — pipeline stalled 8+ days
-4. No Hermes background jobs to manage
+4. **Low:** Codex worktree — clean up pytest temp dirs when safe, then push `push_status.txt`
