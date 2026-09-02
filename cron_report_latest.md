@@ -1,36 +1,37 @@
-# Cron Report — 2026-09-02 01:45 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #414
+# Cron Report — 2026-09-02 15:10 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #416
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Status:** ✅ In sync with origin/master
-- **HEAD:** `1dfb7a5` (Cron: add report 0413)
-- **Push:** Everything up-to-date
-
-### Documents/Tarot-Router (main)
-- **Status:** ✅ Found at `C:/Users/Hermes/Documents/Tarot-Router` (not `Tarot-Router/`)
-- **HEAD:** `1e7b57b` (chore: snapshot recent work)
-- **Push:** Everything up-to-date | 3 commits, all pushed
-- **Remote:** `https://github.com/SgtSlummy/occultbus.git`
+- **HEAD:** `6f2f73c` (Cron: add report 0415)
+- **Push:** Everything up-to-date (pushed this cycle)
+- **Local diff:** `cron_report_latest.md` modified (this report + 0416 cycle update)
 
 ### codex/autonomy-context-agents (worktree)
-- **Status:** ⚠️ Dirty — 620 untracked files (up from 23 dirs last cycle)
-- **HEAD:** `9429331` (chore: snapshot tracked file changes)
-- **Push:** Cannot push — significant source files now untracked (backend/*.py, etc.)
-- **Note:** Worktree at `C:/Users/Hermes/OneDrive/OBus-Thor-Loki-Paired/source-worktree`
+- **Status:** ✅ Pushed last cycle (#415)
+- **HEAD:** `f8fa545` (feat: add browser pilot, Codex bridge, and flow studio backend modules)
+- **Remote:** origin/codex/autonomy-context-agents — in sync
+- **Worktree:** C:/Users/Hermes/OneDrive/OBus-Thor-Loki-Paired/source-worktree
+- **Local changes:** `push_status.txt` modified, `.browser-live-tool-progress-v20/` untracked (pytest temp)
 
-### All Other Repos — Already Pushed
+### Documents/Tarot-Router (main)
+- **Status:** ✅ In sync
+- **HEAD:** `1e7b57b` (chore: snapshot recent work)
+- **Remote:** https://github.com/SgtSlummy/occultbus.git
 
-| Repo | Branch | Status | Notes |
-|------|--------|--------|-------|
-| warden | main | ✅ | 182 commits |
-| warden-discord-bot | main | ✅ | 15 commits, latest: `fix(diva): correct CRLF escaping` |
-| mythos-router-source | main | ✅ | PR #38 merged |
-| temporal | main | ✅ | 8864 commits |
-| hermes-photon-client | master | ✅ | 1 commit |
-| hermes-photon-server | master | ✅ | 1 commit |
-| mempalace | develop | ✅ | In sync |
+### All Other Accessible Repos — Already Pushed
+
+| Repo | Branch | HEAD | Notes |
+|------|--------|------|-------|
+| warden | main | `6c7b2e9` | chore: stage modified src/index.ts |
+| warden-discord-bot | main | `4fa686e` | fix(diva): correct CRLF escaping in FFmpeg Host header |
+| mythos-router-source | main | `032e0c2` | Update: policy.json, MEMORY.md, soul.md |
+| temporal | main | `561ba4ee4` | Initial temporal clone with full Go codebase |
+| hermes-photon-client | master | `d7acf11` | feat: initial setup with send.ts and skills |
+| hermes-photon-server | master | `9cf3bd5` | feat: initial setup |
+| mempalace | develop | `b522512` | chore: sync with upstream develop |
 
 ### Blocked (unchanged)
 
@@ -39,51 +40,60 @@
 | MoA-source | 403 Forbidden — SgtSlummy not a collaborator |
 | models-dev-source | SSH auth failure — no valid key |
 | warden-source | 403 Forbidden — SgtSlummy not a collaborator |
-| DavyJonesBot/workspace | Stale bundle remote, ahead 10, new `.candidate-evidence-inspect/` dir |
-
-### Submodules (unchanged)
-warp, warpdotdev-warp, Understand-Anything — all 403 (pre-existing)
+| DavyJonesBot/workspace | Stale bundle remote, ahead 10, new .candidate-evidence-inspect/ dir |
+| warp (submodule) | 403 + detached + directory missing |
+| warpdotdev-warp (submodule) | 403, detached HEAD |
+| Understand-Anything (submodule) | 403, pre-existing |
 
 ---
 
-## Progress Since Last Cycle (#413)
+## Progress Since Last Cycle (#415)
 
-- **Tarot-Router located** at `Documents/Tarot-Router/` — 3 commits, all pushed clean
-- **codex worktree expanded** — 23 untracked dirs → 620 untracked files including real source (*.py backends, bridge APIs, policy modules). Substantial work happened here that needs attention.
-- **DavyJonesBot** — new `.candidate-evidence-inspect/` untracked dir with verified SLSA provenance
-- **No new commits** on any pushed repo since #413
+- **Main repo:** report updated and pushed — cycle #416
+- **Codex worktree:** still clean on remote; local `push_status.txt` touched by this cycle's scan
+- **No new commits** on any other tracked repo
+- **DavyJonesBot:** `.candidate-evidence-inspect/` with verified SLSA provenance remains untracked (no remote destination)
 
 ---
 
 ## Active Background Jobs
 
-**No Hermes-managed background jobs.** `process list` returned empty.
+**No Hermes-managed background jobs** (process list returned empty).
 
-### System-wide relevant processes
+### System-wide relevant processes (counts)
 
 | Process | Count | Notes |
 |---------|-------|-------|
-| OBus.exe | 9 instances | Multiple runtimes (7956–31564) |
-| codex.exe | 1 | CLI active (~615 MB, PID 30612) |
-| ollama | 2 | Serving (PIDs 3084, 7248) |
-| gortex.exe | 4 | Graph tools |
-| mempalace-mcp.exe | 2 | MCP servers |
-| uvicorn.exe | 1 | ASGI server (PID 7792) |
+| OBus.exe | 10 instances | Multiple runtimes, including one `Obus.exe` variant |
+| codex.exe | 2 (1 large ~680MB + 1 small) | CLI active |
+| codex-code-mode-host.exe | 1 | Companion host |
+| ollama + ollama app.exe | 2 | Serving local LLM |
+| gortex.exe | 7 instances | Graph analysis tools |
+| mempalace-mcp.exe | 3 instances | MCP memory servers |
+| uvicorn | not in tasklist snapshot | Last seen in prior cycles on :8000 |
+| python.exe | 20+ instances | Various runtimes, some large (100MB+) |
+| node.exe / node_repl.exe | 7 instances | Various agents/tools |
+| chrome.exe | 9 instances | Browser sessions |
+| msedge.exe | 6 instances | Browser sessions |
+| pinchtab-windows-amd64.exe | 3 instances | Browser automation |
+| headroom.exe | 1 | Context compression |
+| Docker Desktop + wsl VMs | active | Docker/WSL subsystem |
+| ChatGPT.exe | 7 instances | OpenAI desktop app |
+| PowerToys suite | active | FancyZones, AlwaysOnTop, Awake, QuickAccess |
 
 ---
 
 ## Blockers
 
-1. **codex worktree dirty** — 620 untracked files including production source code. Cannot push. Needs commit, cleanup, or worktree removal.
-2. **DavyJonesBot remote** — 10 commits local, stale bundle. Needs new destination.
-3. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source all unreachable.
-4. **Build pipeline stalled** — No AUI loop build since Aug 25.
+1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source all unreachable (403/SSH). No new action possible.
+2. **DavyJonesBot remote** — stale bundle path, needs new destination or real remote.
+3. **Build pipeline stalled** — No AUI loop 77 build. Latest is loop 76 (dist-aui-loop76/, Aug 25).
 
 ---
 
-## Action Items (carry forward)
+## Action Items
 
-1. **High:** Address codex worktree — 620 untracked files including real source code. Decide: commit them, clean them, or remove worktree.
+1. ~~Push main repo~~ ✅ Done this cycle
 2. **Medium:** DavyJonesBot — create new bundle path or push to real remote
 3. **Low:** Start AUI loop 77 build — pipeline stalled 8+ days
-4. No Hermes-managed background jobs to report
+4. No Hermes background jobs to manage
