@@ -1,14 +1,14 @@
-# Cron Report — 2026-09-02 18:03 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #419
-**Run time:** 2026-09-02 11:03:24 Pacific (18:03 UTC)
+# Cron Report — 2026-09-02 17:03 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #421
+**Run time:** 2026-09-02 10:03:48 Pacific (17:03 UTC)
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Status:** ✅ Pushed — already up-to-date with origin/master
-- **HEAD:** `f4e41c7` (Cron: add report 0419 — push check, active jobs)
+- **HEAD:** `87a35c0` (Cron: add report 0420 — active jobs check, build stalled, process census)
 - **Push:** Everything up-to-date
-- **Local changes:** Only untracked: `NUL`, `backend/improvement_candidate.py`
+- **Local changes:** Clean (no modified/untracked files beyond NUL)
 - **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
 
 ### All Other Accessible Repos — Already Pushed
@@ -28,11 +28,10 @@ No other repos in this working directory tree had changes. Last push cycle confi
 
 ---
 
-## Progress Since Last Cycle (#418)
+## Progress Since Last Cycle (#420)
 
-- **Main repo:** New commit `f4e41c7` pushed — this cycle's report. Previous cycle was at `b280ea9`.
+- **Main repo:** Already up-to-date at `87a35c0`. No new commits since #420.
 - **No new commits** on any other tracked repo since last cycle.
-- **DavyJonesBot:** `.candidate-evidence-inspect/` with verified SLSA provenance remains untracked (no remote destination).
 - **Build pipeline:** Still stalled — no AUI loop 77 build. Latest is loop 76 (`dist-aui-loop76/`, Aug 25).
 
 ---
@@ -45,31 +44,33 @@ No other repos in this working directory tree had changes. Last push cycle confi
 
 | Process | Count | Notes |
 |---------|-------|-------|
-| OBus.exe | 10 | Ranging 1MB–85MB; includes one `Obus.exe` variant (PID 20840, 31MB) |
-| codex.exe | 2 | Large ~720MB (PID 30612) + ~45MB (PID 29864) |
-| codex-code-mode-host.exe | 1 | Companion host (PID 17500, 17MB) |
-| ollama + ollama app.exe | 2 | Serving local LLM; llama-server not separately visible |
-| gortex.exe | 7 | Graph analysis tools, largest ~528MB (PID 22308) |
-| python.exe | 25+ | Various runtimes, many large (10MB–284MB) |
-| node.exe / node_repl.exe | 7 | Various agents/tools |
-| chrome.exe | 16 | Browser sessions, large ones up to 186MB |
-| msedge.exe | 7 | Browser sessions |
-| msedgewebview2.exe | 13 | WebView2 instances |
-| pinchtab-windows-amd64.exe | 3 | Browser automation |
-| headroom.exe | 1 | Context compression (920KB, PID 17192) |
-| Docker Desktop + wsl VMs | active | Docker/WSL subsystem; vmmemWSL ~2.87GB |
-| ChatGPT.exe | 10 | OpenAI desktop app, largest ~1.09GB (PID 13756) |
+| OBus.exe | 10 | 1.2MB–102MB; includes one `Obus.exe` variant (PID 20840, 32MB); largest PID 14016 at 102MB |
+| codex.exe | 2 | Large ~632MB (PID 30612) + ~50MB (PID 29864) |
+| codex-code-mode-host.exe | 1 | Companion host (PID 17500, 20MB) |
+| ollama + llama-server | 3 | llama-server at 3.26GB (PID 9440) — largest single process; ollama app 122MB |
+| gortex.exe | 9 | Graph analysis tools, largest ~574MB (PID 22308) |
+| python.exe | 53+ | Various runtimes; 2 large LLM workers at ~500-509MB each |
+| node.exe / node_repl.exe | 11 | Various agents/tools; largest PID 11924 at 274MB |
+| chrome.exe | 16 | Browser sessions, large ones up to 198MB |
+| msedge.exe | 7 | Browser sessions; largest 176MB |
+| msedgewebview2.exe | 18 | WebView2 instances |
+| pinchtab-windows-amd64.exe | 3 | Browser automation (~70MB each) |
+| headroom.exe | 1 | Context compression (920KB) |
+| Docker Desktop + wsl VMs | active | Docker/WSL subsystem; vmmemWSL ~3.04GB |
+| ChatGPT.exe | 10 | OpenAI desktop app, largest ~953MB (PID 13756) |
 | PowerToys suite | active | FancyZones, AlwaysOnTop, Awake, QuickAccess, Peek |
-| EchoWarp.exe | 1 | Warp runtime (PID 20072, 44MB) |
-| DavyJonesHeartbeat.exe | 1 | Discord bot heartbeat (PID 3740, 41MB) |
+| EchoWarp.exe | 1 | Warp runtime (PID 20072, 94MB) |
+| DavyJonesHeartbeat.exe | 1 | Discord bot heartbeat (PID 3740, 49MB) |
 
-### Notable changes vs #418 (17:20 UTC)
+### Notable changes vs #420 (16:36 UTC)
 
-- Memory Compression: increased (~2.66GB range)
-- codex.exe large: ~720MB (was ~709MB)
-- gortex largest: 528MB (stable)
-- OBus.exe total: 10 instances, same count, distribution shifted slightly
-- ChatGPT large: ~1.09GB (stable)
+- OBus.exe count: 11 → 10 (distribution shifted)
+- codex.exe large: ~632MB (was ~627MB)
+- gortex: 9 instances (was 7), largest 574MB (was 539MB)
+- ChatGPT large: ~953MB (was ~1.09GB)
+- llama-server: 3.26GB (stable)
+- vmmemWSL: ~3.04GB (was ~2.87GB)
+- Memory Compression: ~2.65GB (stable)
 
 ---
 
