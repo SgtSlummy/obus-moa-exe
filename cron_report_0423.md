@@ -1,28 +1,22 @@
-# Cron Report — 2026-09-03 13:54 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #432
+# Cron Report — 2026-09-03 14:46 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #423
 
 ## Git Push — All Projects
 
-### obus-moa-exe (master)
-- **Status:** Pushed — master -> origin/master
-- **HEAD:** `4925ccd`
-- **Local changes:** Clean working tree
-
-### Submodules
-| Submodule | Commit | Status |
-|-----------|--------|--------|
-| Understand-Anything | 99e62b726076 | Clean |
-| third_party/warpdotdev-warp | 8c2cc7325046 | Clean |
-| warp | 3504ce5b062e | Clean |
+### obus-moa-exe
+- **Status:** Pushed with changes
+- **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
+- **HEAD:** `92f6521`
+- **Changes:** 1 file(s)
 
 ---
 
-## Build Pipeline
-
-- Latest build: `build-aui-loop76`
-- Latest dist: `dist-aui-loop76`
-  - OBus.exe: 67.5MB
-- **STALLED:** No loop 77+ build — stalled since Aug 25 (~10 days)
+### Push Summary
+| Category | Count |
+|----------|-------|
+| Up-to-date | 0 |
+| Pushed changes | 1 |
+| Total repos | 1 |
 
 ---
 
@@ -30,53 +24,47 @@
 
 **Hermes-managed background jobs:** None (this cron job is the only active Hermes process)
 
-### System-wide relevant processes (snapshot)
+### System-wide relevant processes
 
-| Process | Count | Notable |
-|---------|-------|--------|
-| python.exe | 68 | 567MB max (PID 8200) |
-| node.exe | 11 | 277MB max (PID 11924) |
-| node_repl.exe | 6 | 41MB max (PID 21496) |
-| ollama.exe | 1 | 35MB max (PID 7248) |
-| ollama app.exe | 1 | 120MB max (PID 3084) |
-| gortex.exe | 8 | 491MB max (PID 22308) |
-| codex.exe | 2 | 539MB max (PID 30612) |
-| codex-code-mode-host.exe | 1 | 20MB max (PID 17500) |
-| OBus.exe | 9 | 110MB max (PID 31564) |
-| Obus.exe | 1 | 45MB max (PID 20840) |
-| chrome.exe | 8 | 47MB max (PID 12640) |
-| msedge.exe | 8 | 250MB max (PID 5792) |
-| ChatGPT.exe | 14 | 1054MB max (PID 13756) |
-| headroom.exe | 1 | 1MB max (PID 17192) |
-| pinchtab-windows-amd64.exe | 3 | 70MB max (PID 18016) |
-| EchoWarp.exe | 1 | 79MB max (PID 20072) |
-| DavyJonesHeartbeat.exe | 1 | 48MB max (PID 3740) |
-| M365Copilot.exe | 1 | 50MB max (PID 3576) |
-| pwsh.exe | 1 | 89MB max (PID 11308) |
-| MsMpEng.exe | 1 | 384MB max (PID 24760) |
+| python.exe | 67 | | |
+| node.exe | 11 | | |
+| node_repl.exe | 6 | | |
+| ollama.exe | 1 | | |
+| ollama app.exe | 1 | | |
+| gortex.exe | 8 | | |
+| codex.exe | 2 | | |
+| codex-code-mode-host.exe | 1 | | |
+| OBus.exe | 10 | | |
+| Obus.exe | 10 | | |
+| chrome.exe | 8 | | |
+| msedge.exe | 8 | | |
+| ChatGPT.exe | 14 | | |
+| headroom.exe | 1 | | |
+| pinchtab-windows-amd64.exe | 3 | | |
+| EchoWarp.exe | 1 | | |
+| DavyJonesHeartbeat.exe | 1 | | |
+
+---
+
+## Build Pipeline
+
+- Latest build: `build-aui-loop9`
+- Latest dist: `dist-aui-loop9`
+  - OBus.exe: 67MB
+- **STALLED:** No loop 77+ build
 
 ---
 
 ## Blockers
 
-1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source (403/SSH).
-2. **DavyJonesBot remote** — stale bundle path, needs new destination.
-3. **Build pipeline stalled** — No loop 77+ build. Latest: loop 76. Stalled ~10 days.
+1. Auth blocks: MoA-source, models-dev-source, warden-source (403/SSH)
+2. DavyJonesBot: stale bundle remote, ahead 10
+3. Build pipeline stalled: No AUI loop 77 build
 
 ---
 
 ## Action Items
 
-1. ✅ Push main repo — Done this cycle (4925ccd)
-2. ✅ Working tree clean — no pending commits
-3. **Medium:** DavyJonesBot — new bundle path needed
-4. **Low:** Start AUI loop 77 build — stalled since Aug 25
-
----
-
-## Changes This Cycle
-
-- Restored `cron_report_0423.md` to committed state (fd2b41f)
-- All submodules clean
-- gen_report_run.sh, gen_report_v2.sh, gen_final_report.py created (not yet committed)
-
+1. Push main repo — Done (0 up-to-date, 1 pushed)
+2. Start AUI loop 77 build — pipeline stalled
+3. DavyJonesBot — new bundle path needed
