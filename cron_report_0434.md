@@ -4,9 +4,9 @@
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
-- **Status:** Pushed — master -> origin/master
-- **HEAD:** `dfbc0af`
-- **Local changes:** Clean working tree
+- **Status:** Pushed — `4925ccd..495a53f` → origin/master
+- **HEAD:** `495a53f` (Cron: add report 0434 — ChatGPT reappeared, build stalled 10 days)
+- **Local changes:** Clean working tree after push
 
 ### Submodules
 | Submodule | Commit | Status |
@@ -30,15 +30,15 @@
 
 **Hermes-managed background jobs:** None (this cron job is the only active Hermes process)
 
-### System-wide relevant processes (snapshot)
+### System-wide relevant processes (snapshot, 16:28 UTC)
 
 | Process | Count | Notable |
-|---------|-------|--------|
+|---------|-------|---------|
 | python.exe | 56 | 171MB max (PID 8788) |
 | node.exe | 9 | 96MB max (PID 11924) |
 | node_repl.exe | 2 | 15MB max (PID 18272) |
 | llama-server.exe | 1 | 8992MB max (PID 25360) |
-| ollama.exe | 1 | 36MB max (PID 7248) |
+| ollama.exe | 1 | 34MB max (PID 7248) |
 | ollama app.exe | 1 | 85MB max (PID 3084) |
 | gortex.exe | 4 | 512MB max (PID 22308) |
 | codex.exe | 2 | 207MB max (PID 20016) |
@@ -68,7 +68,7 @@
 
 ## Action Items
 
-1. ✅ Push main repo — Done this cycle (dfbc0af)
+1. ✅ Push main repo — Done this cycle (`495a53f`)
 2. ✅ Working tree clean — no pending commits
 3. **Medium:** DavyJonesBot — new bundle path needed
 4. **Low:** Start AUI loop 77 build — stalled since Aug 25
@@ -77,7 +77,6 @@
 
 ## Changes This Cycle
 
-- Restored `cron_report_0423.md` to committed state (fd2b41f)
-- All submodules clean
+- Pushed `495a53f` — added report 0434
 - gen_final_report.py updated for run 434
-
+- All submodules clean
