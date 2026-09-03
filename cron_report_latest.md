@@ -1,13 +1,12 @@
-# Cron Report — 2026-09-03 03:40 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #425
-
-**Run time:** 2026-09-03 03:40:00 UTC (20:40 PDT Sep 2)
+# Cron Report — 2026-09-03 05:40 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #426
+**Run time:** 2026-09-03 05:40:00 UTC (22:40 PDT Sep 2)
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Status:** ✅ Pushed — already up-to-date with origin/master
-- **HEAD:** `b759142` (Cron: add reports 0423 and 0424, add gen_report.sh)
+- **HEAD:** `c0b8d14` (Cron: add report 0425)
 - **Push:** Everything up-to-date
 - **Local changes:** Clean working tree — nothing to commit
 
@@ -35,11 +34,12 @@ No other repos in this working directory tree had changes. Last push cycle confi
 
 ---
 
-## Progress Since Last Cycle (#424)
+## Progress Since Last Cycle (#425)
 
-- **Main repo:** Already up-to-date at `b759142`. Working tree clean — previous untracked files (cron_report_0423.md, gen_report.sh) were committed in `b759142`.
+- **Main repo:** Already up-to-date at `c0b8d14`. Working tree clean.
 - **No new commits** on any other tracked repo since last cycle.
-- **Build pipeline:** Still stalled — no AUI loop 77 build. Latest is loop 76 (`dist-aui-loop76/`, Aug 25). 9 days stalled.
+- **Build pipeline:** Still stalled — no AUI loop 77 build. Latest is loop 76 (`dist-aui-loop76/`, Aug 25). 10 days stalled.
+- **Gen report script** (`gen_report.sh`) present and tracked.
 
 ---
 
@@ -51,37 +51,38 @@ No other repos in this working directory tree had changes. Last push cycle confi
 
 | Process | Count | Notable instances |
 |---------|-------|-------------------|
-| OBus.exe + Obus.exe | 11 | Largest: PID 31564 at 110MB; several in 76-86MB range; one small 1MB |
-| ChatGPT.exe | 16 | Largest: PID 13756 at 1.21GB; multiple 25-300MB instances |
-| codex.exe | 2 | Large ~553MB (PID 30612) + ~47MB (PID 29864) |
+| OBus.exe + Obus.exe | 11 | Largest: PID 31564 at 112MB; several in 78-100MB range; one small 1MB |
+| ChatGPT.exe | **GONE** | Was 16 instances (1.21GB) last cycle — none present now |
+| codex.exe | 2 | Large ~550MB (PID 30612) + ~50MB (PID 29864) |
 | codex-code-mode-host.exe | 1 | Companion host (PID 17500, 20MB) |
 | llama-server.exe | 1 | PID 16832 at 1.57GB |
-| ollama + app | 2 | ollama.exe 38MB + app 90MB |
-| gortex.exe | 8 | Largest ~649MB (PID 22308); several 50MB |
-| python.exe | 53+ | Various; large LLM workers: 570MB (PID 29732), 566MB (PID 8200), 563MB (PID 19768), 544MB (PID 23392), 538MB (PID 2900), 529MB (PID 23852), 427MB (PID 25372), 387MB (PID 31852), 340MB (PID 30768); multiple 12-65MB |
-| node.exe / node_repl.exe | 17 total | Largest: node.exe PID 11924 at 188MB; node_repl PID 21496 at 38MB |
-| chrome.exe | 8 | Largest 196MB |
-| msedge.exe | 8 | Largest 223MB (PID 23828); multiple 13-109MB |
+| ollama + app | 2 | ollama.exe 36MB + app 89MB |
+| gortex.exe | 7 | Largest ~482MB (PID 22308); six in 15-51MB range |
+| python.exe | 53+ | Large workers: 571MB (PID 8200), 565MB (PID 19768), 540MB (PID 29732), 427MB (PID 25372), 387MB (PID 31852), 338MB (PID 30768), 309MB (PID 8516), 109MB (PID 17124), 57MB (PID 26152), 15-65MB range x many |
+| node.exe / node_repl.exe | 18 total | Largest: node.exe PID 11924 at 190MB; node_repl PID 21496 at 42MB; node PID 29312 at 100MB |
+| chrome.exe | 8 | Largest 39MB |
+| msedge.exe | 8 | Largest 224MB (PID 23828); multiple 13-110MB |
 | msedgewebview2.exe | 18 | Various small instances |
 | pinchtab-windows-amd64.exe | 3 | ~37-38MB each |
-| headroom.exe | 1 | 920KB |
-| EchoWarp.exe | 1 | 49MB |
-| DavyJonesHeartbeat.exe | 1 | 46MB |
-| Docker Desktop + wsl VMs | active | vmmemWSL ~3.11GB; com.docker.backend 148MB |
+| EchoWarp.exe | 1 | 50MB |
+| DavyJonesHeartbeat.exe | 1 | 47MB |
+| Docker Desktop + wsl VMs | active | vmmemWSL ~3.17GB; com.docker.backend 148MB |
 | M365Copilot.exe | 1 | 50MB |
-| pwsh.exe | 1 | 88MB |
-| MsMpEng.exe | 1 | 505MB |
+| pwsh.exe | 1 | 89MB |
+| MsMpEng.exe | 1 | 473MB |
+| headroom.exe | 1 | 920KB |
 
-### Notable changes vs #424 (03:30 UTC)
+### Notable changes vs #425 (03:40 UTC, 2h ago)
 
-- llama-server: 2.79GB — increased from 1.57GB last cycle (model reloaded or swapped back in)
-- ChatGPT large instance: 1.21GB — increased from 1.10GB
-- gortex large: 649MB — increased from 516MB
-- MsMpEng: 505MB — increased from 484MB
-- vmmemWSL: 3.11GB — increased from 2.93GB
-- OBus.exe largest: 110MB — increased from 99MB
-- python large workers: new 500-570MB range workers appeared (570MB, 566MB, 563MB, 544MB, 538MB, 529MB)
-- Python count remains high with many 15MB workers still present
+- llama-server: 1.57GB — dropped from 2.79GB (model likely released from VRAM)
+- ChatGPT.exe: **completely gone** — was 16 instances at 1.21GB
+- gortex large: 482MB — dropped from 649MB (PID 22308 shrunk; one gortex instance disappeared)
+- gortex count: 7 — dropped from 8
+- OBus.exe largest: 112MB — up slightly from 110MB (PID 31564)
+- python large workers: still 500-570MB range active (571MB, 565MB, 540MB); one new at 309MB (PID 8516)
+- vmmemWSL: 3.17GB — up from 3.11GB
+- MsMpEng: 473MB — down from 505MB
+- Chrome largest: 39MB — down from 196MB
 
 ---
 
@@ -91,7 +92,7 @@ No other repos in this working directory tree had changes. Last push cycle confi
 - Latest dist: `dist-aui-loop76`
   - OBus.exe: 67.5MB
   - modified: 2025-08-25
-- **STALLED:** No loop 77+ build (9 days since last build activity)
+- **STALLED:** No loop 77+ build (10 days since last build activity)
 
 ---
 
@@ -99,7 +100,7 @@ No other repos in this working directory tree had changes. Last push cycle confi
 
 1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source all unreachable (403/SSH). No new action possible.
 2. **DavyJonesBot remote** — stale bundle path, needs new destination or real remote.
-3. **Build pipeline stalled** — No AUI loop 77 build. Latest is loop 76. 9 days stalled.
+3. **Build pipeline stalled** — No AUI loop 77 build. Latest is loop 76. 10 days stalled.
 4. **Working tree clean** — no pending changes to commit.
 
 ---
@@ -109,5 +110,5 @@ No other repos in this working directory tree had changes. Last push cycle confi
 1. ✅ Push main repo — Done this cycle (already up-to-date)
 2. ✅ Working tree clean — no pending commits
 3. **Medium:** DavyJonesBot — create new bundle path or push to real remote
-4. **Low:** Start AUI loop 77 build — pipeline stalled 9 days
-5. **Info:** llama-server back up to 1.57GB; gortex large at 649MB; many large python workers (500-570MB range) active
+4. **Low:** Start AUI loop 77 build — pipeline stalled 10 days
+5. **Info:** llama-server down to 1.57GB (from 2.79GB); ChatGPT.exe gone; gortex large down to 482MB; python large workers still concentrated at 500-570MB
