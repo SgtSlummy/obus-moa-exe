@@ -18,7 +18,7 @@ latest_dist = max(dists, key=get_loop_num) if dists else None
 build_num = get_loop_num(latest_build) if latest_build else 0
 dist_num = get_loop_num(latest_dist) if latest_dist else 0
 
-RUN_NUM = 434
+RUN_NUM = 435
 L = []
 L.append(f"# Cron Report — {NOW}")
 L.append(f"**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #{RUN_NUM}")
@@ -159,8 +159,10 @@ L.append("---")
 L.append("")
 L.append("## Changes This Cycle")
 L.append("")
-L.append("- Restored `cron_report_0423.md` to committed state (fd2b41f)")
-L.append("- All submodules clean")
+last_msg = subprocess.run(["git", "log", "--format=%s", "-1"], capture_output=True, text=True).stdout.strip()
+L.append(f"- Report {RUN_NUM} generated ({NOW})")
+if last_msg:
+    L.append(f"- Last commit: `{last_msg}`")
 L.append(f"- gen_final_report.py updated for run {RUN_NUM}")
 L.append("")
 
