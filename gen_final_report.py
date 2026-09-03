@@ -18,9 +18,10 @@ latest_dist = max(dists, key=get_loop_num) if dists else None
 build_num = get_loop_num(latest_build) if latest_build else 0
 dist_num = get_loop_num(latest_dist) if latest_dist else 0
 
+RUN_NUM = 434
 L = []
 L.append(f"# Cron Report — {NOW}")
-L.append(f"**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #432")
+L.append(f"**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #{RUN_NUM}")
 L.append("")
 
 # --- Git ---
@@ -160,10 +161,12 @@ L.append("## Changes This Cycle")
 L.append("")
 L.append("- Restored `cron_report_0423.md` to committed state (fd2b41f)")
 L.append("- All submodules clean")
-L.append("- gen_report_run.sh, gen_report_v2.sh, gen_final_report.py created (not yet committed)")
+L.append(f"- gen_final_report.py updated for run {RUN_NUM}")
 L.append("")
 
 report = "\n".join(L)
-with open(os.path.join(ROOT, "cron_report_0423.md"), "w") as f:
+report_num = f"0{RUN_NUM}" if RUN_NUM < 1000 else str(RUN_NUM)
+out_path = os.path.join(ROOT, f"cron_report_{report_num}.md")
+with open(out_path, "w") as f:
     f.write(report + "\n")
 print(report)
