@@ -1,13 +1,13 @@
-# Cron Report — 2026-09-03 21:05 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #438
-**HEAD:** `08a364d` (Cron: add report 0437 — all repos pushed, build stalled 9d, ChatGPT gone)
+# Cron Report — 2026-09-03 21:29 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #441
+**HEAD:** `abb146f` (Cron: add report 0440 — push status, build stalled 10d, ChatGPT active)
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
-- **Status:** ✅ Already up to date — `Everything up-to-date`
-- **Local changes:** Clean working tree, nothing to commit/push
-- **HEAD:** `08a364d` (same as origin/master)
+- **Status:** ✅ Pushed — `abb146f` (Cron: add report 0440)
+- **Local changes:** Clean working tree after commit
+- **HEAD:** `abb146f` (pushed to origin/master)
 
 ### Submodules
 | Submodule | Commit | Status |
@@ -17,9 +17,8 @@
 | warp | 3504ce5b062e | Clean (detached HEAD) |
 
 ### Push Run
-- `git push` → Everything up-to-date
-- `git push --recurse-submodules=on-demand` → ok (up-to-date)
-- All accessible repos clean. No new commits anywhere.
+- `git push` → `abb146f` pushed to master
+- All accessible repos clean. No new commits anywhere else.
 
 ### Blocked (unchanged, pre-existing)
 | Repo | Blocker |
@@ -34,12 +33,11 @@
 
 ---
 
-## Progress Since Last Cycle (#437 at 20:17 UTC)
+## Progress Since Last Cycle (#440 at ~21:19 UTC, ~10 min ago)
 
-- **Main repo:** Already up to date — no changes to push
+- **Main repo:** Pushed report 0440 (`abb146f`), now writing report 0441
 - **Build pipeline:** Still stalled — no AUI loop 77 build. Latest is loop 76 (Aug 25). **10 days stalled.**
-- **cron_report_latest.md:** Still contains run #437 — NOT updated this cycle (should have been)
-- **No new commits** in any accessible repo this cycle
+- **No new commits** in any accessible repo other than cron reports
 
 ---
 
@@ -47,36 +45,20 @@
 
 **No Hermes-managed background jobs** — this cron job is the only active Hermes process.
 
-### Process snapshot (21:05 UTC) — notable counts
+### Process snapshot (21:29 UTC) — notable counts
 
-| Process | Count | Trend vs #437 |
-|---------|-------|---------------|
-| python.exe | 55 | ↓ from 68+ |
-| msedgewebview2.exe | 24 | — |
-| conhost.exe | 22 | — |
-| node.exe | 9 | — |
-| ChatGPT.exe | **9** | ↑ from 0 — returned after ~1h absence |
-| msedge.exe | 8 | — |
-| dllhost.exe | 8 | — |
-| cmd.exe | 8 | — |
-| chrome.exe | 8 | — |
-| electron.exe | 5 | — |
-| gortex.exe | 4 | ↓ from 8 |
-| Obus.exe | 3 | — |
-| mempalace-mcp.exe | 3 | — |
-| codex.exe | 2 | — |
-| OBus.exe | 2 | — |
-| node_repl.exe | 2 | — |
-| Docker Desktop.exe | 4 | — |
-| com.docker.backend.exe | 2 | — |
-| wsl.exe / wslhost.exe | 4+3 | — |
-
-### Notable changes vs #437 (20:17 UTC, ~50 min ago)
-
-- **ChatGPT.exe RETURNED:** 0 → 9 instances after ~1 hour absence. Previously gone at #437, now back.
-- **gortex.exe halved:** 8 → 4 instances
-- **python.exe down:** 68+ → 55 instances
-- **llama-server.exe:** not visible in top counts (was ~1.57GB at #437, 83MB at #436) — likely still running but not in top-heavy list
+| Process | Count | Notes |
+|---------|-------|-------|
+| python.exe | 65+ | Heavy Python presence across multiple services |
+| ChatGPT.exe | 8 | Active instances, 27MB-1.2GB range |
+| codex.exe | 2 | Codex agents active |
+| gortex.exe | 4 | Graph analysis |
+| OBus.exe / Obus.exe | 10+ | Desktop app instances |
+| ollama.exe / ollama app.exe | 2 | Local LLM runtime |
+| llama-server.exe | — | Not detected in this snapshot (was 1.57GB earlier) |
+| Docker Desktop | 4 | WSL2 + containers |
+| mempalace-mcp.exe | 4 | Memory palace MCP |
+| electron.exe | 5 | Electron apps |
 
 ---
 
@@ -93,14 +75,13 @@
 1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source (403/SSH)
 2. **DavyJonesBot remote** — stale bundle path, needs new destination
 3. **Build pipeline stalled** — No AUI loop 77 build. Latest: loop 76. 10 days stalled.
-4. **cron_report_latest.md stale** — still reflects run #437, not updated to #438
 
 ---
 
-## Action Items
+## Summary
 
-1. ✅ Push main repo — Already up to date
-2. ✅ Working tree clean — no pending commits
-3. **Medium:** DavyJonesBot — new bundle path needed
-4. **Low:** Start AUI loop 77 build — stalled since Aug 25 (10 days)
-5. **Info:** ChatGPT.exe returned (0→9) after ~1h absence; gortex halved (8→4); python down (68→55); build still stalled 10 days; cron_report_latest.md needs refresh
+- ✅ Push: report 0440 committed and pushed (`abb146f`), report 0441 in progress
+- ✅ Working tree: was modified (cron_report_latest.md), committing now
+- ⏸ Build: stalled 10 days (loop 76, Aug 25)
+- 🔒 Blocked repos: unchanged (3×403, 1×SSH, 1 stale bundle)
+- 📊 Processes: ChatGPT 8 instances, codex 2, gortex 4, electron 5, OBus 10+
