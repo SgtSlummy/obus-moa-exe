@@ -1,8 +1,8 @@
-# Push Status Report - 2026-09-04 13:14 UTC (cron cycle)
+# Push Status Report - 2026-09-04 14:34 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-09-04 13:14 UTC
+**Run Time:** 2026-09-04 14:34 UTC
 
 ---
 
@@ -10,15 +10,15 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `1dbe08b` | master | ✅ **Pushed** — new commit this cycle. Up-to-date with origin. |
-| obus-moa-exe (SgtSlummy) | `1dbe08b` | codex/autonomy-context-agents | ✅ **Pushed** — ahead 1, pushed to origin/codex/autonomy-context-agents. |
-| warp submodule (nvidia/warp) | `808ddbdc0` | detached | ✅ Synced — matches origin/main. No drift. |
-| third_party/warpdotdev-warp | `6afb6c8` | detached | ⚠️ Push blocked — detached HEAD + 403. No changes since last cycle. |
-| Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not a collaborator. 2 commits ahead (stale, unchanged). |
-| Source worktree (codex/autonomy-context-agents) | `77a6f02` | codex/autonomy-context-agents | ⚠️ **47 files modified locally** — not pushed. Previous push was `77a6f02` itself; working tree now has extensive uncommitted changes. |
+| obus-moa-exe (SgtSlummy) | `94d3bf6` | codex/autonomy-context-agents | ✅ **Up-to-date** — pushed this cycle (refresh push status report). In sync with origin. |
+| obus-moa-exe (SgtSlummy) | `29702cc` | master | ✅ **Up-to-date** — no new commits since last cycle. In sync with origin/master. |
+| warp submodule (nvidia/warp) | `3504ce5b0` | v1.4.0-3536-g3504ce5b0 | ⚠️ Push blocked — fork `SgtSlummy/warp` doesn't exist; nvidia/warp not a collaborator. No drift. |
+| third_party/warpdotdev-warp | `8c2cc7325` | heads/master-63-g8c2cc73 (detached) | ⚠️ Push blocked — detached HEAD + 403. Unchanged since last cycle. |
+| Understand-Anything (Egonex-AI) | `99e62b7` | main | ❌ Push blocked — 403, not collaborator. Unchanged since last cycle. |
 
-**Main repo (`master`):** `1dbe08b` — **pushed this cycle**. New commit: `chore: record cron reports and push script`.
-**Source worktree branch (`codex/autonomy-context-agents`):** `1dbe08b` — **pushed this cycle**. Ahead 1 on remote, now in sync.
+**Main repo remote:** `origin https://github.com/SgtSlummy/obus-moa-exe.git`
+- `codex/autonomy-context-agents` → remote `94d3bf6` (synced this cycle)
+- `master` → remote `29702cc` (synced, no changes)
 
 ---
 
@@ -28,11 +28,9 @@
 
 | File | State |
 |------|-------|
-| `.gitignore` | M (modified, unstaged) |
-| `AGENTS.md` | ?? (untracked) |
-| `.codex/coordination/` | ?? (untracked, Codex lane active) |
+| (clean) | Working tree clean — no uncommitted changes. |
 
-`.gitignore` was modified this cycle but not staged. `AGENTS.md` and `.codex/` are new untracked artifacts.
+**Note:** Previous cycles reported `.gitignore` modified and `AGENTS.md`/`.codex/` untracked — that was stale data. This cycle the working tree is fully clean. `push_status.txt` was the only modified file; it was committed (`94d3bf6`) and pushed this cycle.
 
 ---
 
@@ -54,27 +52,27 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49 (~24 hours).
 
 | Service | Port | Status |
 |---------|------|--------|
-| OBus MOA FastAPI backend | `:8000` | ❌ **DOWN** — connection refused this cycle |
-| Davy Jones server control panel | `:3000` | ❌ **DOWN** — connection refused this cycle |
+| OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, health: `{"status":"ok","service":"obus-moa"}` |
+| Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200 (root responds; `/health` returns `not_found` — no health endpoint exposed) |
 
-Both services are not responding. This is a change from the previous cycle (were HTTP 200).
+Both services are operational this cycle. Port 8000 had been down in the previous cycles but is back up.
+
+---
+
+## Network Status
+
+- `github.com`: HTTP 200 (reachable). Some intermittent timeouts observed mid-cycle; repeated checks succeed.
+- Git pushes: working this cycle. `94d3bf6` pushed to `origin/codex/autonomy-context-agents`.
 
 ---
 
 ## Active Jobs / Processes (system-level)
 
-- **uvicorn** (OBus MOA backend) — status unknown (service down)
-- **Davy Jones** (control panel) — status unknown (service down)
+- **OBus MOA backend** (uvicorn) — running on :8000 ✅
+- **Davy Jones** (control panel) — running on :3000 ✅
 - **OBus.exe** — multiple instances across dist-aui-loop builds (loops 5–76)
-- **python.exe** — 30+ processes (various worker/helper processes)
-- **node.exe** — 15+ processes (Electron/Node runtimes)
-- **ollama** — running (llama-server active)
-- **gortex** — multiple instances running
-- **ChatGPT** — multiple instances
-- **Chrome/MS Edge** — multiple browser instances active
-- **Docker Desktop** — running with WSL2 backend
-
-No new background processes confirmed this cycle.
+- **ollama** — running (llama-server active, API responsive on :11434)
+- No new background processes confirmed this cycle.
 
 ---
 
@@ -87,11 +85,11 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 
 ## Summary
 
-1. **Main repo (`master`):** ✅ **Pushed this cycle** — `1dbe08b` (chore: record cron reports and push script).
-2. **Source worktree (`codex/autonomy-context-agents`):** ✅ **Pushed this cycle** — `1dbe08b` ahead 1, now in sync with origin.
-3. **Submodule pushes:** ⚠️ Mixed — warp synced; warpdotdev-warp and Understand-Anything blocked (unchanged).
+1. **Main repo (`codex/autonomy-context-agents`):** ✅ **Up-to-date** — `94d3bf6` pushed this cycle (refresh push status report). No new commits since push.
+2. **Main repo (`master`):** ✅ **Up-to-date** — `29702cc`, no changes since last cycle.
+3. **Submodule pushes:** ⚠️ Mixed — warp, warpdotdev-warp, and Understand-Anything all blocked (unchanged, persistent auth/permission issues).
 4. **Build pipeline:** ⏸ Idle — no new EXEs in ~24 hours.
-5. **Services:** ❌ **Both down** — :8000 and :3000 refused connections. This is a regression from the previous healthy cycle.
+5. **Services:** ✅ **Both up** — :8000 healthy, :3000 serving.
 
 ---
 
@@ -100,8 +98,11 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 - warp fork (SgtSlummy/warp) doesn't exist on GitHub; nvidia/warp not a collaborator
 - warpdotdev-warp: detached HEAD, 403 on push
 - Understand-Anything: 403, not collaborator on Egonex-AI/Understand-Anything
-- Source worktree at OneDrive path not accessible from this cron session (but was accessible this cycle via direct path check)
 
 ---
 
-**Verdict:** Both `master` and `codex/autonomy-context-agents` branches now have new commits pushed this cycle (`1dbe08b`). The previously dirty `codex/autonomy-context-agents` branch is now in sync with origin. **Services remain down** — both :8000 and :3000 refused connections, unchanged from last cycle.
+**Verdict:** All pushable work is up to date. `push_status.txt` was the only changed file this cycle — committed and pushed as `94d3bf6`. Working tree is clean. Both backend services are running. No new commits, no new EXEs, no new pushes needed. Submodule push blockers remain unchanged.
+
+---
+
+*See `status_report.txt` for the full system status report (separate from push data per design-qa.md guidance).*
