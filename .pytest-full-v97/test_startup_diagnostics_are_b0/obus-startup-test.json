@@ -1,0 +1,13 @@
+{
+  "started_at": "now",
+  "app_port": 38173,
+  "events": [
+    {
+      "at": "2026-08-27T18:44:44.078583+00:00",
+      "event": "native_window_failed",
+      "details": {
+        "error_type": "RuntimeError"
+      }
+    }
+  ]
+}

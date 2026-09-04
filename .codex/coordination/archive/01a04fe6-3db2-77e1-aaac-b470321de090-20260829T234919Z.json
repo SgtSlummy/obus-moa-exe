@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "projectId": "obus-moa-exe",
+  "threadId": "01a04fe6-3db2-77e1-aaac-b470321de090",
+  "title": "Move OBus off OneDrive",
+  "goal": "Remove the user-approved OneDrive OBus folders and legacy executable after verifying the local install.",
+  "finalStatus": "stopped",
+  "lastRevision": 1,
+  "closedAt": "2026-08-29T23:49:19Z"
+}

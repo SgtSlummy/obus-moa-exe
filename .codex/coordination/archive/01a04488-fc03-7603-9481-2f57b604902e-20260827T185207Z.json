@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "projectId": "obus-moa-exe",
+  "threadId": "01a04488-fc03-7603-9481-2f57b604902e",
+  "title": "Build and verify Windows installer",
+  "goal": "Build the current OBus Electron installer, verify install and first run on LOKI, fix packaging/startup defects, and document the artifact",
+  "finalStatus": "completed",
+  "lastRevision": 1,
+  "closedAt": "2026-08-27T18:52:07Z"
+}

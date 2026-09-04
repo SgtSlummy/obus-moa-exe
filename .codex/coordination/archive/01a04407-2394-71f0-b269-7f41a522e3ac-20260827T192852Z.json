@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "projectId": "obus-moa-exe",
+  "threadId": "01a04407-2394-71f0-b269-7f41a522e3ac",
+  "title": "Move OBus off OneDrive",
+  "goal": "Move the complete OBus workspace and all Git worktree state from OneDrive to local Documents storage and make the local folder primary for future Codex work",
+  "finalStatus": "completed",
+  "lastRevision": 1,
+  "closedAt": "2026-08-27T19:28:52Z"
+}

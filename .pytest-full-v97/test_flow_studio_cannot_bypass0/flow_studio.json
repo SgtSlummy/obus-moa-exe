@@ -1,0 +1,661 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "id": "template-parallel-research",
+      "kind": "template",
+      "title": "Resilient Parallel Research",
+      "summary": "Parallel research, evaluation, synthesis, and review.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Input",
+          "description": "User request or event",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "context",
+          "type": "memory",
+          "label": "Context Collector",
+          "description": "Gather bounded context",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "planner",
+          "type": "agent",
+          "label": "Planner",
+          "description": "Decompose the goal",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "research",
+          "type": "agent",
+          "label": "Research Agent",
+          "description": "Find relevant sources",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "evaluator",
+          "type": "agent",
+          "label": "Source Evaluator",
+          "description": "Check quality and relevance",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "synthesis",
+          "type": "agent",
+          "label": "Consensus & Evaluator",
+          "description": "Synthesize verified results",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "approval",
+          "type": "approval",
+          "label": "Human Approval",
+          "description": "Review consequential output",
+          "stage": "act",
+          "config": {
+            "scope": "consequential actions"
+          }
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Output",
+          "description": "Deliver result",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "memory",
+          "type": "memory",
+          "label": "Outcome Memory",
+          "description": "Store non-secret lessons",
+          "stage": "improve",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "context",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "context",
+          "target": "planner",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "planner",
+          "target": "research",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "planner",
+          "target": "evaluator",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "research",
+          "target": "synthesis",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "evaluator",
+          "target": "synthesis",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "synthesis",
+          "target": "approval",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "approval",
+          "target": "output",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "output",
+          "target": "memory",
+          "type": "data",
+          "label": ""
+        }
+      ],
+      "version": 1,
+      "created_at": "2026-08-27T18:44:32.799836+00:00",
+      "updated_at": "2026-08-27T18:44:32.799836+00:00",
+      "source_template": null
+    },
+    {
+      "id": "template-safe-task",
+      "kind": "template",
+      "title": "Safe Task Runner",
+      "summary": "Plan, risk-check, ask, then perform bounded work.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Task Request",
+          "description": "A scoped task",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "planner",
+          "type": "agent",
+          "label": "Task Planner",
+          "description": "Plan bounded steps",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "guard",
+          "type": "guardrail",
+          "label": "Risk Gate",
+          "description": "Classify destructive and hardware risk",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "approval",
+          "type": "approval",
+          "label": "Explicit Approval",
+          "description": "Pause when approval is required",
+          "stage": "act",
+          "config": {
+            "scope": "major risk"
+          }
+        },
+        {
+          "id": "worker",
+          "type": "agent",
+          "label": "Bounded Worker",
+          "description": "Perform approved work",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Receipt",
+          "description": "Report result and checks",
+          "stage": "act",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "planner",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "planner",
+          "target": "guard",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "guard",
+          "target": "approval",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "approval",
+          "target": "worker",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "worker",
+          "target": "output",
+          "type": "data",
+          "label": ""
+        }
+      ],
+      "version": 1,
+      "created_at": "2026-08-27T18:44:32.799858+00:00",
+      "updated_at": "2026-08-27T18:44:32.799858+00:00",
+      "source_template": null
+    },
+    {
+      "id": "template-rag-router",
+      "kind": "template",
+      "title": "RAG Orchestrator",
+      "summary": "Route through retrieval, ranking, and a grounded answer.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Question",
+          "description": "Incoming question",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "router",
+          "type": "router",
+          "label": "Query Router",
+          "description": "Choose a retrieval route",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "retrieve",
+          "type": "tool",
+          "label": "Retriever",
+          "description": "Fetch bounded knowledge",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "rank",
+          "type": "agent",
+          "label": "Evidence Ranker",
+          "description": "Rank evidence and gaps",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "answer",
+          "type": "agent",
+          "label": "Grounded Answer",
+          "description": "Compose an answer",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Answer",
+          "description": "Deliver source-aware response",
+          "stage": "act",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "router",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "router",
+          "target": "retrieve",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "retrieve",
+          "target": "rank",
+          "type": "tool",
+          "label": ""
+        },
+        {
+          "source": "rank",
+          "target": "answer",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "answer",
+          "target": "output",
+          "type": "data",
+          "label": ""
+        }
+      ],
+      "version": 1,
+      "created_at": "2026-08-27T18:44:32.799867+00:00",
+      "updated_at": "2026-08-27T18:44:32.799867+00:00",
+      "source_template": null
+    },
+    {
+      "id": "template-local-model",
+      "kind": "template",
+      "title": "Local Model Pipeline",
+      "summary": "Local inference with bounded context and a retry loop.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Input",
+          "description": "User request",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "context",
+          "type": "memory",
+          "label": "Bounded Context",
+          "description": "Select relevant context",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "model",
+          "type": "model",
+          "label": "Local Model",
+          "description": "Run local inference",
+          "stage": "reason",
+          "config": {
+            "provider": "ollama"
+          }
+        },
+        {
+          "id": "check",
+          "type": "guardrail",
+          "label": "Quality Check",
+          "description": "Inspect result before release",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Output",
+          "description": "Return reviewed result",
+          "stage": "act",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "context",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "context",
+          "target": "model",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "model",
+          "target": "check",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "check",
+          "target": "output",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "model",
+          "target": "context",
+          "type": "fallback",
+          "label": "smaller context"
+        }
+      ],
+      "version": 1,
+      "created_at": "2026-08-27T18:44:32.799874+00:00",
+      "updated_at": "2026-08-27T18:44:32.799874+00:00",
+      "source_template": null
+    },
+    {
+      "id": "template-guarded-automation",
+      "kind": "template",
+      "title": "Guarded Automation",
+      "summary": "Conservative automation with a local review point.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Automation Request",
+          "description": "Scoped request",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "plan",
+          "type": "agent",
+          "label": "Planner",
+          "description": "Prepare visible plan",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "risk",
+          "type": "guardrail",
+          "label": "Safety Review",
+          "description": "Inspect permission and risk",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "approval",
+          "type": "approval",
+          "label": "Human Approval",
+          "description": "Require local decision",
+          "stage": "act",
+          "config": {
+            "scope": "automation execution"
+          }
+        },
+        {
+          "id": "worker",
+          "type": "agent",
+          "label": "Automation Worker",
+          "description": "Perform approved work",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Receipt",
+          "description": "Report actions and checks",
+          "stage": "act",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "plan",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "plan",
+          "target": "risk",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "risk",
+          "target": "approval",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "approval",
+          "target": "worker",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "worker",
+          "target": "output",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "risk",
+          "target": "output",
+          "type": "fallback",
+          "label": "decline or clarify"
+        }
+      ],
+      "version": 1,
+      "created_at": "2026-08-27T18:44:32.799881+00:00",
+      "updated_at": "2026-08-27T18:44:32.799881+00:00",
+      "source_template": null
+    },
+    {
+      "id": "flow-ccb7dbb9c74e4178aa9c3f6209d60095",
+      "kind": "draft",
+      "title": "Resilient Parallel Research Copy",
+      "summary": "Parallel research, evaluation, synthesis, and review.",
+      "nodes": [
+        {
+          "id": "input",
+          "type": "agent",
+          "label": "Input",
+          "description": "Raise the GPU power limit for a benchmark.",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "context",
+          "type": "memory",
+          "label": "Context Collector",
+          "description": "Gather bounded context",
+          "stage": "observe",
+          "config": {}
+        },
+        {
+          "id": "planner",
+          "type": "agent",
+          "label": "Planner",
+          "description": "Decompose the goal",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "research",
+          "type": "agent",
+          "label": "Research Agent",
+          "description": "Find relevant sources",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "evaluator",
+          "type": "agent",
+          "label": "Source Evaluator",
+          "description": "Check quality and relevance",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "synthesis",
+          "type": "agent",
+          "label": "Consensus & Evaluator",
+          "description": "Synthesize verified results",
+          "stage": "reason",
+          "config": {}
+        },
+        {
+          "id": "approval",
+          "type": "approval",
+          "label": "Human Approval",
+          "description": "Review consequential output",
+          "stage": "act",
+          "config": {
+            "scope": "consequential actions"
+          }
+        },
+        {
+          "id": "output",
+          "type": "output",
+          "label": "Output",
+          "description": "Deliver result",
+          "stage": "act",
+          "config": {}
+        },
+        {
+          "id": "memory",
+          "type": "memory",
+          "label": "Outcome Memory",
+          "description": "Store non-secret lessons",
+          "stage": "improve",
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "context",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "context",
+          "target": "planner",
+          "type": "data",
+          "label": ""
+        },
+        {
+          "source": "planner",
+          "target": "research",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "planner",
+          "target": "evaluator",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "research",
+          "target": "synthesis",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "evaluator",
+          "target": "synthesis",
+          "type": "reasoning",
+          "label": ""
+        },
+        {
+          "source": "synthesis",
+          "target": "approval",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "approval",
+          "target": "output",
+          "type": "policy",
+          "label": ""
+        },
+        {
+          "source": "output",
+          "target": "memory",
+          "type": "data",
+          "label": ""
+        }
+      ],
+      "version": 2,
+      "created_at": "2026-08-27T18:44:32.799947+00:00",
+      "updated_at": "2026-08-27T18:44:32.832996+00:00",
+      "source_template": "template-parallel-research"
+    }
+  ]
+}
