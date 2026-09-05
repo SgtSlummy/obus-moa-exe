@@ -19,8 +19,6 @@ jobs:
     env:
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      # Keep test cleanup inside this job's temporary workspace.
-      PYTEST_ADDOPTS: --basetemp=${{ runner.temp }}/obus-pytest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,6 +33,9 @@ jobs:
         run: python -m pip install --upgrade pip pytest pip-audit pyinstaller ruff mypy && python -m pip install -r requirements.txt
 
       - name: Verify release source
+        # Keep test cleanup inside this step's runner-owned temporary workspace.
+        env:
+          PYTEST_ADDOPTS: --basetemp=${{ runner.temp }}/obus-pytest
         run: |
           python -m compileall -q backend tools scripts
           python -m pytest -q

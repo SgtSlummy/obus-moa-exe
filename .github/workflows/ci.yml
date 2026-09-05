@@ -18,10 +18,6 @@ jobs:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    env:
-      # Avoid pytest's shared per-user temp root, which can be locked by a
-      # concurrent local process on Windows. The runner temp is job-isolated.
-      PYTEST_ADDOPTS: --basetemp=${{ runner.temp }}/obus-pytest
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +49,8 @@ jobs:
 
       - name: Run application suite with coverage
         env:
+          # Avoid pytest's shared per-user temp root; this step's runner temp is job-isolated.
+          PYTEST_ADDOPTS: --basetemp=${{ runner.temp }}/obus-pytest
           COVERAGE_FILE: ${{ runner.temp }}/obus-coverage
         run: |
           python -m coverage run -m pytest -q
