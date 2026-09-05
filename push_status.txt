@@ -1,8 +1,8 @@
-# Push Status Report - 2026-09-04 17:24 UTC (cron cycle)
+# Push Status Report - 2026-09-05 04:08 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-09-04 17:24 UTC
+**Run Time:** 2026-09-05 04:08 UTC
 
 ---
 
@@ -10,15 +10,15 @@
 
 | Repo | Commit | Branch | Status |
 |------|--------|--------|--------|
-| obus-moa-exe (SgtSlummy) | `1bb32da` | codex/autonomy-context-agents | ✅ **Up-to-date** — pushed this cycle. In sync with origin. |
-| obus-moa-exe (SgtSlummy) | `29702cc` | master | ✅ **Up-to-date** — pushed this cycle. In sync with origin/master. |
-| warp submodule (nvidia/warp) | `3504ce5b0` | v1.4.0-3536-g3504ce5b0 | ⚠️ **Push blocked** — 403, SgtSlummy not a collaborator on nvidia/warp. Unchanged since last cycle. |
-| third_party/warpdotdev-warp | `8c2cc7325` | heads/master-63-g8c2cc73 (detached) | ⚠️ **Push blocked** — 403, SgtSlummy not a collaborator on warpdotdev/warp. Unchanged since last cycle. |
-| Understand-Anything (Egonex-AI) | `99e62b7` | main (detached) | ⚠️ **Push blocked** — 403, SgtSlummy not a collaborator on Egonex-AI/Understand-Anything. Unchanged since last cycle. |
+| obus-moa-exe (SgtSlummy) | `ee57b57` | codex/autonomy-context-agents | ✅ **Up-to-date** — pushed, in sync with origin. |
+| obus-moa-exe (SgtSlummy) | `29702cc` | master | ✅ **Up-to-date** — pushed, in sync with origin/master. |
+| warp submodule (nvidia/warp) | `3504ce5b0` | v1.4.0-3536-g3504ce5b0 | ⚠️ **Push blocked** — 403, SgtSlummy not a collaborator on nvidia/warp. Unchanged. |
+| third_party/warpdotdev-warp | `8c2cc7325` | heads/master-63-g8c2cc73 (detached) | ⚠️ **Push blocked** — 403, not collaborator on warpdotdev/warp. Unchanged. |
+| Understand-Anything (Egonex-AI) | `99e62b7` | main (detached) | ⚠️ **Push blocked** — 403, not collaborator on Egonex-AI/Understand-Anything. Unchanged. |
 
 **Main repo remote:** `origin https://github.com/SgtSlummy/obus-moa-exe.git`
-- `codex/autonomy-context-agents` → remote `1bb32da` (synced this cycle)
-- `master` → remote `29702cc` (synced this cycle)
+- `codex/autonomy-context-agents` → remote `ee57b57` (synced)
+- `master` → remote `29702cc` (synced)
 
 ---
 
@@ -28,7 +28,7 @@
 
 | File | State |
 |------|-------|
-| (clean) | Working tree clean — no uncommitted changes. |
+| `push_status.txt` | 📝 Modified — this cycle's status report (not yet committed). |
 
 ---
 
@@ -52,7 +52,7 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49.
 |---------|------|--------|
 | OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, health: `{"status":"ok","service":"obus-moa"}` |
 | Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200 (root responds) |
-| Pegasus protocol server | `:8299` | ❌ **DOWN** — connection refused (curl exit 7). Not responding on /, /health, /api, /status, or /ping. |
+| Pegasus protocol server | `:8299` | ❌ **DOWN** — connection refused. Not responding. |
 
 Both the main backend and Davy Jones are operational this cycle. Pegasus protocol appears to have stopped or crashed.
 
@@ -60,18 +60,25 @@ Both the main backend and Davy Jones are operational this cycle. Pegasus protoco
 
 ## Network Status
 
-- `github.com`: HTTP 200 (reachable). Git pushes working this cycle.
+- `github.com`: reachable, git pushes working.
 - Both `master` and `codex/autonomy-context-agents` branches pushed successfully.
 
 ---
 
 ## Active Jobs / Processes (system-level)
 
+Key processes observed:
 - **OBus MOA backend** (uvicorn) — running on :8000 ✅
 - **Davy Jones** (control panel) — running on :3000 ✅
-- **OBus.exe** — multiple instances across dist-aui-loop builds (loops 5–76)
-- **ollama** — running (llama-server active, API responsive on :11434)
+- **OBus.exe** — multiple instances
+- **ollama** — running (API on :11434)
 - **Pegasus protocol server** — NOT running on :8299 ❌
+- **gortex.exe** — multiple instances
+- **codex.exe** — running
+- **electron.exe** — multiple OBus desktop instances
+- **python.exe** — many instances (backend, bridges, agents)
+- **node.exe** — many instances
+- **Docker Desktop** + WSL — running
 
 ---
 
@@ -84,10 +91,10 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 
 ## Summary
 
-1. **Main repo (`codex/autonomy-context-agents`):** ✅ **Up-to-date** — `1bb32da` pushed this cycle. No new commits since push.
-2. **Main repo (`master`):** ✅ **Up-to-date** — `29702cc`, pushed this cycle. No changes since last cycle.
+1. **Main repo (`codex/autonomy-context-agents`):** ✅ **Up-to-date** — `ee57b57` pushed. No new commits since push.
+2. **Main repo (`master`):** ✅ **Up-to-date** — `29702cc`, pushed. No changes since last cycle.
 3. **Submodule pushes:** ⚠️ **Mixed** — warp, warpdotdev-warp, and Understand-Anything all blocked (unchanged, persistent auth/permission issues — 403s across all three).
-4. **Build pipeline:** ⏸ **Idle** — no new EXEs in ~24 hours.
+4. **Build pipeline:** ⏸ **Idle** — no new EXEs in ~10 days.
 5. **Services:** ⚠️ **Two of three up** — :8000 healthy, :3000 serving, :8299 DOWN (connection refused).
 
 ---
@@ -100,7 +107,7 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 
 ---
 
-**Verdict:** All pushable work is up to date. Both `master` and `codex/autonomy-context-agents` pushed this cycle with zero new commits (everything already in sync). Working tree is clean. Two of three services are running — **Pegasus protocol server on :8299 is down** and may need restart. Submodule push blockers remain unchanged (persistent 403s).
+**Verdict:** All pushable work is up to date. Both `master` and `codex/autonomy-context-agents` are synced with origin. Working tree has only `push_status.txt` modified (this report). Two of three services are running — **Pegasus protocol server on :8299 is down** and may need restart. Submodule push blockers remain unchanged (persistent 403s).
 
 ---
 
