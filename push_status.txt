@@ -1,8 +1,8 @@
-# Push Status Report - 2026-09-05 04:08 UTC (cron cycle)
+# Push Status Report - 2026-09-05 04:12 UTC (cron cycle)
 
 **Job ID:** 893c7df0ef71
 **Schedule:** every 10m
-**Run Time:** 2026-09-05 04:08 UTC
+**Run Time:** 2026-09-05 04:12 UTC
 
 ---
 
@@ -37,8 +37,8 @@
 | Location | EXE | Size | Date | Notes |
 |----------|-----|------|------|-------|
 | `dist/` | OBus.exe | 139.8MB | Aug 23 21:17 | Main dir build |
-| `dist/` | OBus-Loki-Partner-Setup.exe | 139.9MB | Aug 23 18:57 | |
-| `dist/` | OBus-Thor-Setup.exe | 139.9MB | Aug 23 18:57 | |
+| `dist/` | OBus-Loki-Partner-Setup.exe | 139.9MB | Aug 23 18:57 |  |
+| `dist/` | OBus-Thor-Setup.exe | 139.9MB | Aug 23 18:57 |  |
 | `dist-onedrive-fix/` | OBus.exe | 133.6MB | Aug 25 10:46 | Latest main dir build |
 | `dist-aui-loop76/` | OBus.exe | 67.5MB | Aug 25 04:49 | Latest loop build |
 
@@ -51,8 +51,9 @@ Build pipeline: **Idle** — no new EXEs since Aug 25 04:49.
 | Service | Port | Status |
 |---------|------|--------|
 | OBus MOA FastAPI backend | `:8000` | ✅ **UP** — HTTP 200, health: `{"status":"ok","service":"obus-moa"}` |
-| Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200 (root responds) |
+| Davy Jones server control panel | `:3000` | ✅ **UP** — HTTP 200 (root responds, HTML served) |
 | Pegasus protocol server | `:8299` | ❌ **DOWN** — connection refused. Not responding. |
+| Ollama API | `:11434` | ✅ **UP** — version 0.33.1 |
 
 Both the main backend and Davy Jones are operational this cycle. Pegasus protocol appears to have stopped or crashed.
 
@@ -71,7 +72,7 @@ Key processes observed:
 - **OBus MOA backend** (uvicorn) — running on :8000 ✅
 - **Davy Jones** (control panel) — running on :3000 ✅
 - **OBus.exe** — multiple instances
-- **ollama** — running (API on :11434)
+- **ollama** — running (API on :11434, v0.33.1)
 - **Pegasus protocol server** — NOT running on :8299 ❌
 - **gortex.exe** — multiple instances
 - **codex.exe** — running
@@ -95,7 +96,7 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 2. **Main repo (`master`):** ✅ **Up-to-date** — `29702cc`, pushed. No changes since last cycle.
 3. **Submodule pushes:** ⚠️ **Mixed** — warp, warpdotdev-warp, and Understand-Anything all blocked (unchanged, persistent auth/permission issues — 403s across all three).
 4. **Build pipeline:** ⏸ **Idle** — no new EXEs in ~10 days.
-5. **Services:** ⚠️ **Two of three up** — :8000 healthy, :3000 serving, :8299 DOWN (connection refused).
+5. **Services:** ⚠️ **Two of four up** — :8000 healthy, :3000 serving, :11434 responding (Ollama v0.33.1), :8299 DOWN (connection refused).
 
 ---
 
@@ -107,7 +108,7 @@ Status: active. Shared goal: move complete OBus workspace + Git worktree state f
 
 ---
 
-**Verdict:** All pushable work is up to date. Both `master` and `codex/autonomy-context-agents` are synced with origin. Working tree has only `push_status.txt` modified (this report). Two of three services are running — **Pegasus protocol server on :8299 is down** and may need restart. Submodule push blockers remain unchanged (persistent 403s).
+**Verdict:** All pushable work is up to date. Both `master` and `codex/autonomy-context-agents` are synced with origin. Working tree has only `push_status.txt` modified (this report). Three of four services are running — **Pegasus protocol server on :8299 is down** and may need restart. Submodule push blockers remain unchanged (persistent 403s).
 
 ---
 
