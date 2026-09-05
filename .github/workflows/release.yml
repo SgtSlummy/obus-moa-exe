@@ -47,7 +47,7 @@ jobs:
 
       - name: Build production executable
         shell: pwsh
-        run: ./tools/obus_launcher/build_and_install.ps1 -SkipInstall -PythonPath python
+        run: ./tools/obus_launcher/build_and_install.ps1 -SkipInstall -PythonPath "$env:pythonLocation\python.exe"
 
       - name: Authenticode sign executable
         if: ${{ env.WINDOWS_CERTIFICATE_BASE64 != '' }}

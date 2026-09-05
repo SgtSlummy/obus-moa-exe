@@ -1,6 +1,6 @@
 {
   "name": "obus-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Standalone OBus desktop application",
   "main": "main.js",
   "scripts": {
