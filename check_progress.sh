@@ -1,35 +1,25 @@
 #!/bin/bash
-cd /c/Users/Hermes/Documents/obus-moa-exe
+cd /c/Users/Hermes/Documents/obus-moa-exe || exit 1
 
-echo "=== Git Status (obus-moa-exe) ==="
-git status --short
-
-echo ""
-echo "=== Recent Commits ==="
-git log --oneline -3
+echo "=== Git Status ==="
+git status --short 2>&1
 
 echo ""
-echo "=== Latest Dist Directories ==="
-ls -la dist-aui-loop76/ 2>/dev/null
-ls dist-aui-loop77/ 2>/dev/null && echo "LOOP 77 EXISTS" || echo "NO LOOP 77"
+echo "=== Git Remote ==="
+git remote -v 2>&1
 
 echo ""
-echo "=== Build Directories ==="
-ls build-aui-loop76/ 2>/dev/null
-ls build-aui-loop77/ 2>/dev/null && echo "BUILD LOOP 77 EXISTS" || echo "NO BUILD LOOP 77"
+echo "=== Last 5 Commits ==="
+git log --oneline -5 2>&1
 
 echo ""
-echo "=== .hermes/package-* ==="
-ls -la .hermes/package-* 2>/dev/null
+echo "=== Unpushed Commits ==="
+git log --oneline @{u}..HEAD 2>&1 || echo "(no upstream or up-to-date)"
 
 echo ""
-echo "=== Latest cron report ==="
-cat cron_report_latest.md 2>/dev/null | head -30
+echo "=== Branches ==="
+git branch -vv 2>&1 | head -20
 
 echo ""
-echo "=== Push status ==="
-cat push_status.txt | head -20
-
-echo ""
-echo "=== Active processes (OBus, build, python) ==="
-tasklist.exe 2>/dev/null | grep -iE "OBus|build|python|ollama|llama|gortex|codex|hermes" | head -30
+echo "=== Recent Cron Reports ==="
+ls -la cron_report_*.md 2>&1 | tail -10
