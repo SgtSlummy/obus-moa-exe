@@ -27,7 +27,8 @@ class RouteCancellationTests(unittest.TestCase):
         self.assertEqual(response.json()["route_id"], "route-pre-cancel")
 
     def test_route_ui_exposes_confirmed_cancel_control(self):
-        html = TestClient(backend.app).get("/").text
+        client = TestClient(backend.app)
+        html = client.get("/").text + client.get("/static/aui/dashboard.js").text + client.get("/static/aui/dashboard.css").text
         for marker in ("cancel-latest", "cancelActiveRoute", "/cancel", "route_id"):
             self.assertIn(marker, html)
 

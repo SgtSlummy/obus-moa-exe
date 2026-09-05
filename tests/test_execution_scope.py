@@ -62,7 +62,7 @@ class ExecutionScopeTests(unittest.TestCase):
         aggregate.assert_not_called()
 
     def test_route_ui_exposes_explicit_remote_execution_confirmation(self):
-        html = self.client.get("/").text
+        html = self.client.get("/").text + self.client.get("/static/aui/dashboard.js").text + self.client.get("/static/aui/dashboard.css").text
         self.assertIn('id="confirm-remote-execution"', html)
         self.assertIn("confirm_remote_execution", html)
 

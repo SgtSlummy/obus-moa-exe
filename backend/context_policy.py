@@ -20,16 +20,25 @@ def resolve_context_window(
     status = ollama_status or {}
     preferences = settings or {}
     override = int(preferences.get("per_agent_context_window") or 0)
-    detected_candidates = [
-        int((status.get("runtime_contexts") or {}).get(model) or 0),
-        int((status.get("model_contexts") or {}).get(model) or 0),
-    ]
-    detected = max(detected_candidates) or int(key_limit or DEFAULT_CONTEXT_WINDOW)
-    ceiling = min(value for value in (detected, key_limit or detected, MAX_CONTEXT_WINDOW) if value > 0)
+    runtime_capacity = int((status.get("runtime_contexts") or {}).get(model) or 0)
+    model_capacity = int((status.get("model_contexts") or {}).get(model) or 0)
+    fallback_capacity = int(key_limit or DEFAULT_CONTEXT_WINDOW)
+
+    # An explicit user cap may request a future reload up to native capacity.
+    explicit_capacity = max(runtime_capacity, model_capacity) or fallback_capacity
+    explicit_ceiling = min(
+        value for value in (explicit_capacity, key_limit or explicit_capacity, MAX_CONTEXT_WINDOW) if value > 0
+    )
     if override > 0:
-        return max(MIN_CONTEXT_WINDOW, min(override, ceiling))
+        return max(MIN_CONTEXT_WINDOW, min(override, explicit_ceiling))
+
+    # Automatic mode reflects the model that is actually resident. Falling back
+    # to the advertised model capacity only when nothing is warm prevents the
+    # UI from promising a CPU-offloaded window as if it were GPU-resident.
+    automatic_capacity = runtime_capacity or model_capacity or fallback_capacity
+    automatic_ceiling = min(automatic_capacity, MAX_CONTEXT_WINDOW)
     utilization = min(95, max(50, int(preferences.get("context_utilization_percent") or 95)))
-    return max(MIN_CONTEXT_WINDOW, int(ceiling * utilization / 100))
+    return max(MIN_CONTEXT_WINDOW, int(automatic_ceiling * utilization / 100))
 
 
 def bounded_agent_context(

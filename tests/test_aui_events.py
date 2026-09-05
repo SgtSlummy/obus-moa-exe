@@ -24,7 +24,7 @@ class AUIEventTests(unittest.TestCase):
         self.assertIsInstance(response.json(), list)
 
     def test_ui_exposes_optional_event_stream_with_polling_compatible_fallback(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         self.assertIn('/static/aui/route-events.js', html)
         self.assertIn('startRouteEventStream', html)
         source = TestClient(backend.app).get('/static/aui/route-events.js').text

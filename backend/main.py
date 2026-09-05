@@ -50,6 +50,7 @@ from backend.user_settings import (
     validate_import_payload,
 )
 from backend.context_policy import autonomy_directive, bounded_agent_context, resolve_context_window
+from backend.epistemic_policy import epistemic_policy, guard_epistemic_request
 from backend.workspace_context import (
     WorkspaceConflictError,
     WorkspaceContextError,
@@ -80,6 +81,27 @@ from backend.warp_companion import launch as launch_warp_companion, status as wa
 
 app = FastAPI(title="OBus MOA Runtime", version="1.0.0")
 
+DASHBOARD_CSP = "; ".join((
+    "default-src 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' ws://127.0.0.1:* ws://localhost:* ws://[::1]:*",
+    "media-src 'self' blob:",
+    "worker-src 'self' blob:",
+))
+DASHBOARD_HEADERS = {
+    "Content-Security-Policy": DASHBOARD_CSP,
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+}
+
 
 from .harness_api import _public_task as public_harness_task, router as harness_router, runtime as harness_runtime
 from .autonomy_api import router as autonomy_router
@@ -91,6 +113,8 @@ from .terminal_api import router as terminal_router
 from .codex_bridge_api import router as codex_bridge_router
 from .flow_studio_api import api_router as flow_studio_api_router, page_router as flow_studio_page_router
 from .voice_link_api import router as voice_link_router
+from .agi_api import router as agi_router
+from .improvement_governor_api import router as improvement_governor_router
 
 app.include_router(harness_router)
 app.include_router(autonomy_router)
@@ -103,6 +127,8 @@ app.include_router(codex_bridge_router)
 app.include_router(flow_studio_api_router)
 app.include_router(flow_studio_page_router)
 app.include_router(voice_link_router)
+app.include_router(agi_router)
+app.include_router(improvement_governor_router)
 
 
 @app.middleware("http")
@@ -190,6 +216,9 @@ ORCHESTRATION_THREADS: dict[str, threading.Thread] = {}
 TENTACLE_LOCK = threading.RLock()
 TENTACLE_THREAD: Optional[threading.Thread] = None
 TENTACLE_LAST_REPORT: dict = {}
+TENTACLE_STOP_EVENT = threading.Event()
+TENTACLE_SHUTDOWN_TIMEOUT_SECONDS = 1
+TENTACLE_LLM_REVIEW_TIMEOUT_SECONDS = 10
 TENTACLE_RUN_AUDIT = run_tentacle_audit
 VOICE_LOCK = threading.RLock()
 VOICE_MODEL = None
@@ -383,7 +412,7 @@ def key_template(key_id: str, name: str, provider: str, model: str, base_url: st
 
 
 DEFAULT_KEYS = [
-    key_template("key-local-ollama", "Local Ollama", "ollama", "gpt-oss:20b", "http://127.0.0.1:11434", None, 131072, ["coding", "tools", "reasoning", "analysis", "research", "synthesis"], "🔮", True, True, "ready"),
+    key_template("key-local-ollama", "Local Ollama", "ollama", "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M", "http://127.0.0.1:11434", None, 262144, ["coding", "tools", "reasoning", "analysis", "research", "synthesis"], "🔮", True, True, "ready"),
     key_template("key-omniroute", "OmniRoute", "omniroute", "auto", "http://127.0.0.1:20128/v1", None, 131072, ["routing", "analysis", "coding", "research", "free_tier"], "🧭", True, True, "ready"),
     key_template("key-codex-oauth", "GPT 5.6 Luna", "codex", "gpt-5.6-luna", "https://api.openai.com/v1", "OPENAI_API_KEY", 131072, ["coding", "tools", "analysis", "synthesis", "reasoning"], "✦", False, True),
     key_template("key-nous-oauth", "Nous / Solar", "nous", "upstage/solar-pro4:free", "https://api.upstage.com/v1", "NOUS_API_KEY", 131072, ["research", "analysis", "writing"], "☀️"),
@@ -1785,13 +1814,14 @@ def probe_key_live(key: dict) -> dict:
     if provider == "ollama":
         status = get_ollama_status()
         model_name = str(key.get("model") or "")
-        models = {str(item) for item in (status.get("models") or [])}
-        model_ready = model_name in models
+        detected_model = _matching_ollama_model(model_name, status.get("models") or [])
+        model_ready = detected_model is not None
+        pull_target = model_name or "<model>"
         return {
             "success": bool(status.get("connected") and model_ready),
             "status_code": 200 if status.get("connected") and model_ready else None,
             "reason": None if status.get("connected") and model_ready else ("model_missing" if status.get("connected") else "runtime_offline"),
-            "message": "Ollama runtime and configured model are reachable" if status.get("connected") and model_ready else (f"Ollama model {model_name or 'unknown'} is not installed" if status.get("connected") else "Ollama runtime is offline"),
+            "message": "Ollama runtime and configured model are reachable" if status.get("connected") and model_ready else (f"{pull_target} has not been pulled yet. Run `ollama pull {pull_target}`, then select Test & enable." if status.get("connected") else "Ollama is not running. Start Ollama, then test the selected model again."),
         }
     if provider == "codex":
         command = codex_command("login", "status")
@@ -1864,6 +1894,8 @@ FORGE_INSTALL_LOCK = threading.Lock()
 CODEX_LOGIN_MAX_JOBS = 32
 FORGE_INSTALL_MAX_JOBS = 4
 CODEX_LOGIN_TIMEOUT_SECONDS = 300
+FORGE_RECOMMEND_TIMEOUT_SECONDS = 5
+FORGE_RUNTIME_CHECK_TIMEOUT_SECONDS = 5
 
 
 def run_codex_login(job_id: str) -> None:
@@ -1881,9 +1913,11 @@ def run_codex_login(job_id: str) -> None:
         watchdog = threading.Timer(CODEX_LOGIN_TIMEOUT_SECONDS, lambda: (timed_out.set(), terminate_process_tree(process)))
         watchdog.daemon = True
         watchdog.start()
-        assert process.stdout is not None
+        stdout = process.stdout
+        if stdout is None:
+            raise RuntimeError("Codex device login process did not provide a stdout pipe")
         while True:
-            chunk = process.stdout.read(65536)
+            chunk = stdout.read(65536)
             if not chunk:
                 break
             if len(output_bytes) + len(chunk) > MAX_SUBPROCESS_OUTPUT_BYTES:
@@ -1930,14 +1964,14 @@ def find_local_binary(name: str) -> Optional[str]:
 
 
 @functools.lru_cache(maxsize=32)
-def isolated_import_status(module: str) -> tuple[bool, str]:
+def isolated_import_status(module: str, timeout: int = FORGE_RUNTIME_CHECK_TIMEOUT_SECONDS) -> tuple[bool, str]:
     integrations = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "hermes" / "integrations"
     interpreters = [integrations / "python-libraries" / "Scripts" / "python.exe", DATA_DIR / "forge" / ".venv" / "Scripts" / "python.exe"]
     for interpreter in interpreters:
         if not interpreter.is_file():
             continue
         try:
-            result = run_bounded_subprocess([str(interpreter), "-c", f"import {module}; print('ready')"], timeout=45)
+            result = run_bounded_subprocess([str(interpreter), "-c", f"import {module}; print('ready')"], timeout=timeout)
             if result.returncode == 0:
                 return True, str(interpreter)
         except Exception:
@@ -1945,7 +1979,7 @@ def isolated_import_status(module: str) -> tuple[bool, str]:
     return False, ""
 
 
-def forge_project_status(project: dict) -> dict:
+def forge_project_status(project: dict, *, live: bool = False) -> dict:
     binary = project.get("status_binary")
     path = find_local_binary(binary) if binary else None
     integrations = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "hermes" / "integrations"
@@ -1959,23 +1993,37 @@ def forge_project_status(project: dict) -> dict:
         evidence.append(f"binary: {path}")
     elif project["id"] in {"gptcache", "llmlingua", "outlines", "crewai"}:
         module = {"gptcache": "gptcache", "llmlingua": "llmlingua", "outlines": "outlines", "crewai": "crewai"}[project["id"]]
-        ready, interpreter = isolated_import_status(module)
-        status = "installed" if ready else "not_installed"
-        operational = ready
-        if ready:
-            evidence.append(f"import {module}: {interpreter}")
+        interpreter = next((candidate for candidate in (integrations / "python-libraries" / "Scripts" / "python.exe", DATA_DIR / "forge" / ".venv" / "Scripts" / "python.exe") if candidate.is_file()), None)
+        if live:
+            ready, verified_interpreter = isolated_import_status(module)
+            status = "installed" if ready else "not_installed"
+            operational = ready
+            if ready:
+                evidence.append(f"import {module}: {verified_interpreter}")
+            else:
+                blocker = "Isolated Python import failed"
         else:
-            blocker = "Isolated Python import failed"
+            status = "detected" if interpreter else "not_installed"
+            if interpreter:
+                evidence.append(f"isolated Python: {interpreter}")
+                blocker = "Runtime import has not been verified"
+            else:
+                blocker = "Isolated Python environment is not installed"
     elif project["id"] == "vllm":
         interpreter = integrations / "vllm" / "Scripts" / "python.exe"
         if interpreter.is_file():
-            try:
-                result = run_bounded_subprocess([str(interpreter), "-c", "import vllm,torch; print(vllm.__version__,torch.__version__,torch.cuda.is_available())"], timeout=60)
-                evidence.append(f"native install: {result.stdout.strip()}")
-            except Exception:
-                pass
-            status = "installed_blocked"
-            blocker = "CUDA is unavailable in the native Windows vLLM environment; WSL2 or Docker is required"
+            if live:
+                try:
+                    result = run_bounded_subprocess([str(interpreter), "-c", "import vllm,torch; print(vllm.__version__,torch.__version__,torch.cuda.is_available())"], timeout=FORGE_RUNTIME_CHECK_TIMEOUT_SECONDS)
+                    evidence.append(f"native install: {result.stdout.strip()}")
+                except Exception:
+                    pass
+                status = "installed_blocked"
+                blocker = "CUDA is unavailable in the native Windows vLLM environment; WSL2 or Docker is required"
+            else:
+                status = "detected"
+                evidence.append(f"isolated Python: {interpreter}")
+                blocker = "CUDA capability is not verified; WSL2 or Docker may be required"
         else:
             status = "external_setup"
             blocker = "WSL2 or Docker is required"
@@ -2086,6 +2134,11 @@ def get_ollama_status() -> dict:
             item.get("name", ""): int(item.get("details", {}).get("context_length") or 0)
             for item in model_items if isinstance(item.get("details", {}), dict)
         }
+        model_digests = {
+            str(item.get("name") or "").strip(): str(item.get("digest") or "").strip()
+            for item in model_items
+            if str(item.get("name") or "").strip() and str(item.get("digest") or "").strip()
+        }
         runtime_contexts = {}
         vram_bytes = {}
         running_models = []
@@ -2103,12 +2156,12 @@ def get_ollama_status() -> dict:
             pass
         return {
             "connected": True, "models": models, "model_contexts": contexts,
-            "runtime_contexts": runtime_contexts, "running_models": running_models,
+            "model_digests": model_digests, "runtime_contexts": runtime_contexts, "running_models": running_models,
             "vram_bytes": vram_bytes, "url": OLLAMA_URL,
         }
     except (OSError, urllib.error.URLError, ValueError, TypeError, RuntimeError) as exc:
         return {
-            "connected": False, "models": [], "model_contexts": {},
+            "connected": False, "models": [], "model_contexts": {}, "model_digests": {},
             "runtime_contexts": {}, "running_models": [], "vram_bytes": {},
             "url": OLLAMA_URL, "error": str(exc),
         }
@@ -2137,25 +2190,115 @@ def _resolve_harness_runtime_config(task: dict) -> dict:
 harness_runtime.runtime_config_resolver = _resolve_harness_runtime_config
 
 
+OLLAMA_RUNTIME_MODEL_ALIASES = {
+    "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M": (
+        "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M"
+    ),
+    "obus-qwen3.8-27b:65k": (
+        "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M"
+    ),
+}
+
+
+def _observed_ollama_runtime_model(model: str, running_models: set[str]) -> str:
+    """Resolve the verified base runtime name for a derived local profile."""
+    runtime_model = OLLAMA_RUNTIME_MODEL_ALIASES.get(model, model)
+    return runtime_model if runtime_model in running_models else model
+
+
 def get_gpu_warm_status() -> dict:
     """Return the secret-free local GPU residency state tracked by OBus."""
     with GPU_WARM_LOCK:
+        snapshot = copy.deepcopy(GPU_WARM_STATE)
+
+    model = str(snapshot.get("model") or "").strip()
+    if snapshot.get("status") not in {"warm", "unverified", "stale", "cold"} or not model:
+        return snapshot
+
+    try:
+        ollama = get_ollama_status()
+    except Exception:
+        ollama = {"connected": False, "running_models": [], "runtime_contexts": {}}
+
+    running_models = set(ollama.get("running_models") or [])
+    runtime_model = _observed_ollama_runtime_model(model, running_models)
+    runtime_contexts = ollama.get("runtime_contexts") or {}
+    try:
+        observed_context = int(runtime_contexts.get(runtime_model) or 0)
+    except (TypeError, ValueError):
+        observed_context = 0
+    try:
+        requested_context = int(snapshot.get("context_tokens") or 0)
+    except (TypeError, ValueError):
+        requested_context = 0
+
+    status = "warm"
+    error = None
+    if not ollama.get("connected"):
+        status = "unverified"
+        error = "Ollama residency could not be verified"
+    elif runtime_model not in running_models:
+        status = "cold"
+        error = "Ollama model is no longer resident"
+    elif requested_context and observed_context < requested_context:
+        status = "stale"
+        error = (
+            f"Resident context {observed_context} is below requested context "
+            f"{requested_context}"
+        )
+
+    checked_at = datetime.now(timezone.utc).isoformat()
+    with GPU_WARM_LOCK:
+        if (
+            GPU_WARM_STATE.get("status") in {"warm", "unverified", "stale", "cold"}
+            and GPU_WARM_STATE.get("model") == model
+            and GPU_WARM_STATE.get("warmed_at") == snapshot.get("warmed_at")
+        ):
+            GPU_WARM_STATE.update(
+                status=status,
+                observed_context_tokens=observed_context or None,
+                verification_checked_at=checked_at,
+                error=error,
+            )
+            if ollama.get("connected"):
+                GPU_WARM_STATE["verified_at"] = checked_at
+            if status == "cold":
+                GPU_WARM_STATE.update(warmed_at=None, load_duration_ns=None)
         return copy.deepcopy(GPU_WARM_STATE)
 
 
 def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> dict:
-    """Single-flight load of an installed Ollama model for low-latency routes."""
+    """Single-flight load and residency verification for an installed Ollama model."""
     global GPU_WARM_ACTIVE_MODEL
-    if not GPU_WARM_EXECUTION_LOCK.acquire(blocking=False):
-        with GPU_WARM_LOCK:
+    model = str(model or "").strip()
+    started_at = datetime.now(timezone.utc).isoformat()
+    context_tokens = None
+
+    with GPU_WARM_LOCK:
+        if not GPU_WARM_EXECUTION_LOCK.acquire(blocking=False):
+            active = copy.deepcopy(GPU_WARM_STATE)
             return {
-                "status": "busy", "model": GPU_WARM_ACTIVE_MODEL,
-                "keep_alive": OLLAMA_KEEP_ALIVE, "accepted": False,
+                "status": "busy",
+                "model": GPU_WARM_ACTIVE_MODEL or active.get("model"),
+                "keep_alive": active.get("keep_alive"),
+                "context_tokens": active.get("context_tokens"),
+                "accepted": False,
             }
+        GPU_WARM_ACTIVE_MODEL = model or None
+        GPU_WARM_STATE.update(
+            status="warming",
+            model=model or None,
+            keep_alive=keep_alive,
+            context_tokens=None,
+            observed_context_tokens=None,
+            started_at=started_at,
+            warmed_at=None,
+            verified_at=None,
+            load_duration_ns=None,
+            error=None,
+        )
+
     try:
-        model = str(model or "").strip()
-        with GPU_WARM_LOCK:
-            GPU_WARM_ACTIVE_MODEL = model or None
         if not model:
             raise RuntimeError("No Ollama model was selected for warmup")
         ollama = get_ollama_status()
@@ -2164,36 +2307,89 @@ def warm_ollama_model(model: str, keep_alive: str | int = OLLAMA_KEEP_ALIVE) -> 
         if model not in ollama.get("models", []):
             raise RuntimeError(f"Ollama model is not installed: {model}")
 
-        started_at = datetime.now(timezone.utc).isoformat()
+        settings = get_settings()
+        try:
+            configured_context = int(settings.get("per_agent_context_window") or 0)
+            native_context = int((ollama.get("model_contexts") or {}).get(model) or 0)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Ollama model context is invalid") from exc
+        if configured_context > 0:
+            context_tokens = min(configured_context, native_context) if native_context > 0 else configured_context
+        else:
+            context_tokens = native_context
+        if model in OLLAMA_RUNTIME_MODEL_ALIASES:
+            # The RTX 3090's verified profile is 64K. A stale global preference
+            # must not replace Qwen's full-GPU runtime with a CPU-spilling context.
+            context_tokens = min(context_tokens, 65_536)
+        if context_tokens <= 0:
+            raise RuntimeError(f"Ollama model context is unavailable: {model}")
+
         with GPU_WARM_LOCK:
-            GPU_WARM_STATE.update(
-                status="warming", model=model, keep_alive=keep_alive,
-                started_at=started_at, warmed_at=None, load_duration_ns=None, error=None,
-            )
+            GPU_WARM_STATE["context_tokens"] = context_tokens
+
         request = urllib.request.Request(
             f"{OLLAMA_URL}/api/generate",
-            data=json.dumps({"model": model, "prompt": "", "stream": False, "keep_alive": keep_alive}).encode("utf-8"),
+            data=json.dumps(
+                {
+                    "model": model,
+                    "stream": False,
+                    "keep_alive": keep_alive,
+                    "options": {"num_ctx": context_tokens},
+                }
+            ).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
+        with open_loopback_request(request, timeout=300) as response:
+            payload = read_loopback_warmup_response(response)
+        if not isinstance(payload, dict) or payload.get("done") is not True:
+            raise ValueError("invalid response: incomplete generation")
+
+        verified = get_ollama_status()
+        running_models = set(verified.get("running_models") or [])
+        runtime_model = _observed_ollama_runtime_model(model, running_models)
+        runtime_contexts = verified.get("runtime_contexts") or {}
         try:
-            with open_loopback_request(request, timeout=300) as response:
-                payload = read_loopback_warmup_response(response)
-            if not isinstance(payload, dict):
-                raise ValueError("invalid response")
-        except (OSError, urllib.error.URLError, ValueError, TypeError, UnicodeDecodeError, RuntimeError) as exc:
-            reason = "invalid response" if isinstance(exc, (ValueError, TypeError, UnicodeDecodeError)) else type(exc).__name__
-            with GPU_WARM_LOCK:
-                GPU_WARM_STATE.update(status="error", error=reason)
-            raise RuntimeError(f"Ollama warmup failed: {reason}") from exc
+            observed_context = int(runtime_contexts.get(runtime_model) or 0)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Ollama resident context is invalid") from exc
+        if not verified.get("connected"):
+            raise RuntimeError("Ollama disconnected after warmup")
+        if runtime_model not in running_models:
+            raise RuntimeError("Ollama did not retain the requested model")
+        if observed_context != context_tokens:
+            raise RuntimeError(
+                f"Ollama resident context {observed_context} does not match requested context "
+                f"{context_tokens}"
+            )
+
         with GPU_WARM_LOCK:
             GPU_WARM_STATE.update(
-                status="warm", warmed_at=datetime.now(timezone.utc).isoformat(),
-                load_duration_ns=payload.get("load_duration"), error=None,
+                status="warm",
+                warmed_at=datetime.now(timezone.utc).isoformat(),
+                verified_at=datetime.now(timezone.utc).isoformat(),
+                observed_context_tokens=observed_context,
+                load_duration_ns=payload.get("load_duration"),
+                error=None,
             )
             result = copy.deepcopy(GPU_WARM_STATE)
             result["accepted"] = True
             return result
+    except Exception as exc:
+        reason = str(exc).strip() or type(exc).__name__
+        with GPU_WARM_LOCK:
+            GPU_WARM_STATE.update(
+                status="error",
+                model=model or None,
+                keep_alive=keep_alive,
+                context_tokens=context_tokens,
+                observed_context_tokens=None,
+                warmed_at=None,
+                verified_at=datetime.now(timezone.utc).isoformat(),
+                load_duration_ns=None,
+                error=reason,
+            )
+        raise RuntimeError(f"Ollama warmup failed: {reason}") from exc
     finally:
         with GPU_WARM_LOCK:
             GPU_WARM_ACTIVE_MODEL = None
@@ -2330,6 +2526,9 @@ def key_setup_guide(key: dict) -> dict:
     env_var = key.get("env_var")
     if env_var:
         steps.insert(-1, f"Set the credential outside OBus as {env_var}; enter only this reference name in OBus")
+    if provider == "ollama":
+        model_name = str(key.get("model") or "<model>").strip() or "<model>"
+        steps = [step.replace("<model>", model_name) for step in steps]
     return {
         "docs_url": docs_url,
         "steps": steps,
@@ -2485,8 +2684,8 @@ def local_voice_status(state: dict | None = None) -> dict:
     }
 
 
-def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
-    """Transcribe one browser recording with a pre-existing local Faster-Whisper model."""
+def validate_voice_audio(audio_base64: str, mime_type: str) -> bytes:
+    """Decode and validate a browser recording before consulting local runtime state."""
     try:
         audio = base64.b64decode(audio_base64, validate=True)
     except (ValueError, TypeError) as exc:
@@ -2498,6 +2697,12 @@ def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
     valid_container = (is_webm and audio.startswith(b"\x1a\x45\xdf\xa3")) or (is_wav and audio[:4] == b"RIFF" and audio[8:12] == b"WAVE")
     if not valid_container:
         raise ValueError("Voice input does not match its declared audio container.")
+    return audio
+
+
+def transcribe_local_audio(audio_base64: str, mime_type: str) -> str:
+    """Transcribe one browser recording with a pre-existing local Faster-Whisper model."""
+    audio = validate_voice_audio(audio_base64, mime_type)
     model_path, _model_source = _configured_local_voice_model(load_state())
     if not model_path or not Path(model_path).exists():
         raise RuntimeError("Use Auto-set up voice or configure OBUS_LOCAL_STT_MODEL_PATH with an already available local Faster-Whisper model before using voice.")
@@ -2536,9 +2741,17 @@ def process_voice_link_audio(audio: bytes) -> dict[str, str]:
 app.state.voice_link_process = process_voice_link_audio
 
 
-def provider_statuses(state: Optional[dict] = None) -> list:
+def provider_statuses(state: Optional[dict] = None, ollama_snapshot: Optional[dict] = None) -> list:
     state = state or load_state()
-    ollama = get_ollama_status()
+    ollama = ollama_snapshot if isinstance(ollama_snapshot, dict) else get_ollama_status()
+    running_models = sorted(
+        {
+            str(candidate).strip()
+            for candidate in (ollama.get("running_models") or [])
+            if str(candidate).strip()
+        },
+        key=str.casefold,
+    )
     providers = []
     for key in state.get("keys", DEFAULT_KEYS):
         if key.get("local"):
@@ -2559,6 +2772,35 @@ def provider_statuses(state: Optional[dict] = None) -> list:
         ) if key.get("provider") == "ollama" else None
         if detected_context:
             context_tokens = detected_context
+        local_readiness = None
+        resident = None
+        warm_status = None
+        if key.get("provider") == "ollama":
+            resident = bool(detected_model and detected_model in ollama.get("running_models", []))
+            with GPU_WARM_LOCK:
+                warm_snapshot = copy.deepcopy(GPU_WARM_STATE)
+            warm_status = str(warm_snapshot.get("status") or "cold")
+            warm_for_model = str(warm_snapshot.get("model") or "") in {model_name, detected_model}
+            if not ollama.get("connected") or not model_ready:
+                local_readiness = "unavailable"
+            elif warm_for_model and warm_status == "warming":
+                local_readiness = "warming"
+            elif warm_for_model and warm_status == "error":
+                local_readiness = "degraded"
+            elif resident:
+                local_readiness = "ready"
+            else:
+                local_readiness = "degraded"
+        last_probe_reason = key.get("last_probe_reason")
+        last_probe_message = key.get("last_probe_message")
+        if key.get("provider") == "ollama" and not last_probe_message:
+            pull_target = model_name or "<model>"
+            if not ollama.get("connected"):
+                last_probe_reason = "runtime_offline"
+                last_probe_message = "Ollama is not running. Start Ollama, then test the selected model again."
+            elif not model_ready:
+                last_probe_reason = "model_missing"
+                last_probe_message = f"{pull_target} has not been pulled yet. Run `ollama pull {pull_target}`, then select Test & enable."
         providers.append({
             "id": key["id"],
             "name": key["name"],
@@ -2578,10 +2820,19 @@ def provider_statuses(state: Optional[dict] = None) -> list:
             "configured": configured,
             "verified": bool(key.get("verified")),
             "verified_at": key.get("verified_at"),
-            "last_probe_reason": key.get("last_probe_reason"),
-            "last_probe_message": key.get("last_probe_message"),
+            "last_probe_reason": last_probe_reason,
+            "last_probe_message": last_probe_message,
             "connected": connected,
             "status": "ready" if connected else ("configured" if configured else "not configured"),
+            "local_readiness": local_readiness,
+            "resident": resident,
+            "warm_status": warm_status,
+            "runtime_residency": {
+                "configured_model": model_name,
+                "configured_model_resident": resident,
+                "running_models": running_models,
+                "mismatch": bool(running_models) and not resident,
+            } if key.get("provider") == "ollama" else None,
             "local": bool(key.get("local")),
             "open_model": bool(key.get("open_model")),
             "can_aggregate": bool(key.get("can_aggregate")),
@@ -2597,8 +2848,8 @@ async def index():
     """Serve the main SPA"""
     static_path = Path(__file__).parent / 'static' / 'index.html'
     if static_path.exists():
-        return HTMLResponse(content=static_path.read_text(encoding="utf-8"))
-    return HTMLResponse(content="<h1>OBus UI Not Found</h1>", status_code=404)
+        return HTMLResponse(content=static_path.read_text(encoding="utf-8"), headers=DASHBOARD_HEADERS)
+    return HTMLResponse(content="<h1>OBus UI Not Found</h1>", status_code=404, headers=DASHBOARD_HEADERS)
 
 
 @app.get("/plan", response_class=HTMLResponse)
@@ -2630,12 +2881,14 @@ def _require_thor_portal(request: Request) -> None:
 
 
 def _thor_local_generate(prompt: str, model: str) -> dict:
+    context_window = resolve_context_window(model, get_ollama_status(), get_settings())
     payload = json.dumps({
         "model": model,
         "prompt": prompt,
         "system": "You are using this PC through the authenticated Obus Thor portal. Keep execution local and do not claim access to capabilities not listed by the portal.",
         "stream": False,
         "keep_alive": OLLAMA_KEEP_ALIVE,
+        "options": {"num_ctx": context_window},
     }).encode("utf-8")
     outbound = urllib.request.Request(
         f"{OLLAMA_URL}/api/generate", data=payload,
@@ -2692,6 +2945,46 @@ async def aui_manifest(surface: Optional[str] = None):
     """Return the secret-free Warp-inspired action and accessibility contract."""
     requested = surface or get_settings(load_state()).get("workspace_surface", "operator")
     return build_manifest(requested)
+
+
+# Captured at module load so a long-running process can prove whether the
+# on-disk backend source changed after it started. The API deliberately returns
+# only timestamps and a boolean, never a local path or source content.
+RUNTIME_SOURCE_PATH = Path(__file__)
+RUNTIME_SOURCE_LOADED_MTIME_NS = RUNTIME_SOURCE_PATH.stat().st_mtime_ns
+RUNTIME_SOURCE_LOADED_SHA256 = hashlib.sha256(RUNTIME_SOURCE_PATH.read_bytes()).hexdigest()
+
+
+def _runtime_source_freshness_payload() -> dict[str, int | str | bool]:
+    """Return path-free evidence that this process still matches its loaded source."""
+    try:
+        current_source = RUNTIME_SOURCE_PATH.read_bytes()
+        current_mtime_ns = RUNTIME_SOURCE_PATH.stat().st_mtime_ns
+    except OSError:
+        return {
+            "source_current": False,
+            "loaded_source_mtime_ns": RUNTIME_SOURCE_LOADED_MTIME_NS,
+            "current_source_mtime_ns": 0,
+            "loaded_source_sha256": RUNTIME_SOURCE_LOADED_SHA256,
+            "current_source_sha256": "",
+        }
+    current_sha256 = hashlib.sha256(current_source).hexdigest()
+    return {
+        "source_current": (
+            current_mtime_ns == RUNTIME_SOURCE_LOADED_MTIME_NS
+            and current_sha256 == RUNTIME_SOURCE_LOADED_SHA256
+        ),
+        "loaded_source_mtime_ns": RUNTIME_SOURCE_LOADED_MTIME_NS,
+        "current_source_mtime_ns": current_mtime_ns,
+        "loaded_source_sha256": RUNTIME_SOURCE_LOADED_SHA256,
+        "current_source_sha256": current_sha256,
+    }
+
+
+@app.get("/api/runtime/source-freshness")
+async def runtime_source_freshness() -> dict[str, int | str | bool]:
+    """Report whether this backend still matches its loaded source revision."""
+    return _runtime_source_freshness_payload()
 
 
 @app.get("/api/route/events")
@@ -2834,7 +3127,7 @@ async def dashboard():
         "local_auto_aid": local_ollama_auto_aid_preflight(state, ollama),
         "nvidia_warp": nvidia_warp_runtime.status(settings.get("gpu_backend", os.environ.get("OBUS_WARP_DEVICE"))),
         "warm_runtime": get_gpu_warm_status(),
-        "providers": provider_statuses(state),
+        "providers": provider_statuses(state, ollama),
         "cards": [card_public(card) for card in state.get("cards", DEFAULT_CARDS) if isinstance(card, dict)],
         "decks": [deck_public(d) for d in state.get("decks", ALL_DECKS) if d.get("enabled", True)],
         "settings": settings,
@@ -3327,6 +3620,35 @@ def record_run_receipt(prompt: str, plan: dict, result: dict) -> dict:
     receipt = build_run_receipt(prompt, plan, route_result_public(result))
     if plan.get("continuation"):
         receipt["continuation"] = route_result_public(plan["continuation"])
+    ollama_snapshot = get_ollama_status()
+    receipt["runtime_provenance"] = {
+        "snapshot_version": 1,
+        "assurance": {
+            "kind": "self_reported_software_digest",
+            "hardware_attestation": "unavailable",
+            "external_signature": "unavailable",
+            "model_weights_digest": "reported_by_local_ollama_tags_when_available",
+            "independent_verification": "required",
+        },
+        "backend_source": _runtime_source_freshness_payload(),
+        "local_ollama": {
+            "connected": bool(ollama_snapshot.get("connected")),
+            "model_digests": route_result_public(ollama_snapshot.get("model_digests", {})),
+            "running_models": route_result_public(ollama_snapshot.get("running_models", [])),
+            "runtime_contexts": route_result_public(ollama_snapshot.get("runtime_contexts", {})),
+        },
+        "execution_scope": route_result_public(plan.get("execution_scope", {})),
+        "assignments": [
+            {
+                "agent_id": assignment.get("agent_id"),
+                "provider": assignment.get("provider"),
+                "model": assignment.get("model"),
+                "max_context_tokens": assignment.get("max_context_tokens"),
+            }
+            for assignment in receipt.get("assignments", [])
+            if isinstance(assignment, dict)
+        ],
+    }
     with RECEIPT_LOCK:
         stored = persist_receipt(RECEIPT_FILE, receipt)
     return {
@@ -3486,12 +3808,12 @@ async def poll_codex_login(job_id: str):
 
 
 @app.get("/api/forge/catalog")
-async def forge_catalog():
+async def forge_catalog(live: bool = False):
     state = load_state()
     selected = set(state.get("forge", {}).get("selected_projects", []))
     projects = []
     for project in PROJECTS:
-        value = forge_project_status(project)
+        value = forge_project_status(project, live=live)
         value["selected"] = project["id"] in selected
         value["installable"] = bool(project.get("installer") == "uv_tool" or (project["integration"] == "python_library" and project.get("package")))
         projects.append(value)
@@ -3570,14 +3892,21 @@ async def poll_forge_install(job_id: str):
 
 
 @app.get("/api/forge/recommend")
-async def forge_recommend():
+async def forge_recommend(live: bool = False):
     recommended_ids = ["llmfit", "vllm", "gptcache", "llmlingua", "headroom", "rtk", "gortex", "mempalace", "outlines"]
-    command = find_local_binary("llmfit")
+    # The catalog recommendation is deliberately side-effect-free. LLMFit can
+    # start a sizeable local model probe, so only run it after the user has
+    # explicitly requested a live hardware-aware recommendation.
+    command = find_local_binary("llmfit") if live else None
     system = {"gpu": "NVIDIA RTX 3090 class", "vram_gb": 24, "ram_gb": 48}
     models = []
     if command:
         try:
-            result = await asyncio.to_thread(run_bounded_subprocess, [command, "recommend", "--json"], 180)
+            result = await asyncio.to_thread(
+                run_bounded_subprocess,
+                [command, "recommend", "--json"],
+                FORGE_RECOMMEND_TIMEOUT_SECONDS,
+            )
             payload = json.loads(result.stdout) if result.returncode == 0 else {}
             raw_system = payload.get("system", {})
             system = {
@@ -3590,7 +3919,7 @@ async def forge_recommend():
             pass
     return {
         "system": system, "models": models,
-        "projects": [forge_project_status(PROJECT_BY_ID[value]) for value in recommended_ids],
+        "projects": [forge_project_status(PROJECT_BY_ID[value], live=live) for value in recommended_ids],
         "architecture": [
             "Use LLMFit for model selection", "Run vLLM through WSL2 or Docker on Windows",
             "Add GPTCache and LLMLingua before inference", "Use Headroom/RTK/Gortex for context economy",
@@ -3632,7 +3961,14 @@ def local_ollama_auto_aid_preflight(state: dict, status: Optional[dict] = None) 
     if not status.get("connected"):
         return {"safe": False, "auto_apply": False, "reason": "runtime_offline", "message": "Ollama is not running on this PC yet."}
     if not models:
-        return {"safe": False, "auto_apply": False, "reason": "model_missing", "message": "Ollama is running, but no installed local model was reported."}
+        pull_target = str(key.get("model") or "<model>").strip() or "<model>"
+        return {
+            "safe": False,
+            "auto_apply": False,
+            "reason": "model_missing",
+            "model": pull_target,
+            "message": f"{pull_target} has not been pulled yet. Run `ollama pull {pull_target}`, then refresh OBus.",
+        }
 
     settings = get_settings(state)
     configured_model = str(key.get("model") or "").strip()
@@ -3709,15 +4045,41 @@ def auto_aid_local_ollama(state: dict) -> dict:
 
 @app.post("/api/providers/local-ollama/auto-aid")
 async def auto_aid_local_ollama_provider():
-    """Perform the explicit, local-only automatic Ollama readiness step."""
+    """Repair the selected local provider, then verify its bounded warm residency."""
     state = load_state()
     result = await asyncio.to_thread(auto_aid_local_ollama, state)
-    if result.get("success"):
-        save_state(state)
-        public = next(item for item in provider_statuses(state) if item["id"] == "key-local-ollama")
+    if not result.get("success"):
+        return result
+
+    # Configuration repair is durable even when the subsequent physical model
+    # load cannot complete.  Reporting that distinction makes retries safe and
+    # prevents a selected-but-cold model from being presented as ready.
+    save_state(state)
+    public = next(item for item in provider_statuses(state) if item["id"] == "key-local-ollama")
+    result.update(
+        connected=public["connected"], verified=public["verified"], state=public["state"],
+        workspace_changed=False, credentials_changed=False, remote_access_changed=False,
+    )
+    model = str(result.get("model") or _configured_local_model()).strip()
+    try:
+        warmup = await asyncio.to_thread(warm_ollama_model, model)
+    except RuntimeError as exc:
         result.update(
-            connected=public["connected"], verified=public["verified"], state=public["state"],
-            workspace_changed=False, credentials_changed=False, remote_access_changed=False,
+            success=False,
+            reason="warmup_failed",
+            message="Local Ollama was configured but its model did not become warm.",
+            warm_ready=False,
+            warmup={"status": "error", "model": model, "error": str(exc)},
+        )
+        return result
+
+    warm_ready = warmup.get("status") == "warm" and warmup.get("accepted") is True
+    result.update(warmup=warmup, warm_ready=warm_ready)
+    if not warm_ready:
+        result.update(
+            success=False,
+            reason="warmup_busy" if warmup.get("status") == "busy" else "warmup_unverified",
+            message="Local Ollama configuration is saved, but warm residency is not yet verified.",
         )
     return result
 
@@ -4405,7 +4767,7 @@ def primary_orchestrator_complete(*, objective: str, state: dict, max_agents: in
     )
     request = urllib.request.Request(
         OLLAMA_URL + "/api/generate",
-        data=json.dumps({"model": local_key.get("model", "gpt-oss:20b"), "prompt": prompt, "stream": False, "format": "json", "options": {"num_ctx": context_window}}).encode("utf-8"),
+        data=json.dumps({"model": local_key.get("model", "gpt-oss:20b"), "prompt": prompt, "stream": False, "format": "json", "keep_alive": OLLAMA_KEEP_ALIVE, "options": {"num_ctx": context_window}}).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST",
     )
     with _NO_REDIRECT_OPENER.open(request, timeout=240) as response:
@@ -4515,13 +4877,24 @@ def _agent_prompt(agent: dict, card: dict, run_prompt: str, step: int, state: di
 
 
 def _configured_parallel_agent_limit() -> int:
-    """Read the current shared worker limit without trusting a caller-supplied count."""
+    """Return a bounded worker limit for the selected runtime profile."""
 
     settings = get_settings(load_state())
-    return min(
+    requested_limit = min(
         MAX_PARALLEL_AGENT_RUNS,
         max(1, int(settings.get("max_parallel_agents", 5))),
     )
+    selected_model = str(settings.get("selected_model") or "").strip()
+    full_gpu_qwen_profiles = {
+        "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M",
+        "obus-qwen3.8-27b:65k",
+    }
+    if selected_model in full_gpu_qwen_profiles:
+        # A 65K Qwen request occupies the verified full-GPU RTX 3090 profile.
+        # Serial execution keeps residency deterministic instead of admitting
+        # concurrent long-context requests that can compete for its VRAM.
+        return 1
+    return requested_limit
 
 
 @contextmanager
@@ -4648,6 +5021,16 @@ def _persistent_agent_worker(agent_id: str, run_prompt: str, *, resume: bool = F
 def _require_autonomous_runtime_safe(objective: str, action: str) -> None:
     """Reject major-risk work before the autonomous runtime can queue it."""
 
+    if not _runtime_source_freshness_payload()["source_current"]:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": f"OBus will not start {action} while the running backend source is stale.",
+                "source_current": False,
+                "next_step": "Restart the backend, then retry the autonomous action.",
+            },
+        )
+
     risks = classify_major_risk(objective)
     if risks:
         raise HTTPException(
@@ -4709,8 +5092,7 @@ async def execute_planned_team(request: PlanTeamExecutionRequest):
     selected_card_ids = list(dict.fromkeys(card_id for card_set in preview["card_sets"] for card_id in card_set))
     parallel_limit = min(
         max(1, int(request.max_agents)),
-        max(1, int(settings.get("max_parallel_agents", 5))),
-        MAX_PARALLEL_AGENT_RUNS,
+        _configured_parallel_agent_limit(),
     )
     selected_card_ids = selected_card_ids[:parallel_limit]
     if not selected_card_ids:
@@ -5390,14 +5772,25 @@ def match_cards_to_keys(cards: list, state: dict, prompt: str, routing_policy: O
     policy = routing_policy if routing_policy in ROUTING_POLICIES else "local-first"
     statuses = {item["id"]: item for item in provider_statuses(state)}
     reserved_aggregator_id = state.get("aggregator_key_id")
-    eligible = [
+    ready = [
         key for key in state["keys"]
         if key.get("state", "staged") == "ready" and statuses.get(key["id"], {}).get("connected")
-        and key.get("id") != reserved_aggregator_id
     ]
+    eligible = [key for key in ready if key.get("id") != reserved_aggregator_id]
+    if policy == "local-first":
+        # A ready Ollama runtime is the primary execution path, including when
+        # it is also the reserved aggregator. Local gateways backed by cloud
+        # models remain external fallbacks rather than displacing local inference.
+        ollama_eligible = [key for key in ready if key.get("provider") == "ollama"]
+        if ollama_eligible:
+            preferred_ollama = next(
+                (key for key in ollama_eligible if key.get("id") == reserved_aggregator_id),
+                None,
+            )
+            eligible = [preferred_ollama] if preferred_ollama else ollama_eligible
     if not eligible:
-        reserved = next((key for key in state["keys"] if key.get("id") == reserved_aggregator_id), None)
-        if reserved and reserved.get("local") and reserved.get("state") == "ready" and statuses.get(reserved["id"], {}).get("connected"):
+        reserved = next((key for key in ready if key.get("id") == reserved_aggregator_id), None)
+        if reserved and reserved.get("local"):
             eligible = [reserved]
     if policy == "auto-open":
         now = time.time()
@@ -5520,7 +5913,7 @@ async def plan_route(prompt: str, deck_mode: Optional[str] = None, performance_p
     policy = routing_policy or settings.get("routing_policy", "local-first")
     if policy not in ROUTING_POLICIES:
         raise HTTPException(status_code=422, detail="routing_policy must be local-first, auto-open, or manual")
-    parallel_limit = min(max(int(settings.get("max_parallel_agents", 5)), 1), 20)
+    parallel_limit = _configured_parallel_agent_limit()
     profile["advisor_count"] = min(profile["advisor_count"], parallel_limit)
     profile["parallel_workers"] = min(profile["parallel_workers"], parallel_limit)
     
@@ -5653,6 +6046,10 @@ async def update_machine_setup(update: MachineSetupUpdate):
 @app.post("/api/voice/transcribe")
 async def transcribe_voice(request: VoiceTranscriptionRequest):
     try:
+        validate_voice_audio(request.audio_base64, request.mime_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
         transcript = await asyncio.to_thread(transcribe_local_audio, request.audio_base64, request.mime_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -5764,7 +6161,17 @@ def generate_with_moa_router(prompt: str, model: str, plan: dict) -> tuple[str, 
     return answer, metrics
 
 
-def generate_with_ollama(prompt: str, model: str, plan: dict, images: Optional[list[dict]] = None) -> tuple[str, dict]:
+def generate_with_ollama(
+    prompt: str,
+    model: str,
+    plan: dict,
+    images: Optional[list[dict]] = None,
+    *,
+    timeout: int = 180,
+    stop_event: Optional[threading.Event] = None,
+) -> tuple[str, dict]:
+    if stop_event is not None and stop_event.is_set():
+        raise RuntimeError("Ollama execution cancelled")
     agent_names = ", ".join(
         item["agent_title"] for item in plan["agents"].get("dynamic_assignments", [])
     )
@@ -5775,7 +6182,25 @@ def generate_with_ollama(prompt: str, model: str, plan: dict, images: Optional[l
     )
     settings = get_settings(load_state())
     context_window = resolve_context_window(model, get_ollama_status(), settings)
+    guard_decision = guard_epistemic_request(prompt)
+    if guard_decision.blocked and guard_decision.response:
+        return guard_decision.response, {
+            "calls": 0,
+            "specialist_calls": 0,
+            "synthesis_calls": 0,
+            "verification_calls": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "max_prompt_tokens": 0,
+            "provider_seconds": 0.0,
+            "context_window": context_window,
+            "epistemic_guard": guard_decision.metadata(),
+        }
     system_context += " " + autonomy_directive(str(settings.get("autonomy_level", "high")))
+    policy_context = epistemic_policy()
+    if policy_context:
+        system_context += " " + policy_context
     request_payload = {
         "model": model,
         "prompt": f"{system_context}\n\nUser task:\n{prompt}",
@@ -5793,8 +6218,10 @@ def generate_with_ollama(prompt: str, model: str, plan: dict, images: Optional[l
         method="POST",
     )
     try:
-        with _NO_REDIRECT_OPENER.open(request, timeout=180) as response:
+        with open_loopback_request(request, timeout=timeout) as response:
             raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+        if stop_event is not None and stop_event.is_set():
+            raise RuntimeError("Ollama execution cancelled")
         if len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
             raise RuntimeError("Ollama response exceeded the bounded response limit")
         payload = json.loads(raw.decode("utf-8"))
@@ -5835,8 +6262,10 @@ def aggregate_with_key(key: dict, original_prompt: str, local_answer: str, plan:
 AGGREGATE_WITH_KEY = aggregate_with_key
 
 
-def tentacle_llm_review(evidence: dict) -> dict:
+def tentacle_llm_review(evidence: dict, stop_event: Optional[threading.Event] = None) -> dict:
     """Ask the connected local model to red-team evidence without granting it actions."""
+    if stop_event is not None and stop_event.is_set():
+        raise RuntimeError("Tentacle audit cancelled")
     state = load_state()
     settings = get_settings(state)
     ollama = get_ollama_status()
@@ -5854,7 +6283,15 @@ def tentacle_llm_review(evidence: dict) -> dict:
         "selected_deck": {"name": "Tentacle Worm Red Team"},
         "agents": {"dynamic_assignments": [{"agent_title": role} for role in WORM_ROLES]},
     }
-    answer, usage = generate_with_ollama(prompt, model, plan)
+    answer, usage = generate_with_ollama(
+        prompt,
+        model,
+        plan,
+        timeout=TENTACLE_LLM_REVIEW_TIMEOUT_SECONDS,
+        stop_event=stop_event,
+    )
+    if stop_event is not None and stop_event.is_set():
+        raise RuntimeError("Tentacle audit cancelled")
     cleaned = answer.strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.IGNORECASE | re.DOTALL).strip()
@@ -5868,13 +6305,19 @@ def tentacle_llm_review(evidence: dict) -> dict:
     return output
 
 
-def run_tentacle_worm_audit(*, first_install: Optional[bool] = None, full: bool = True, apply_safe_fixes: bool = True) -> dict:
+def run_tentacle_worm_audit(
+    *,
+    first_install: Optional[bool] = None,
+    full: bool = True,
+    apply_safe_fixes: bool = True,
+    stop_event: Optional[threading.Event] = None,
+) -> dict:
     """Run one deterministic audit plus an advisory local-LLM red-team review."""
     global TENTACLE_LAST_REPORT
     state = load_state()
     ollama = get_ollama_status()
     is_first = not TENTACLE_REPORT_FILE.is_file() if first_install is None else bool(first_install)
-    review = tentacle_llm_review if full and ollama.get("connected") else None
+    review = (lambda evidence: tentacle_llm_review(evidence, stop_event)) if full and ollama.get("connected") else None
     result = TENTACLE_RUN_AUDIT(
         data_dir=DATA_DIR,
         state=state,
@@ -5883,8 +6326,9 @@ def run_tentacle_worm_audit(*, first_install: Optional[bool] = None, full: bool 
         first_install=is_first,
         apply_safe_fixes=apply_safe_fixes,
         llm_review=review,
+        stop_event=stop_event,
     )
-    if apply_safe_fixes:
+    if apply_safe_fixes and not (stop_event is not None and stop_event.is_set()):
         save_state(state)
     with TENTACLE_LOCK:
         TENTACLE_LAST_REPORT = copy.deepcopy(result)
@@ -5911,11 +6355,17 @@ def start_tentacle_worms() -> dict:
     with TENTACLE_LOCK:
         if TENTACLE_THREAD and TENTACLE_THREAD.is_alive():
             return tentacle_worm_status()
+        TENTACLE_STOP_EVENT.clear()
         first_install = not TENTACLE_REPORT_FILE.is_file()
 
         def worker():
             try:
-                run_tentacle_worm_audit(first_install=first_install, full=True, apply_safe_fixes=True)
+                run_tentacle_worm_audit(
+                    first_install=first_install,
+                    full=True,
+                    apply_safe_fixes=True,
+                    stop_event=TENTACLE_STOP_EVENT,
+                )
             except Exception as exc:
                 global TENTACLE_LAST_REPORT
                 with TENTACLE_LOCK:
@@ -5931,7 +6381,17 @@ def start_tentacle_worms() -> dict:
     return tentacle_worm_status()
 
 
+def stop_tentacle_worms() -> None:
+    """Request cancellation without delaying server shutdown on local-model I/O."""
+    TENTACLE_STOP_EVENT.set()
+    with TENTACLE_LOCK:
+        worker = TENTACLE_THREAD
+    if worker and worker.is_alive() and worker is not threading.current_thread():
+        worker.join(timeout=TENTACLE_SHUTDOWN_TIMEOUT_SECONDS)
+
+
 app.router.add_event_handler("startup", start_tentacle_worms)
+app.router.add_event_handler("shutdown", stop_tentacle_worms)
 
 
 def register_route_cancel(route_id: str) -> threading.Event:
@@ -6032,6 +6492,82 @@ async def _run_route_impl(request: RouteRequest):
         ROUTE_EVENTS.publish(route_id, event_type, {"status": public_result.get("status"), "engine": public_result.get("engine"), "aggregate": (public_result.get("aggregate") or {}).get("status")})
         clear_route_cancel(route_id)
         return public_result
+
+    guard_decision = guard_epistemic_request(request.prompt)
+    if guard_decision.blocked and guard_decision.response:
+        guard_metadata = guard_decision.metadata()
+        ROUTE_EVENTS.publish(
+            route_id,
+            "route.guard",
+            {"status": "blocked", "model": model, **guard_metadata},
+        )
+        usage = record_route_usage({
+            "model": model,
+            "profile": request.performance_profile,
+            "context_window": context_window,
+            "input_tokens_estimate": max(1, math.ceil(len(request.prompt) / 4)),
+            "input_budget_tokens": input_budget["prompt_token_budget"],
+            "input_budget_percent": round(
+                min(
+                    100,
+                    max(
+                        0,
+                        math.ceil(len(request.prompt) / 4)
+                        * 100
+                        / input_budget["prompt_token_budget"],
+                    ),
+                ),
+                1,
+            ),
+            "image_attachments": len(images),
+            "visual_input": "none",
+            "aggregate_calls": 0,
+            "calls": 0,
+            "specialist_calls": 0,
+            "synthesis_calls": 0,
+            "verification_calls": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "max_prompt_tokens": 0,
+            "provider_seconds": 0.0,
+            "aggregate_seconds": 0.0,
+            "route_seconds": round(time.perf_counter() - route_started, 6),
+            "engine": "epistemic-guard",
+            "epistemic_guard": guard_metadata,
+        })
+        result = {
+            "status": "complete",
+            "engine": "epistemic-guard",
+            "model": model,
+            "selected_deck": plan["selected_deck"],
+            "agents": plan["agents"],
+            "execution_scope": execution_scope_manifest(
+                selected_key or aggregate_manifest,
+                model,
+                local_executed=False,
+                remote_executed=False,
+            ),
+            "stages": ["epistemic-guard"],
+            "local_result": guard_decision.response,
+            "final": guard_decision.response,
+            "trace": [{
+                "stage": "epistemic guard",
+                "role": "OBus deterministic policy",
+                "model": "deterministic",
+                "status": "complete",
+                "output": guard_decision.response,
+            }],
+            "aggregate": {
+                "status": "skipped-policy-guard",
+                "reason": "No model call is permitted for this request category.",
+            },
+            "remembered": False,
+            "usage": usage,
+            "epistemic_guard": guard_metadata,
+        }
+        result["receipt"] = record_run_receipt(request.prompt, plan, result)
+        return finalize_result(result)
 
     def cancelled_result(stage: str, local_answer: str = "", local_trace: Optional[list[dict]] = None, engine: str = "local-cancelled", aggregate_manifest: Optional[dict] = None, remote_executed: bool = False) -> dict:
         final = local_answer or f"Route cancellation acknowledged during {stage}; no further stages were executed."

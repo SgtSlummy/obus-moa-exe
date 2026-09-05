@@ -22,11 +22,14 @@ from .secret_safety import redact_text
 TERMINAL_STATES = {"succeeded", "failed", "cancelled", "interrupted"}
 TASK_STATES = {"queued", "planning", "running", "verifying", "repairing", *TERMINAL_STATES}
 RESUME_AFTER_INTERRUPTION_INSTRUCTION = (
-    "This task was explicitly resumed after OBus restarted. Before taking any action, inspect the current "
-    "workspace and the visible task history/checkpoint. Do not repeat or assume any uncertain side effect. "
-    "Once a safe point is verified, continue ordinary local inspection, focused workspace edits, and local "
-    "verification autonomously; do not ask for confirmation between those routine steps. Pause and clearly "
-    "request approval before any destructive, external, credential-handling, or hardware-affecting action."
+    "This task was explicitly resumed after OBus restarted. Before taking any action, compare the current "
+    "workspace with the visible task history/checkpoint; a checkpoint is historical evidence, not proof that "
+    "an earlier plan or side effect still applies. Do not repeat or assume any uncertain side effect. Preserve "
+    "only verification-supported observations, failed hypotheses, or recovery lessons from the prior attempt; "
+    "never treat an unverified explanation as reusable learning. Once a safe point is verified, continue ordinary "
+    "local inspection, focused workspace edits, and local verification autonomously; do not ask for confirmation "
+    "between those routine steps. Pause and clearly request approval before any destructive, external, "
+    "credential-handling, or hardware-affecting action."
 )
 
 
@@ -526,14 +529,19 @@ class AgentHarnessRuntime:
 
     def _run_codex(self, task: dict[str, Any], cancellation: threading.Event,
                    emit: Callable[[str, dict[str, Any]], None]) -> str:
+        import hashlib
+
+        from backend.run_receipts import redact_text
+
         executable = os.environ.get("OBUS_CODEX_COMMAND", "codex")
         model = os.environ.get("OBUS_CODEX_MODEL", "")
         with tempfile.NamedTemporaryFile(prefix="obus-harness-", suffix=".txt", delete=False) as handle:
             output_path = Path(handle.name)
+        attempt = int(task["attempt"])
         prompt = task["objective"]
         if task.get("resumed_after_interruption"):
             prompt = f"{RESUME_AFTER_INTERRUPTION_INSTRUCTION}\n\nObjective:\n{prompt}"
-        if int(task["attempt"]) > 1:
+        if attempt > 1:
             prompt += "\n\nPrevious autonomous attempt failed. Diagnose the current workspace state, repair it, verify the result, and finish the objective."
         command = build_codex_exec_command(
             executable,
@@ -541,27 +549,218 @@ class AgentHarnessRuntime:
             model=model or None,
             output_path=output_path,
         )
+        command_digest = hashlib.sha256(
+            "\0".join(str(part) for part in command).encode("utf-8")
+        ).hexdigest()
+
+        def lifecycle_payload(**payload: Any) -> dict[str, Any]:
+            return {
+                "attempt": attempt,
+                "command_digest": command_digest,
+                **payload,
+            }
+
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        emit("codex.started", {"command": executable, "model": model or "default"})
+        emit(
+            "codex.started",
+            lifecycle_payload(
+                command=executable,
+                model=model or "default",
+            ),
+        )
         process = subprocess.Popen(command, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, encoding="utf-8", errors="replace", creationflags=creationflags)
         with self._lock:
             self._processes[task["id"]] = process
         try:
-            while process.poll() is None:
-                if cancellation.wait(0.25):
-                    raise InterruptedError("task cancelled")
-            stdout = process.stdout.read() if process.stdout else ""
+            communicate = getattr(process, "communicate", None)
+            if callable(communicate):
+                while True:
+                    try:
+                        stdout, _ = communicate(timeout=0.25)
+                        break
+                    except subprocess.TimeoutExpired:
+                        if cancellation.is_set():
+                            from backend.process_utils import terminate_process_tree
+
+                            terminate_process_tree(process)
+                            try:
+                                communicate(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                process.kill()
+                                communicate()
+                            emit(
+                                "codex.cancelled",
+                                lifecycle_payload(reason="cancellation_requested"),
+                            )
+                            raise InterruptedError("task cancelled")
+            else:
+                while process.poll() is None:
+                    if cancellation.wait(0.25):
+                        process.terminate()
+                        emit(
+                            "codex.cancelled",
+                            lifecycle_payload(reason="cancellation_requested"),
+                        )
+                        raise InterruptedError("task cancelled")
+                stdout = process.stdout.read() if process.stdout else ""
+            stdout_digest = hashlib.sha256(stdout.encode("utf-8")).hexdigest()
+            output_preview = redact_text(stdout[-16000:], limit=16000)
             if stdout:
-                emit("codex.output", {"text": stdout[-16000:]})
+                emit(
+                    "codex.output",
+                    lifecycle_payload(
+                        text=output_preview,
+                        output_digest=stdout_digest,
+                        output_bytes=len(stdout.encode("utf-8")),
+                    ),
+                )
             result = output_path.read_text(encoding="utf-8", errors="replace").strip() if output_path.exists() else ""
+            result_digest = hashlib.sha256(result.encode("utf-8")).hexdigest()
             if process.returncode != 0 or not result:
-                raise RuntimeError(f"Codex exited with code {process.returncode}: {stdout[-2000:]}")
+                emit(
+                    "codex.failed",
+                    lifecycle_payload(
+                        exit_code=process.returncode,
+                        output_digest=stdout_digest,
+                        result_digest=result_digest,
+                        result_present=bool(result),
+                    ),
+                )
+                raise RuntimeError(
+                    f"Codex exited with code {process.returncode}: "
+                    f"{redact_text(stdout[-2000:], limit=2000)}"
+                )
+            emit(
+                "codex.completed",
+                lifecycle_payload(
+                    exit_code=process.returncode,
+                    output_digest=stdout_digest,
+                    result_digest=result_digest,
+                ),
+            )
             return result
         finally:
             with self._lock:
                 self._processes.pop(task["id"], None)
             output_path.unlink(missing_ok=True)
+
+    def learning_signal_archive(self, limit: int = 200) -> dict[str, Any]:
+        """Summarize terminal ordinary-task receipts for advisory improvement analysis.
+
+        The archive deliberately excludes task objectives, outputs, and error bodies. It is
+        read-only evidence: callers must not treat it as permission to start work, alter
+        routing, or promote a change.
+        """
+        from hashlib import sha256
+        import json
+
+        try:
+            bounded_limit = max(1, min(int(limit), 500))
+        except (TypeError, ValueError):
+            bounded_limit = 200
+        terminal_states = {"succeeded", "failed", "cancelled", "interrupted"}
+        raw_tasks = self.store.list_tasks(bounded_limit)
+        receipts: list[dict[str, Any]] = []
+        category_counts: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for task in raw_tasks:
+            state = str(task.get("state") or "unknown")
+            if state not in terminal_states:
+                continue
+            provider = str(task.get("provider") or "unknown")
+            model = str(task.get("model") or "default")
+            receipt = {
+                "task_id": str(task.get("id") or ""),
+                "state": state,
+                "provider": provider,
+                "model": model,
+                "attempt": int(task.get("attempt") or 0),
+                "max_attempts": int(task.get("max_attempts") or 0),
+                "started_at": task.get("started_at"),
+                "finished_at": task.get("finished_at"),
+            }
+            receipts.append(receipt)
+            category_key = (state, provider, model)
+            category = category_counts.setdefault(category_key, {
+                "state": state,
+                "provider": provider,
+                "model": model,
+                "receipt_count": 0,
+                "latest_finished_at": None,
+            })
+            category["receipt_count"] += 1
+            finished_at = receipt["finished_at"]
+            if finished_at and (category["latest_finished_at"] is None or finished_at > category["latest_finished_at"]):
+                category["latest_finished_at"] = finished_at
+        receipts.sort(key=lambda item: (str(item["finished_at"] or ""), item["task_id"]), reverse=True)
+        categories = sorted(
+            category_counts.values(),
+            key=lambda item: (-item["receipt_count"], item["state"], item["provider"], item["model"]),
+        )
+        minimum_repeated_failed_receipts = 3
+        reviewable_failure_categories = [
+            dict(category)
+            for category in categories
+            if category["state"] == "failed"
+            and category["receipt_count"] >= minimum_repeated_failed_receipts
+        ]
+        review_eligibility = {
+            "status": (
+                "eligible_for_human_review"
+                if reviewable_failure_categories
+                else "insufficient_repeated_failure_evidence"
+            ),
+            "minimum_repeated_failed_receipts": minimum_repeated_failed_receipts,
+            "human_review_permitted": bool(reviewable_failure_categories),
+            "automatic_task_selection_permitted": False,
+            "automatic_execution_authorized": False,
+            "reviewable_failure_categories": reviewable_failure_categories,
+        }
+        operator_review_packet = {
+            "status": (
+                "review_requested"
+                if reviewable_failure_categories
+                else "observe_more_outcomes"
+            ),
+            "input_scope": "aggregate_terminal_receipt_categories_only",
+            "recommended_next_step": (
+                "A human may review the aggregate failure categories and prepare a separate bounded proposal."
+                if reviewable_failure_categories
+                else "Continue collecting terminal outcomes; no recurring failure pattern has reached the review threshold."
+            ),
+            "reviewable_failure_categories": reviewable_failure_categories,
+            "automatic_task_selection_permitted": False,
+            "automatic_routing_change_authorized": False,
+            "automatic_execution_authorized": False,
+            "automatic_promotion_authorized": False,
+            "autonomous_agi_evidence_credit": False,
+        }
+        digest_payload = {
+            "schema_version": 1,
+            "source": "ordinary_task_receipts",
+            "receipt_window": bounded_limit,
+            "terminal_receipts": receipts,
+            "stable_outcome_categories": categories,
+            "review_eligibility": review_eligibility,
+            "operator_review_packet": operator_review_packet,
+        }
+        archive_digest = sha256(
+            json.dumps(digest_payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        return {
+            "status": "ready",
+            "schema_version": 1,
+            "source": "ordinary_task_receipts",
+            "archive_digest": archive_digest,
+            "selection_authority": "advisory_only",
+            "automatic_task_selection_permitted": False,
+            "receipt_window": bounded_limit,
+            "terminal_receipt_count": len(receipts),
+            "stable_outcome_categories": categories,
+            "review_eligibility": review_eligibility,
+            "operator_review_packet": operator_review_packet,
+            "terminal_receipts": receipts,
+        }
 
     def health(self) -> dict[str, Any]:
         with self._lock:

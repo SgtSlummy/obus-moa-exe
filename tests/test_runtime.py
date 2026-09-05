@@ -44,6 +44,16 @@ class RuntimeContractTests(unittest.TestCase):
             self.memory_patch.stop()
             self.state_patch.stop()
 
+    def dashboard_document(self):
+        page = self.client.get("/")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('/static/aui/dashboard.js', page.text)
+        dashboard = self.client.get("/static/aui/dashboard.js")
+        self.assertEqual(dashboard.status_code, 200)
+        stylesheet = self.client.get("/static/aui/dashboard.css")
+        self.assertEqual(stylesheet.status_code, 200)
+        return page.text + dashboard.text + stylesheet.text
+
     def test_thor_portal_requires_token_and_uses_only_installed_local_model(self):
         token = "t" * 32
         headers = {"Authorization": f"Bearer {token}"}
@@ -74,7 +84,7 @@ class RuntimeContractTests(unittest.TestCase):
     def test_modern_ui_exposes_real_controls_not_simulated_alerts(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        html = response.text
+        html = response.text + self.client.get("/static/aui/dashboard.js").text
         self.assertIn('/static/aui/rooms.js', html)
         self.assertIn('state.roomsController', html)
         self.assertNotIn("data-build", html)
@@ -95,7 +105,7 @@ class RuntimeContractTests(unittest.TestCase):
         """The main route composer keeps the compact prompt and keyboard affordances."""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        html = response.text
+        html = response.text + self.client.get("/static/aui/dashboard.js").text
 
         self.assertIn('class="hermes-composer"', html)
         self.assertIn('class="prompt-glyph"', html)
@@ -132,7 +142,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertNotIn("api_key", {key: value for key, value in payload.items() if key != "api_key_env"})
 
     def test_route_ui_has_live_agent_windows_and_connection_panel(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in ("provider-connection", "provider-base-url", "provider-model", "provider-key-ref", "agent-stage-grid"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("renderAgentStages", html)
@@ -170,7 +180,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/memory").json()["items"], [])
 
     def test_memory_ui_has_add_search_and_delete_controls(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in ("memory-input", "memory-tags", "add-memory", "memory-search", "search-memory", "memory-local-list", "memory-search-results"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("addMemory", html)
@@ -196,7 +206,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/memory").json()["items"], [])
 
     def test_kawaii_faces_are_visible_in_agent_windows_cards_and_settings(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         self.assertIn('id="auto-memory-toggle"', html)
         self.assertIn("function kawaiiFace", html)
         self.assertIn("kawaii-face", html)
@@ -324,7 +334,17 @@ class RuntimeContractTests(unittest.TestCase):
             captured["timeout"] = timeout
             return FakeResponse()
 
-        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b"]}), patch.object(
+        with patch.object(
+            backend,
+            "get_ollama_status",
+            return_value={
+                "connected": True,
+                "models": ["gpt-oss:20b"],
+                "model_contexts": {"gpt-oss:20b": 8192},
+                "running_models": ["gpt-oss:20b"],
+                "runtime_contexts": {"gpt-oss:20b": 8192},
+            },
+        ), patch.object(
             backend.urllib.request, "urlopen", side_effect=fake_urlopen
         ):
             result = backend.warm_ollama_model("gpt-oss:20b")
@@ -333,7 +353,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(result["model"], "gpt-oss:20b")
         self.assertEqual(captured["url"], "http://127.0.0.1:11434/api/generate")
         self.assertEqual(captured["body"]["keep_alive"], -1)
-        self.assertEqual(captured["body"]["prompt"], "")
+        self.assertNotIn("prompt", captured["body"])
         self.assertNotIn("api_key", json.dumps(captured).lower())
 
     def test_warmup_rejects_uninstalled_models_before_generation(self):
@@ -370,7 +390,17 @@ class RuntimeContractTests(unittest.TestCase):
         def run_first():
             first_result.append(backend.warm_ollama_model("gpt-oss:20b"))
 
-        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b", "llama3.2:latest"]}), patch.object(
+        with patch.object(
+            backend,
+            "get_ollama_status",
+            return_value={
+                "connected": True,
+                "models": ["gpt-oss:20b", "llama3.2:latest"],
+                "model_contexts": {"gpt-oss:20b": 8192, "llama3.2:latest": 8192},
+                "running_models": ["gpt-oss:20b"],
+                "runtime_contexts": {"gpt-oss:20b": 8192},
+            },
+        ), patch.object(
             backend.urllib.request, "urlopen", side_effect=fake_urlopen
         ):
             thread = threading.Thread(target=run_first)
@@ -396,12 +426,22 @@ class RuntimeContractTests(unittest.TestCase):
             def read(self):
                 return b'[]'
 
-        with patch.object(backend, "get_ollama_status", return_value={"connected": True, "models": ["gpt-oss:20b"]}), patch.object(
+        with patch.object(
+            backend,
+            "get_ollama_status",
+            return_value={
+                "connected": True,
+                "models": ["gpt-oss:20b"],
+                "model_contexts": {"gpt-oss:20b": 8192},
+                "running_models": ["gpt-oss:20b"],
+                "runtime_contexts": {"gpt-oss:20b": 8192},
+            },
+        ), patch.object(
             backend.urllib.request, "urlopen", return_value=FakeResponse()
         ):
             with self.assertRaisesRegex(RuntimeError, "invalid response"):
                 backend.warm_ollama_model("gpt-oss:20b")
-        self.assertEqual(backend.get_gpu_warm_status()["status"], "error")
+            self.assertEqual(backend.get_gpu_warm_status()["status"], "error")
 
     def test_startup_warmup_prefers_selected_installed_model(self):
         state = backend.normalize_state({"settings": {"selected_model": "llama3.2:latest"}})
@@ -533,7 +573,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(obus_launcher.desktop_page_url("runtime"), f"{obus_launcher.APP_URL}?page=runtime")
         self.assertEqual(obus_launcher.desktop_page_url("runs"), f"{obus_launcher.APP_URL}?page=runs")
         self.assertEqual(obus_launcher.desktop_page_url("hardening"), obus_launcher.APP_URL)
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         self.assertIn("const desktopActivationPages=new Set(['dashboard','runtime','runs'])", html)
         self.assertIn("async function applyDesktopPageActivation()", html)
         self.assertIn("if(!desktopActivationPages.has(page))return", html)
@@ -612,7 +652,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIsNone(automatic.json()["assigned_key_id"])
 
     def test_key_management_ui_has_guided_workflow_and_pairing_controls(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in ("add-key", "key-dialog", "key-provider", "key-name", "key-model", "key-env-var", "save-key"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("pairing-select", html)
@@ -687,7 +727,14 @@ class RuntimeContractTests(unittest.TestCase):
             "model_contexts": {"qwen3:8b": 65_536}, "runtime_contexts": {},
         }
 
-        with patch.object(backend, "get_ollama_status", return_value=local_status):
+        with (
+            patch.object(backend, "get_ollama_status", return_value=local_status),
+            patch.object(
+                backend,
+                "warm_ollama_model",
+                return_value={"status": "warm", "model": "qwen3:8b", "accepted": True},
+            ),
+        ):
             response = self.client.post("/api/providers/local-ollama/auto-aid")
 
         self.assertEqual(response.status_code, 200)
@@ -910,7 +957,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(parsed["user_code"], "5M9U-MSRFV")
 
     def test_integrations_ui_has_github_app_sync_and_codex_login_controls(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in (
             "codex-login", "codex-status", "github-app-form", "github-app-id",
             "github-installation-id", "github-private-key-path", "github-memory-push",
@@ -931,6 +978,13 @@ class RuntimeContractTests(unittest.TestCase):
         for project in payload["projects"]:
             self.assertIn(project["risk"], {"low", "medium", "high"})
             self.assertTrue(project["url"].startswith("https://github.com/"))
+
+    def test_arcana_forge_catalog_does_not_run_optional_import_probes_by_default(self):
+        with patch.object(backend, "run_bounded_subprocess") as run_bounded_subprocess:
+            response = self.client.get("/api/forge/catalog")
+
+        self.assertEqual(response.status_code, 200)
+        run_bounded_subprocess.assert_not_called()
 
     def test_arcana_forge_selection_grants_tools_to_compatible_agents(self):
         cards = self.client.get("/api/cards").json()
@@ -963,10 +1017,38 @@ class RuntimeContractTests(unittest.TestCase):
         ids = {item["id"] for item in payload["projects"]}
         self.assertTrue({"llmfit", "vllm", "gptcache", "llmlingua", "mempalace"} <= ids)
 
+    def test_arcana_forge_recommendation_only_runs_llmfit_for_live_request(self):
+        captured = {}
+
+        def bounded(command, timeout):
+            captured["command"] = command
+            captured["timeout"] = timeout
+            return Mock(returncode=1, stdout="")
+
+        with patch.object(backend, "find_local_binary", return_value="C:/tools/llmfit.exe"), patch.object(
+            backend, "run_bounded_subprocess", side_effect=bounded
+        ), patch.object(backend, "forge_project_status", return_value={}):
+            response = self.client.get("/api/forge/recommend?live=true")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured["command"], ["C:/tools/llmfit.exe", "recommend", "--json"])
+        self.assertEqual(captured["timeout"], backend.FORGE_RECOMMEND_TIMEOUT_SECONDS)
+        self.assertLessEqual(captured["timeout"], 5)
+
+    def test_arcana_forge_catalog_recommendation_does_not_probe_llmfit(self):
+        with patch.object(backend, "find_local_binary") as find_local_binary, patch.object(
+            backend, "forge_project_status", return_value={}
+        ):
+            response = self.client.get("/api/forge/recommend")
+
+        self.assertEqual(response.status_code, 200)
+        find_local_binary.assert_not_called()
+
     def test_arcana_forge_setup_ui_is_agent_selectable(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in ("forge-catalog", "forge-agent-list", "forge-apply", "forge-recommend", "forge-search", "forge-status"):
             self.assertIn(f'id="{control_id}"', html)
+        self.assertIn("/api/forge/recommend?live=true", html)
 
     def test_arcana_forge_reports_operational_evidence_and_blockers(self):
         projects = {item["id"]: item for item in self.client.get("/api/forge/catalog").json()["projects"]}
@@ -1228,7 +1310,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertTrue(all(message["visibility"] == "room" for message in emitted))
 
     def test_rooms_and_forum_ui_have_real_controls(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in (
             "room-list", "room-dialog", "room-name", "room-card-picker", "room-mode", "room-chymeria",
             "save-room", "room-detail", "room-task-input", "room-run-deliberation", "room-deliberation",
@@ -1681,7 +1763,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(plan.agents[0].max_steps, 8)
 
     def test_agent_runtime_ui_has_persistent_spawn_and_orchestrator_controls(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         for control_id in (
             "runtime-agent-list", "runtime-spawn-card", "runtime-spawn-objective", "runtime-spawn-agent",
             "runtime-orchestrator-objective", "runtime-orchestrator-max", "runtime-orchestrate",
@@ -1694,7 +1776,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("loadRouteContextBudget", html)
 
     def test_route_composer_has_bounded_local_attachment_staging(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         asset = self.client.get("/static/aui/route-attachments.js")
 
         self.assertIn('id="route-attachment-input"', html)
@@ -1737,7 +1819,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("parent_receipt_id", html)
 
     def test_global_status_header_is_home_only(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
 
         dashboard_start = html.index('data-page-panel="dashboard"')
         header_start = html.index('id="home-status-header"')
@@ -1754,7 +1836,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("if(name==='dashboard')", html)
 
     def test_sidebar_task_switcher_reopens_existing_autonomous_work_without_replay(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
 
         self.assertIn('id="sidebar-task-switcher"', html)
         self.assertIn('id="sidebar-task-current"', html)
@@ -1763,7 +1845,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("await openHomeAutonomousHistoryTask(taskId)", html)
 
     def test_autonomous_task_result_continuation_stays_local_and_requires_a_new_follow_up(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
 
         self.assertIn('id="home-autonomous-continue"', html)
         self.assertIn("function continueAutonomousTaskResult", html)
@@ -1772,7 +1854,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("no task has been rerun", html)
 
     def test_home_setup_assistant_surfaces_safe_local_readiness_actions(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
 
         for control_id in ("home-setup-assistant", "home-setup-status", "home-setup-checks", "home-setup-auto", "home-setup-workspace", "home-setup-details"):
             self.assertIn(f'id="{control_id}"', html)
@@ -1955,7 +2037,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("No local task provider is ready", no_provider.json()["detail"])
 
     def test_quick_task_ui_exposes_a_durable_local_major_risk_approval_queue(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         runtime = self.client.get("/static/aui/runtime.js")
 
         self.assertIn('id="harness-task-quick"', html)
@@ -2016,7 +2098,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("OBus preserved this exact major-risk team request", html)
 
     def test_workspace_ui_exposes_native_picker_only_through_the_local_bridge(self):
-        html = self.client.get("/").text
+        html = self.dashboard_document()
         workspace = self.client.get("/static/aui/workspace.js")
 
         self.assertIn('id="workspace-root-picker"', html)

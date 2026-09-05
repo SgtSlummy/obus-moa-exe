@@ -7,9 +7,12 @@ Run from a clean checkout with Python 3.12:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest pip-audit pyinstaller
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest coverage pip-audit pyinstaller
 .\.venv\Scripts\python.exe -m compileall -q backend tools scripts
-.\.venv\Scripts\python.exe -m pytest -q
+$env:COVERAGE_FILE = Join-Path $env:TEMP 'obus-release-coverage'  # keep coverage data outside the checkout
+.\.venv\Scripts\python.exe -m coverage run -m pytest -q
+.\.venv\Scripts\python.exe -m coverage report
+Remove-Item -LiteralPath $env:COVERAGE_FILE -ErrorAction SilentlyContinue
 .\.venv\Scripts\python.exe -m pytest -q tools/obus_launcher/test_obus_launcher.py
 .\.venv\Scripts\python.exe -m pip_audit
 .\tools\obus_launcher\build_and_install.ps1 -SkipInstall -PythonPath .\.venv\Scripts\python.exe

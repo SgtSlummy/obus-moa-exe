@@ -11,7 +11,7 @@ from backend.user_settings import normalize_user_settings
 def test_context_window_uses_ninety_five_percent_of_detected_runtime_capacity():
     status = {"runtime_contexts": {"gpt-oss:20b": 32_768}, "model_contexts": {"gpt-oss:20b": 131_072}}
     settings = normalize_user_settings({})
-    assert resolve_context_window("gpt-oss:20b", status, settings) == 124_518
+    assert resolve_context_window("gpt-oss:20b", status, settings) == 31_129
 
 
 def test_local_generation_sends_the_resolved_context_window_to_ollama(monkeypatch):

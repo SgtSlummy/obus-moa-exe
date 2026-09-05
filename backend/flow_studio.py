@@ -185,5 +185,37 @@ class FlowStore:
 
 
 def compile_runtime_objective(flow: dict[str, Any]) -> str:
-    graph = {key: flow[key] for key in ("title", "version", "nodes", "edges")}
-    return "Execute this user-authored Flow Studio graph as a bounded OBus task. The graph is not independent authorization: follow existing workspace, secret, approval, and major-risk policies. Stop and request explicit local approval before major destructive or hardware-risk work.\n\n" + json.dumps(graph, indent=2, ensure_ascii=False)
+    """Create a readable task brief without exposing the editor's raw JSON."""
+    stage_names = {
+        "observe": "Observe",
+        "reason": "Reason",
+        "act": "Act",
+        "improve": "Improve",
+    }
+    nodes = list(flow.get("nodes", []))
+    labels = {str(node.get("id", "")): str(node.get("label", "Untitled step")) for node in nodes}
+    steps = [
+        f"- {stage_names.get(str(node.get('stage', '')), 'Plan')}: "
+        f"{node.get('label', 'Untitled step')} — {node.get('description') or 'No description.'}"
+        for node in nodes
+    ]
+    connections = [
+        f"- {labels.get(str(edge.get('source', '')), 'Unknown step')} → "
+        f"{labels.get(str(edge.get('target', '')), 'Unknown step')}"
+        f" ({edge.get('type', 'link')})"
+        for edge in flow.get("edges", [])
+    ]
+    return "\n".join(
+        [
+            f"Run the saved Flow Studio draft: {flow.get('title', 'Untitled Flow')} "
+            f"(version {flow.get('version', 1)}).",
+            "This plan is bounded by existing workspace, secret, approval, and major-risk policies.",
+            "Stop and request explicit local approval before major destructive or hardware-risk work.",
+            "",
+            "Plan steps:",
+            *(steps or ["- No steps have been added yet."]),
+            "",
+            "Connections:",
+            *(connections or ["- No connections have been added yet."]),
+        ]
+    )

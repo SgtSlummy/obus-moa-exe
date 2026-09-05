@@ -103,7 +103,9 @@ class IntegratedDashboardTests(unittest.TestCase):
         self.assertEqual(json.loads(self.state_file.read_text(encoding="utf-8"))["machine_setup"]["role"], "worker")
 
     def test_integrated_ui_exposes_harness_key_help_voice_and_role_controls(self):
-        html = self.client.get("/").text
+        page = self.client.get("/")
+        html = page.text
+        dashboard_script = self.client.get("/static/aui/dashboard.js").text
         for control_id in (
             "harness-assignment-list",
             "harness-preview-prompt",
@@ -116,9 +118,24 @@ class IntegratedDashboardTests(unittest.TestCase):
             "machine-setup-status",
         ):
             self.assertIn(f'id="{control_id}"', html)
-        self.assertIn("function renderHarness", html)
-        self.assertIn("function openKeySetup", html)
-        self.assertIn("function syncOutputScroll", html)
+        self.assertIn('href="/static/aui/dashboard.css?v=security-csp-1"', html)
+        self.assertIn('src="/static/aui/dashboard.js?v=qwen-warm-action-1"', html)
+        self.assertNotIn("<style>", html)
+        self.assertNotIn("<script>", html)
+        self.assertIn("function renderHarness", dashboard_script)
+        self.assertIn("function openKeySetup", dashboard_script)
+        self.assertIn("function syncOutputScroll", dashboard_script)
+
+        csp = page.headers["content-security-policy"]
+        for directive in (
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "connect-src 'self' ws://127.0.0.1:* ws://localhost:* ws://[::1]:*",
+        ):
+            self.assertIn(directive, csp)
 
 
 if __name__ == "__main__":

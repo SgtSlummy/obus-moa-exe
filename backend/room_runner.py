@@ -147,6 +147,28 @@ def run_room_council(
             parsed_outputs = [complete_card(phase_cards[0])]
         else:
             workers = min(int(plan["max_parallel"]), len(phase_cards))
+            # The verified 65K Qwen profile fits the RTX 3090 as one fully GPU-resident
+            # worker. Do not let a Rooms council silently create competing local loads.
+            qwen_models = {
+                "hf.co/obliteratus/qwen3.8-27b-obliterated:q4_k_m",
+                "obus-qwen3.8-27b:65k",
+            }
+            pending_profiles: list[Any] = [plan, room, state]
+            inspected_profile_items = 0
+            uses_qwen_65k = False
+            while pending_profiles and inspected_profile_items < 512:
+                candidate = pending_profiles.pop()
+                inspected_profile_items += 1
+                if isinstance(candidate, str):
+                    if candidate.strip().lower() in qwen_models:
+                        uses_qwen_65k = True
+                        break
+                elif isinstance(candidate, dict):
+                    pending_profiles.extend(candidate.values())
+                elif isinstance(candidate, (list, tuple, set)):
+                    pending_profiles.extend(candidate)
+            if uses_qwen_65k:
+                workers = 1
             with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="obus-room-seat") as executor:
                 parsed_outputs = list(executor.map(complete_card, phase_cards))
 

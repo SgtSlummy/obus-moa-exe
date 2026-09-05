@@ -7,7 +7,7 @@ import backend.main as backend
 
 class AUILayoutPersistenceTests(unittest.TestCase):
     def test_run_splitter_and_layout_presets_are_semantic_and_visible(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         self.assertNotIn("repeat(3,minmax(0,1fr);", html)
         self.assertIn("repeat(3,minmax(0,1fr));", html)
         for control_id in (

@@ -58,7 +58,7 @@ class LocalStudioIntegrationTests(unittest.TestCase):
         self.assertNotIn('"id": "a"', context.json()["context"])
 
     def test_studio_ui_exposes_real_status_and_context_controls(self):
-        html = self.client.get("/").text
+        html = self.client.get("/").text + self.client.get("/static/aui/dashboard.js").text + self.client.get("/static/aui/dashboard.css").text
         for control_id in (
             "studio-refresh",
             "comfyui-status",

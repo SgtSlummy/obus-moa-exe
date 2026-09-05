@@ -228,6 +228,10 @@ body.guided-ritual .terminal-stack { gap: 16px; }
 /* Keep the active agent stream in view, then put the next instruction directly beneath it. */
 body.guided-ritual .terminal-stack > #route-output-panel { order: 1; }
 body.guided-ritual .terminal-stack > #route-command-panel { order: 2; }
+
+body.guided-ritual[data-layout-preset="focus"][data-guided-route-state="idle"] .terminal-stack > #route-command-panel { order: 1; }
+body.guided-ritual[data-layout-preset="focus"][data-guided-route-state="idle"] .terminal-stack > #route-output-panel { order: 2; }
+
 body.guided-ritual .terminal-stack > #home-autonomous-monitor,
 body.guided-ritual .terminal-stack > #home-autonomous-history,
 body.guided-ritual .terminal-stack > #shell-panel { order: 3; }
@@ -799,6 +803,22 @@ body.guided-ritual [data-page-panel="settings"] .row p {
   max-width: 66ch;
   margin: 0;
   color: var(--parchment-muted);
+}
+
+@media (min-width: 1181px) and (max-width: 1320px) {
+  body.guided-ritual[data-layout-preset="focus"] .terminal-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.guided-ritual[data-layout-preset="focus"] #run-workbench-splitter {
+    display: none;
+  }
+  body.guided-ritual[data-layout-preset="focus"] .terminal-rail {
+    position: static;
+  }
+  body.guided-ritual[data-layout-preset="focus"] .guided-rail-advanced {
+    border-left: 0;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 1180px) {

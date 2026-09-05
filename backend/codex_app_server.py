@@ -78,8 +78,10 @@ class CodexAppServer:
             process.stdin.flush()
 
     def _read_stdout(self, process: subprocess.Popen[str]) -> None:
-        assert process.stdout is not None
-        for raw_line in process.stdout:
+        stdout = process.stdout
+        if stdout is None:
+            raise CodexAppServerError("Codex App Server stdout is unavailable")
+        for raw_line in stdout:
             try:
                 message = json.loads(raw_line)
             except json.JSONDecodeError:
@@ -101,8 +103,10 @@ class CodexAppServer:
         self._record("app-server/exited", {"returncode": process.poll()})
 
     def _read_stderr(self, process: subprocess.Popen[str]) -> None:
-        assert process.stderr is not None
-        for raw_line in process.stderr:
+        stderr = process.stderr
+        if stderr is None:
+            raise CodexAppServerError("Codex App Server stderr is unavailable")
+        for raw_line in stderr:
             self._record("app-server/stderr", {"text": raw_line[-MAX_EVENT_TEXT:]})
 
     def _handle_server_request(self, message: dict[str, Any]) -> None:

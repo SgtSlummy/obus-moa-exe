@@ -19,6 +19,8 @@ jobs:
     env:
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      # Keep test cleanup inside this job's temporary workspace.
+      PYTEST_ADDOPTS: --basetemp=${{ runner.temp }}/obus-pytest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +39,10 @@ jobs:
           python -m compileall -q backend tools scripts
           python -m pytest -q
           python -m pytest -q tools/obus_launcher/test_obus_launcher.py
-          python -m pip_audit
+
+      - name: Audit installed dependencies
+        timeout-minutes: 3
+        run: python -m pip_audit --strict --progress-spinner off --timeout 15 --cache-dir "${{ runner.temp }}/pip-audit-cache"
 
       - name: Build production executable
         shell: pwsh

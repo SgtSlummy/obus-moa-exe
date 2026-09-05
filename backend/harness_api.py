@@ -236,6 +236,13 @@ def list_harness_tasks(request: Request, authorization: Annotated[str | None, He
     return {"tasks": [_public_task(task) for task in runtime.store.list_tasks(limit)]}
 
 
+@router.get("/learning-signals")
+def get_harness_learning_signal_archive(request: Request, authorization: Annotated[str | None, Header()] = None,
+                                        limit: int = Query(default=200, ge=1, le=500)):
+    _authorize(request, authorization)
+    return runtime.learning_signal_archive(limit)
+
+
 @router.get("/tasks/{task_id}")
 def get_harness_task(task_id: str, request: Request,
                      authorization: Annotated[str | None, Header()] = None):

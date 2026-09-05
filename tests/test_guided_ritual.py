@@ -6,18 +6,28 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "backend" / "static" / "index.html"
 GUIDED_CSS = ROOT / "backend" / "static" / "aui" / "guided-ritual.css"
 GUIDED_JS = ROOT / "backend" / "static" / "aui" / "guided-ritual.js"
+DASHBOARD_CSS = ROOT / "backend" / "static" / "aui" / "dashboard.css"
+DASHBOARD_JS = ROOT / "backend" / "static" / "aui" / "dashboard.js"
+
+
+def dashboard_document() -> str:
+    return "".join((
+        INDEX.read_text(encoding="utf-8"),
+        DASHBOARD_JS.read_text(encoding="utf-8"),
+        DASHBOARD_CSS.read_text(encoding="utf-8"),
+    ))
 
 
 class GuidedRitualContractTests(unittest.TestCase):
     def test_selected_home_direction_is_packaged_and_loaded(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         self.assertIn('/static/aui/guided-ritual.css', html)
         self.assertIn('/static/aui/guided-ritual.js', html)
         self.assertTrue(GUIDED_CSS.exists())
         self.assertTrue(GUIDED_JS.exists())
 
     def test_home_has_a_plain_language_primary_path_without_redundant_guided_copy(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         for marker in (
             'id="route-input"',
             'id="route-btn">Begin',
@@ -33,7 +43,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         self.assertNotIn('What would you like OBus to do?', html)
 
     def test_advanced_capabilities_remain_discoverable(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         for marker in (
             'class="guided-advanced-nav"',
             'class="guided-advanced-options"',
@@ -48,7 +58,7 @@ class GuidedRitualContractTests(unittest.TestCase):
             self.assertIn(marker, html)
 
     def test_primary_pages_use_beginner_friendly_language(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         for marker in (
             '<h2>Tasks</h2>',
             'Create a task plan',
@@ -84,7 +94,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         self.assertIn("data-guided-workspace", INDEX.read_text(encoding="utf-8"))
 
     def test_home_places_voice_inside_agent_context_and_providers_offer_safe_auto_aid(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         visuals = (ROOT / "backend" / "static" / "aui" / "agent-visuals.js").read_text(encoding="utf-8")
         self.assertIn('id="voice-toggle" data-route-voice', html)
         self.assertIn('id="harness-task-voice" data-route-voice data-route-voice-target="harness-task-objective"', html)
@@ -95,7 +105,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         self.assertIn('meta.kind === "route" && index === 0', visuals)
 
     def test_dynamic_harness_cards_keep_persona_art_and_autopicker(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
 
         self.assertIn('id="harness-autopicker"', html)
         self.assertIn('class="harness-card-art"', html)
@@ -104,7 +114,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         self.assertIn("no model pairing is permanent", html)
 
     def test_idle_activity_is_concise_until_a_task_starts(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         css = GUIDED_CSS.read_text(encoding="utf-8")
         script = GUIDED_JS.read_text(encoding="utf-8")
         self.assertIn('id="guided-idle-activity"', html)
@@ -113,7 +123,7 @@ class GuidedRitualContractTests(unittest.TestCase):
         self.assertIn('syncRouteState', script)
 
     def test_home_places_the_next_route_composer_after_agent_activity(self):
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         css = GUIDED_CSS.read_text(encoding="utf-8")
         self.assertIn('id="route-command-panel"', html)
         self.assertIn('.terminal-stack > #route-output-panel { order: 1; }', css)
@@ -121,7 +131,7 @@ class GuidedRitualContractTests(unittest.TestCase):
 
     def test_home_uses_the_autonomous_monitor_for_live_task_status(self):
         script = GUIDED_JS.read_text(encoding="utf-8")
-        html = INDEX.read_text(encoding="utf-8")
+        html = dashboard_document()
         self.assertIn('id="home-autonomous-monitor"', html)
         self.assertIn('id="home-autonomous-state"', html)
         self.assertIn('id="home-autonomous-review"', html)

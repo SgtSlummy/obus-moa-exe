@@ -126,7 +126,11 @@ def test_cloud_fallback_reports_configured(monkeypatch):
 
 
 def test_voice_composer_is_explicit_local_and_requires_manual_review():
-    html = (Path(__file__).resolve().parents[1] / "backend" / "static" / "index.html").read_text(encoding="utf-8")
+    static = Path(__file__).resolve().parents[1] / "backend" / "static"
+    html = "".join((
+        (static / "index.html").read_text(encoding="utf-8"),
+        (static / "aui" / "dashboard.js").read_text(encoding="utf-8"),
+    ))
 
     for marker in (
         'id="route-voice-button"',

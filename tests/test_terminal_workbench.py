@@ -7,7 +7,7 @@ import backend.main as backend
 
 class TerminalWorkbenchTests(unittest.TestCase):
     def test_terminal_workbench_has_blocks_history_and_safe_formatted_output(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         for control_id in (
             "terminal-workbench",
             "terminal-block-list",

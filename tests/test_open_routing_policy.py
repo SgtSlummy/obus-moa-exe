@@ -37,6 +37,49 @@ class OpenRoutingPolicyTests(unittest.TestCase):
         state["aggregator_key_id"] = "key-codex-oauth"
         return state
 
+    def test_local_first_uses_ready_local_key_even_when_reserved_for_aggregation(self):
+        state = self._state()
+        state["aggregator_key_id"] = "key-local-ollama"
+        local_gateway = copy.deepcopy(next(key for key in state["keys"] if key["id"] == "key-open-test"))
+        local_gateway.update(
+            id="key-local-gateway",
+            name="Local Gateway To Cloud Models",
+            provider="omniroute",
+            model="auto/best-free",
+            local=True,
+        )
+        state["keys"].append(local_gateway)
+        statuses = [
+            {"id": "key-local-ollama", "connected": True},
+            {"id": "key-local-gateway", "connected": True},
+            {"id": "key-open-test", "connected": True},
+            {"id": "key-closed-test", "connected": True},
+        ]
+        with patch.object(backend, "provider_statuses", return_value=statuses):
+            assignments = backend.match_cards_to_keys(state["cards"], state, "analyze and code", routing_policy="local-first")
+        self.assertTrue(assignments)
+        self.assertTrue(all(item["llm_key"] == "key-local-ollama" for item in assignments))
+        self.assertTrue(all(item["provider"] == "Local Ollama" for item in assignments))
+        self.assertTrue(all(item["routing_explanation"]["policy"] == "local-first" for item in assignments))
+
+    def test_local_first_falls_back_to_ready_external_key_when_local_is_unavailable(self):
+        state = self._state()
+        state["aggregator_key_id"] = "key-local-ollama"
+        external_key = next(key for key in state["keys"] if key["id"] == "key-open-test")
+        external_key.update(provider="omniroute", model="auto/best-free", local=True)
+        state["keys"] = [
+            key for key in state["keys"]
+            if key["id"] in {"key-local-ollama", "key-open-test"}
+        ]
+        statuses = [
+            {"id": "key-local-ollama", "connected": False},
+            {"id": "key-open-test", "connected": True},
+        ]
+        with patch.object(backend, "provider_statuses", return_value=statuses):
+            assignments = backend.match_cards_to_keys(state["cards"], state, "research", routing_policy="local-first")
+        self.assertTrue(assignments)
+        self.assertTrue(all(item["llm_key"] == "key-open-test" for item in assignments))
+
     def test_auto_open_uses_only_ready_connected_open_keys_and_never_persists_bindings(self):
         state = self._state()
         before = json.dumps(state["cards"], sort_keys=True)
@@ -77,7 +120,7 @@ class OpenRoutingPolicyTests(unittest.TestCase):
         self.assertIn("routing_explanation", payload["agents"]["dynamic_assignments"][0])
 
     def test_key_editor_exposes_explicit_open_model_classification(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         self.assertIn('id="key-open-model"', html)
         self.assertIn("open_model", html)
 

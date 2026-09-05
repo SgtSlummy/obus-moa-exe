@@ -1,4 +1,5 @@
 import io
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -116,6 +117,90 @@ def test_autoagent_uses_noninteractive_agent_command(tmp_path: Path, monkeypatch
     assert result == "AutoAgent completed the task"
     assert commands == [["auto", "agent", "--agent_func", "get_system_triage_agent", "--query", "Inspect safely.", "--model", "openai/gpt-4o"]]
     assert events[0][0] == "provider.started"
+
+
+def test_codex_provider_drains_output_through_communicate(tmp_path: Path, monkeypatch):
+    calls: list[float] = []
+
+    class Process:
+        returncode = 0
+
+        def communicate(self, *, timeout: float):
+            calls.append(timeout)
+            return "Codex completed the task", ""
+
+    monkeypatch.setattr("backend.autonomy.subprocess.Popen", lambda *_args, **_kwargs: Process())
+    events: list[tuple[str, dict]] = []
+
+    result = ProviderRegistry()._run_codex(
+        {"workspace": str(tmp_path), "objective": "Inspect safely."},
+        threading.Event(), lambda kind, payload: events.append((kind, payload)),
+    )
+
+    assert result == "Codex completed the task"
+    assert calls == [0.2]
+    assert events[-1] == ("provider.output", {"provider": "codex", "text": "Codex completed the task"})
+
+
+def test_codex_provider_cancellation_terminates_process_tree(tmp_path: Path, monkeypatch):
+    calls: list[float] = []
+    process_tree: list[object] = []
+    cancellation = threading.Event()
+    cancellation.set()
+
+    class Process:
+        returncode = -15
+
+        def communicate(self, *, timeout: float):
+            calls.append(timeout)
+            if timeout == 0.2:
+                raise subprocess.TimeoutExpired("codex", timeout)
+            return "", ""
+
+    process = Process()
+    monkeypatch.setattr("backend.autonomy.subprocess.Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr("backend.process_utils.terminate_process_tree", lambda target: process_tree.append(target))
+
+    with pytest.raises(InterruptedError, match="task cancelled"):
+        ProviderRegistry()._run_codex(
+            {"workspace": str(tmp_path), "objective": "Inspect safely."},
+            cancellation, lambda _kind, _payload: None,
+        )
+
+    assert process_tree == [process]
+    assert calls == [0.2, 5]
+
+
+def test_agent_harness_codex_cancellation_terminates_process_tree(tmp_path: Path, monkeypatch):
+    from backend.agent_harness import AgentHarnessRuntime
+
+    calls: list[float] = []
+    process_tree: list[object] = []
+    cancellation = threading.Event()
+    cancellation.set()
+
+    class Process:
+        returncode = -15
+
+        def communicate(self, *, timeout: float):
+            calls.append(timeout)
+            if timeout == 0.25:
+                raise subprocess.TimeoutExpired("codex", timeout)
+            return "", ""
+
+    process = Process()
+    monkeypatch.setattr("backend.agent_harness.subprocess.Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr("backend.process_utils.terminate_process_tree", lambda target: process_tree.append(target))
+
+    runtime = AgentHarnessRuntime(tmp_path / "harness.sqlite")
+    with pytest.raises(InterruptedError, match="task cancelled"):
+        runtime._run_codex(
+            {"id": "task-1", "attempt": 1, "workspace": str(tmp_path), "objective": "Inspect safely."},
+            cancellation, lambda _kind, _payload: None,
+        )
+
+    assert process_tree == [process]
+    assert calls == [0.25, 5]
 
 
 def test_ollama_provider_uses_a_bounded_workspace_tool_loop(tmp_path: Path, monkeypatch):

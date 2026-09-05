@@ -1,16 +1,32 @@
 {
   "name": "obus-desktop",
   "version": "1.0.0",
-  "description": "Electron wrapper for OBus",
+  "description": "Standalone OBus desktop application",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
-  "author": "Your Name",
-  "license": "MIT",
-  "dependencies": {
-    "electron": "^28.3.3"
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^26.15.3"
   },
-  "keywords": [],
-  "type": "commonjs"
+  "build": {
+    "appId": "com.obus.desktop",
+    "productName": "OBus",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "../dist/OBus.exe",
+        "to": "backend/OBus.exe"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "allowScripts": {
+    "electron@28.3.3": true
+  }
 }

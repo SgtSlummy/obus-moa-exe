@@ -131,9 +131,12 @@ class MemoryHub:
         try:
             connection = sqlite3.connect(f"file:{self.mem0_db}?mode=ro", uri=True)
             tables = {row[0] for row in connection.execute("select name from sqlite_master where type='table'")}
-            for table, field in (("history", "count"), ("messages", "count")):
+            for table, query in (
+                ("history", "select count(*) from history"),
+                ("messages", "select count(*) from messages"),
+            ):
                 if table in tables:
-                    result[table] = int(connection.execute(f"select count(*) from {table}").fetchone()[0])  # noqa: S608 -- table is from the fixed allowlist above
+                    result[table] = int(connection.execute(query).fetchone()[0])
             connection.close()
         except (OSError, sqlite3.Error):
             result["status"] = "unreadable"

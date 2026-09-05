@@ -306,8 +306,10 @@ def run_native_desktop_window(url: str, *, hide_to_tray_on_close: bool = False) 
         window = webview.create_window(
             DESKTOP_WINDOW_TITLE,
             url,
-            width=1440,
-            height=920,
+            # Keep the standalone shell above the dashboard's two-column desktop breakpoint.
+            # Windows DPI scaling can reduce the effective WebView viewport substantially.
+            width=1680,
+            height=1000,
             min_size=(1024, 660),
             background_color="#090c17",
             confirm_close=False,
@@ -725,9 +727,9 @@ def main(args: list[str] | None = None):
                 ensure_app_window(APP_URL)
         return
     
-    # Desktop launches may reuse an existing local dashboard. Headless/portal
-    # launches must not mistake an unrelated service's generic /health route
-    # for OBus; the port-scoped mutex above is the ownership check.
+    # A headless runtime owns its launch lifecycle and must not reuse a desktop
+    # endpoint. Desktop starts may reuse only a verified OBus dashboard; an
+    # unrelated listener remains rejected rather than treated as OBus.
     if not headless:
         existing_health = obus_health_state(HEALTH_URL)
         if existing_health == "ready":

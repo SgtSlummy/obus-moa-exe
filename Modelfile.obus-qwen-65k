@@ -1,0 +1,5 @@
+# Obus's full-GPU Qwen profile for a 24 GB RTX 3090.
+# The base model remains the downloaded Q4_K_M Qwen weights.
+FROM hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M
+PARAMETER num_ctx 65536
+PARAMETER temperature 0

@@ -72,6 +72,7 @@ def run_tentacle_audit(
     first_install: bool,
     apply_safe_fixes: bool,
     llm_review: Callable[[dict[str, Any]], Any] | None = None,
+    stop_event: Any | None = None,
 ) -> dict[str, Any]:
     """Inspect, safely repair, red-team, and verify one OBus startup.
 
@@ -83,6 +84,28 @@ def run_tentacle_audit(
     checks: list[dict[str, Any]] = []
     fixes: list[dict[str, str]] = []
 
+    def cancelled() -> bool:
+        return bool(stop_event is not None and stop_event.is_set())
+
+    def cancelled_result() -> dict[str, Any]:
+        return redact_value({
+            "status": "cancelled",
+            "run_mode": "first-install" if first_install else "startup",
+            "worms": list(WORM_ROLES),
+            "checks": checks,
+            "safe_fixes": fixes,
+            "llm_review": {"status": "cancelled"},
+            "verification": {"passed": False, "cancelled": True, "blocking_check_ids": []},
+            "safety": {
+                "model_output_advisory_only": True,
+                "allowlisted_repairs_only": True,
+                "secrets_redacted": True,
+            },
+        })
+
+    if cancelled():
+        return cancelled_result()
+
     data_dir.mkdir(parents=True, exist_ok=True)
     checks.append({"id": "data_directory", "worm": "Scout Worm", "status": "pass", "severity": "info", "detail": str(data_dir)})
 
@@ -93,20 +116,28 @@ def run_tentacle_audit(
         except (OSError, UnicodeError, json.JSONDecodeError):
             memory_valid = False
     if not memory_valid and apply_safe_fixes:
+        if cancelled():
+            return cancelled_result()
         _atomic_json(memory_file, [])
         fixes.append({"id": "repair_memory_json", "detail": "Replaced missing or malformed local memory with an empty list."})
         memory_valid = True
     checks.append({"id": "memory_json", "worm": "Hardener Worm", "status": "pass" if memory_valid else "fail", "severity": "high", "detail": "valid list" if memory_valid else "missing or malformed"})
 
+    if cancelled():
+        return cancelled_result()
     settings = state.setdefault("settings", {})
     rag_budget = int(settings.get("rag_character_budget", 2400) or 2400)
     clamped_rag = min(max(rag_budget, 800), 8000)
     if rag_budget != clamped_rag and apply_safe_fixes:
+        if cancelled():
+            return cancelled_result()
         settings["rag_character_budget"] = clamped_rag
         fixes.append({"id": "clamp_rag_budget", "detail": f"Set RAG budget to {clamped_rag}."})
     parallel = int(settings.get("max_parallel_agents", 5) or 5)
     clamped_parallel = min(max(parallel, 1), 20)
     if parallel != clamped_parallel and apply_safe_fixes:
+        if cancelled():
+            return cancelled_result()
         settings["max_parallel_agents"] = clamped_parallel
         fixes.append({"id": "clamp_parallel_agents", "detail": f"Set parallel-agent limit to {clamped_parallel}."})
     checks.extend([
@@ -121,7 +152,12 @@ def run_tentacle_audit(
     models = {str(model) for model in ollama.get("models", [])}
     model_was_missing = not (selected_model and selected_model in models)
     if model_was_missing and models and apply_safe_fixes:
-        selected_model = sorted(models, key=lambda value: (value != "gpt-oss:20b", value))[0]
+        if cancelled():
+            return cancelled_result()
+        selected_model = sorted(
+            models,
+            key=lambda value: (value != "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M", value),
+        )[0]
         settings["selected_model"] = selected_model
         fixes.append({"id": "select_installed_local_model", "detail": f"Selected installed local model {selected_model}."})
     model_ready = bool(selected_model and selected_model in models)
@@ -130,6 +166,8 @@ def run_tentacle_audit(
     keys = state.get("keys", []) if isinstance(state.get("keys", []), list) else []
     raw_secret_fields = []
     for key in keys:
+        if cancelled():
+            return cancelled_result()
         if not isinstance(key, dict):
             continue
         for field in ("api_key", "token", "password", "secret", "authorization"):
@@ -153,10 +191,15 @@ def run_tentacle_audit(
     }
     review: Any = {"status": "skipped", "reason": "local model unavailable"}
     if llm_review is not None and connected and models:
+        if cancelled():
+            return cancelled_result()
         try:
             review = {"status": "complete", "output": redact_value(llm_review(redact_value(evidence)))}
         except Exception as exc:
             review = {"status": "failed", "reason": type(exc).__name__}
+
+    if cancelled():
+        return cancelled_result()
 
     blocking = [check for check in checks if check["status"] == "fail" and check["severity"] == "high"]
     verification = {
@@ -178,5 +221,7 @@ def run_tentacle_audit(
             "secrets_redacted": True,
         },
     })
+    if cancelled():
+        return cancelled_result()
     _atomic_json(Path(report_file), result)
     return result

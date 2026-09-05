@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from .codex_policy import build_codex_exec_command
+from .epistemic_policy import epistemic_policy, guard_epistemic_request
 from .execution_policy import classify_major_risk
 from .secret_safety import redact_text
 
@@ -765,19 +766,49 @@ class ProviderRegistry:
             "provider": "autoagent", "command": command, "agent_function": agent_function,
             "model": model or "AutoAgent default",
         })
+        from backend.run_receipts import redact_text
+
         flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         process = subprocess.Popen(args, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, encoding="utf-8", errors="replace", creationflags=flags)
-        while process.poll() is None:
-            if cancellation.wait(0.2):
-                process.terminate()
-                raise InterruptedError("task cancelled")
-        output = process.stdout.read().strip() if process.stdout else ""
+        communicate = getattr(process, "communicate", None)
+        if callable(communicate):
+            while True:
+                try:
+                    output, _ = communicate(timeout=0.2)
+                    break
+                except subprocess.TimeoutExpired:
+                    if cancellation.is_set():
+                        from backend.process_utils import terminate_process_tree
+
+                        terminate_process_tree(process)
+                        try:
+                            communicate(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            communicate()
+                        raise InterruptedError("task cancelled")
+        else:
+            while process.poll() is None:
+                if cancellation.wait(0.2):
+                    process.terminate()
+                    raise InterruptedError("task cancelled")
+            output = process.stdout.read() if process.stdout else ""
+        output = output.strip()
         if process.returncode != 0:
-            raise RuntimeError(f"AutoAgent exited with code {process.returncode}: {output[-2000:]}")
+            raise RuntimeError(
+                f"AutoAgent exited with code {process.returncode}: "
+                f"{redact_text(output[-2000:], limit=2000)}"
+            )
         if not output:
             raise RuntimeError("AutoAgent returned no output")
-        emit("provider.output", {"provider": "autoagent", "text": output[-16_000:]})
+        emit(
+            "provider.output",
+            {
+                "provider": "autoagent",
+                "text": redact_text(output[-16_000:], limit=16_000),
+            },
+        )
         return output
 
     def _run_codex(self, task: dict[str, Any], cancellation: threading.Event,
@@ -800,14 +831,30 @@ class ProviderRegistry:
         flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         process = subprocess.Popen(args, cwd=task["workspace"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, encoding="utf-8", errors="replace", creationflags=flags)
-        chunks: list[str] = []
-        while process.poll() is None:
-            if cancellation.wait(0.2):
-                process.terminate()
-                raise InterruptedError("task cancelled")
-        if process.stdout:
-            chunks.append(process.stdout.read())
-        output = "".join(chunks).strip()
+        communicate = getattr(process, "communicate", None)
+        if callable(communicate):
+            while True:
+                try:
+                    output, _ = communicate(timeout=0.2)
+                    break
+                except subprocess.TimeoutExpired:
+                    if cancellation.is_set():
+                        from backend.process_utils import terminate_process_tree
+
+                        terminate_process_tree(process)
+                        try:
+                            communicate(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            communicate()
+                        raise InterruptedError("task cancelled")
+        else:
+            while process.poll() is None:
+                if cancellation.wait(0.2):
+                    process.terminate()
+                    raise InterruptedError("task cancelled")
+            output = process.stdout.read() if process.stdout else ""
+        output = output.strip()
         if process.returncode != 0:
             raise RuntimeError(f"Codex exited with code {process.returncode}: {output[-2000:]}")
         if not output:
@@ -831,14 +878,34 @@ class ProviderRegistry:
         if context_window:
             started["context_window"] = context_window
         emit("provider.started", started)
+        guard_decision = guard_epistemic_request(str(task["objective"]))
+        if guard_decision.blocked and guard_decision.response:
+            guard_metadata = guard_decision.metadata()
+            emit(
+                "provider.guard",
+                {"provider": "ollama", "model": model, **guard_metadata},
+            )
+            emit(
+                "provider.output",
+                {
+                    "provider": "ollama",
+                    "text": guard_decision.response,
+                    "tool_steps": 0,
+                    "epistemic_guard": guard_metadata,
+                },
+            )
+            return guard_decision.response
 
         def request(messages: list[dict[str, Any]]) -> dict[str, Any]:
+            ollama_messages = self._ollama_messages(messages)
             payload: dict[str, Any] = {
-                "model": model, "messages": self._ollama_messages(messages),
-                "tools": self._workspace_tools(), "stream": False,
+                "model": model, "messages": ollama_messages,
+                "tools": self._workspace_tools(), "stream": False, "keep_alive": -1,
             }
             if context_window:
                 payload["options"] = {"num_ctx": context_window}
+            if model == "hf.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED:Q4_K_M":
+                payload["think"] = False
             result = self._post_json(f"{endpoint}/api/chat", payload)
             message = result.get("message")
             if not isinstance(message, dict):

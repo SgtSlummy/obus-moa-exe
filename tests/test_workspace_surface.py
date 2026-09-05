@@ -15,7 +15,7 @@ class WorkspaceSurfaceTests(unittest.TestCase):
         self.assertIn(payload["settings"]["routing_policy"], {"local-first", "auto-open", "manual"})
 
     def test_ui_exposes_surface_selector_and_surface_aware_navigation(self):
-        html = self.client.get("/").text
+        html = self.client.get("/").text + self.client.get("/static/aui/dashboard.js").text + self.client.get("/static/aui/dashboard.css").text
         for control_id in ("workspace-surface", "workspace-surface-badge", "workspace-nav"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn('data-surface-min="terminal"', html)

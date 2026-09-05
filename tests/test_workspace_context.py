@@ -209,7 +209,7 @@ class WorkspaceContextTests(unittest.TestCase):
 
     def test_ui_exposes_read_only_workspace_context_controls(self):
         client = TestClient(backend.app)
-        html = client.get("/").text
+        html = client.get("/").text + client.get("/static/aui/dashboard.js").text + client.get("/static/aui/dashboard.css").text
         for control_id in ("workspace-context", "workspace-root", "workspace-tree", "workspace-file", "workspace-editor", "workspace-refresh", "workspace-review-all", "workspace-change-review", "workspace-change-summary", "workspace-change-list", "workspace-use-context", "workspace-show-diff", "workspace-edit", "workspace-save", "workspace-discard"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("loadWorkspaceContext", html)

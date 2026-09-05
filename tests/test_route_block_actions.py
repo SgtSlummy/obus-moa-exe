@@ -7,7 +7,7 @@ import backend.main as backend
 
 class RouteBlockActionTests(unittest.TestCase):
     def test_route_block_exposes_reinput_and_retry_actions(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         for control_id in ("reinput-latest", "retry-latest"):
             self.assertIn(f'id="{control_id}"', html)
         for marker in ("reinputLatestPrompt", "retryLatestRoute", "route.reinput_latest", "route.retry_latest"):

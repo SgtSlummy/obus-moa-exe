@@ -87,9 +87,12 @@ class RecoveryManager:
         cap = max(1, min(int(limit), MAX_CHANGE_SCAN_FILES))
         for current, directories, names in os.walk(workspace, followlinks=False):
             current_path = Path(current)
-            directories[:] = [name for name in directories if name not in EXCLUDED_DIRS
-                               and not self._excluded(current_path / name)]
-            for name in names:
+            directories[:] = sorted(
+                (name for name in directories if name not in EXCLUDED_DIRS
+                 and not self._excluded(current_path / name)),
+                key=lambda name: (name.casefold(), name),
+            )
+            for name in sorted(names, key=lambda name: (name.casefold(), name)):
                 path = current_path / name
                 if self._excluded(path) or path.is_symlink() or not path.is_file():
                     continue

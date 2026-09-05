@@ -41,7 +41,7 @@ class AUIContractTests(unittest.TestCase):
         self.assertNotIn("token=secret", credential_setup["docs_url"])
 
     def test_ui_exposes_aui_action_rail_and_manifest_loader(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         for control_id in ("aui-panel", "aui-status", "aui-action-list", "aui-live"):
             self.assertIn(f'id="{control_id}"', html)
         for symbol in ("/api/aui/manifest", "loadAuiManifest", "renderAuiManifest", "auiActionHandlers", "Ctrl+R", "Ctrl+L"):

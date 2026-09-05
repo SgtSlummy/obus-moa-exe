@@ -10,7 +10,7 @@ import backend.main as backend
 class AgentVisualsContractTests(unittest.TestCase):
     def test_dashboard_loads_agent_visual_layer(self):
         client = TestClient(backend.app)
-        html = client.get("/").text
+        html = client.get("/").text + client.get("/static/aui/dashboard.js").text + client.get("/static/aui/dashboard.css").text
         self.assertIn('/static/aui/agent-visuals.css', html)
         self.assertIn('/static/aui/agent-visuals.js', html)
         self.assertIn('agent-monologue-dialog', html)
@@ -41,7 +41,7 @@ class AgentVisualsContractTests(unittest.TestCase):
 
     def test_compact_shuffle_decks_keep_key_copy_below_the_art(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         css = client.get('/static/aui/deck-workspace.css')
         providers = client.get('/static/aui/providers.js').text
 
@@ -61,7 +61,7 @@ class AgentVisualsContractTests(unittest.TestCase):
 
     def test_shuffle_layout_wins_the_inline_cascade_and_bounds_motion(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         css = client.get('/static/aui/deck-workspace.css').text
         providers = client.get('/static/aui/providers.js').text
         visuals = client.get('/static/aui/agent-visuals.js').text

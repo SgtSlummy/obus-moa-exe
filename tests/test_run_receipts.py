@@ -113,7 +113,7 @@ class RunReceiptTests(unittest.TestCase):
     def test_ui_exposes_run_receipt_controls_and_endpoints(self):
         from fastapi.testclient import TestClient
         import backend.main as backend
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         for control_id in ("export-latest-receipt", "run-list", "run-receipt-detail"):
             self.assertIn(f'id="{control_id}"', html)
         self.assertIn("exportLatestReceipt", html)

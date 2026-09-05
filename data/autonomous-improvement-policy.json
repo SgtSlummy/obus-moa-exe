@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "id": "obus-guarded-self-improvement",
+    "version": "1.0.0",
+    "statement": "Obus may autonomously propose, isolate, evaluate, reject, monitor, and roll back candidate improvements. It may never alter its evaluator or held-out suite, inspect held-out answers, expand its own authority, or authorize its own production promotion.",
+    "purpose": "Make improvement evidence reproducible and rollback-ready without treating self-judgment, runtime warmth, or benchmark optimization as proof of general capability."
+  },
+  "authority": {
+    "autonomous_actions": [
+      "propose",
+      "sandbox",
+      "evaluate",
+      "reject",
+      "request-promotion",
+      "monitor",
+      "rollback-on-predeclared-trigger"
+    ],
+    "human_only_actions": [
+      "authorize-promotion",
+      "change-policy",
+      "change-evaluator",
+      "change-heldout-suite",
+      "expand-permissions"
+    ]
+  },
+  "lifecycle": [
+    "propose",
+    "sandbox",
+    "evaluate",
+    "authorize",
+    "monitor",
+    "rollback-or-retain"
+  ],
+  "promotion_requirements": {
+    "minimum_candidate_delta": 0.02,
+    "minimum_reproducible_runs": 3,
+    "maximum_critical_incidents": 0,
+    "required_suite_results": [
+      "public_suite_passed",
+      "heldout_suite_passed",
+      "regression_suite_passed",
+      "safety_suite_passed",
+      "contract_suite_passed"
+    ],
+    "human_authorization_required": true,
+    "tested_rollback_required": true,
+    "post_promotion_monitoring_required": true
+  },
+  "receipt_requirements": {
+    "content_addressed_candidate": true,
+    "frozen_evaluator_before_proposal": true,
+    "heldout_answers_hidden_from_candidate": true,
+    "independent_verifier_required": true,
+    "sandbox_and_resource_bounds_required": true,
+    "network_default_deny_required": true,
+    "policy_boundary_change_rejects_candidate": true
+  },
+  "source_supported_methods": [
+    {
+      "title": "NIST AI Risk Management Framework 1.0",
+      "url": "https://doi.org/10.6028/NIST.AI.100-1",
+      "supports": "Documented and repeatable testing, independent assessment, monitoring, residual-risk decisions, and safe deactivation."
+    },
+    {
+      "title": "NIST Secure Software Development Framework 1.1",
+      "url": "https://doi.org/10.6028/NIST.SP.800-218",
+      "supports": "A secure development lifecycle, prevention of recurring vulnerabilities, and verifiable practices."
+    },
+    {
+      "title": "SLSA Provenance v1.1",
+      "url": "https://slsa.dev/spec/v1.1/provenance",
+      "supports": "Content-addressed artifacts and verifiable build inputs, dependencies, builder identity, and outputs."
+    },
+    {
+      "title": "Evaluating frontier AI R&D capabilities of language model agents against human experts",
+      "url": "https://metr.org/blog/2024-11-22-evaluating-r-d-capabilities-of-llms/",
+      "supports": "Frozen held-out tasks and reproducible environments while warning that benchmark conditions do not represent all real work."
+    },
+    {
+      "title": "Spontaneous Reward Hacking in Iterative Self-Refinement",
+      "url": "https://arxiv.org/abs/2407.04549",
+      "supports": "Independent evaluation because iterative self-judging can improve a proxy while actual quality stagnates or declines."
+    },
+    {
+      "title": "OpenAI Preparedness Framework v2",
+      "url": "https://openai.com/index/updating-our-preparedness-framework/",
+      "supports": "Separate capability and safeguard evidence plus an authorized review decision before high-risk deployment."
+    }
+  ],
+  "provenance_note": "The sources support the control methods. Numeric thresholds and the exact authorization policy are normative Obus design choices, not claims attributed to those sources."
+}

@@ -7,7 +7,7 @@ import backend.main as backend
 
 class CommandPaletteTests(unittest.TestCase):
     def test_command_palette_contract_is_present_in_the_ui(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         for control_id in ("command-palette", "command-palette-input", "command-palette-results"):
             self.assertIn(f'id="{control_id}"', html)
         for symbol in ("openCommandPalette", "runCommandPaletteAction", "Ctrl+K", "Escape"):

@@ -8,7 +8,7 @@ import backend.main as backend
 
 class AUIModuleContractTests(unittest.TestCase):
     def test_html_loads_external_aui_modules(self):
-        html = TestClient(backend.app).get("/").text
+        html = TestClient(backend.app).get("/").text + TestClient(backend.app).get("/static/aui/dashboard.js").text + TestClient(backend.app).get("/static/aui/dashboard.css").text
         self.assertIn('/static/aui/tokens.css', html)
         self.assertIn('/static/aui/route-events.js', html)
         self.assertIn('/static/aui/layout.js', html)
@@ -71,7 +71,7 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_agent_jobs_expose_safe_autonomous_schedule_controls(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         runtime = client.get('/static/aui/runtime.js').text
         for control_id in (
             'autonomy-job-name', 'autonomy-job-objective', 'autonomy-job-interval',
@@ -85,7 +85,7 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_agent_jobs_expose_guarded_task_queue_controls(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         runtime = client.get('/static/aui/runtime.js').text
         for control_id in (
             'harness-task-objective', 'harness-task-provider', 'harness-task-attempts',
@@ -105,7 +105,7 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_agent_jobs_expose_read_only_task_change_review(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         runtime = client.get('/static/aui/runtime.js').text
         for control_id in ('harness-task-change-summary', 'harness-task-changes-refresh', 'harness-task-change-list', 'harness-task-change-diff'):
             self.assertIn(f'id="{control_id}"', html)
@@ -115,7 +115,7 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_plan_workbench_can_launch_its_reviewed_parallel_team(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         plan = client.get('/static/aui/plan.js').text
         for control_id in ('plan-team-size', 'plan-execute'):
             self.assertIn(f'id="{control_id}"', html)
@@ -124,7 +124,7 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_runtime_exposes_redacted_parallel_team_results(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         runtime = client.get('/static/aui/runtime.js').text
         for control_id in ('runtime-ledger-refresh', 'runtime-ledger-list', 'runtime-ledger-detail'):
             self.assertIn(f'id="{control_id}"', html)
@@ -140,11 +140,11 @@ class AUIModuleContractTests(unittest.TestCase):
 
     def test_heritage_workbench_loads_last_with_offline_safe_phi_tokens(self):
         client = TestClient(backend.app)
-        html = client.get('/').text
+        html = client.get('/').text + client.get('/static/aui/dashboard.js').text + client.get('/static/aui/dashboard.css').text
         heritage = client.get('/static/aui/heritage-workbench.css')
 
         self.assertIn('/static/aui/heritage-workbench.css', html)
-        self.assertLess(html.index('</style>'), html.index('/static/aui/heritage-workbench.css'))
+        self.assertLess(html.index('/static/aui/dashboard.css'), html.index('/static/aui/heritage-workbench.css'))
         self.assertEqual(heritage.status_code, 200)
         for marker in (
             '--phi: 1.61803398875',
