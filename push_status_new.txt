@@ -1,387 +1,105 @@
-=== Git Push Report ===
+# Push Status — 2026-09-06 06:34 UTC (cycle #455)
 
-Repository: .
-Status (porcelain):
-     1	 M push_status_new.txt
-Remote URL: https://github.com/SgtSlummy/obus-moa-exe.git
-Pushing to remote...
-Pushing to https://github.com/SgtSlummy/obus-moa-exe.git
-To https://github.com/SgtSlummy/obus-moa-exe.git
- = [up to date]      master -> master
-updating local tracking ref 'refs/remotes/origin/master'
-Everything up-to-date
+## Push Summary
 
-=== Active background jobs ===
-"System Idle Process","0","Services","0","8 K"
-"System","4","Services","0","4,608 K"
-"Secure System","164","Services","0","158,420 K"
-"Registry","208","Services","0","36,528 K"
-"smss.exe","692","Services","0","568 K"
-"csrss.exe","1000","Services","0","3,188 K"
-"wininit.exe","880","Services","0","4,568 K"
-"csrss.exe","980","Console","1","4,580 K"
-"services.exe","1072","Services","0","7,452 K"
-"LsaIso.exe","1092","Services","0","1,912 K"
-"winlogon.exe","1120","Console","1","3,648 K"
-"lsass.exe","1128","Services","0","24,628 K"
-"svchost.exe","1300","Services","0","29,940 K"
-"fontdrvhost.exe","1332","Services","0","1,276 K"
-"fontdrvhost.exe","1340","Console","1","6,076 K"
-"svchost.exe","1432","Services","0","18,644 K"
-"svchost.exe","1476","Services","0","5,648 K"
-"dwm.exe","1560","Console","1","55,132 K"
-"svchost.exe","1660","Services","0","2,220 K"
-"svchost.exe","1676","Services","0","5,444 K"
-"svchost.exe","1808","Services","0","2,116 K"
-"svchost.exe","1848","Services","0","10,532 K"
-"svchost.exe","1908","Services","0","6,636 K"
-"svchost.exe","1916","Services","0","5,976 K"
-"svchost.exe","1924","Services","0","6,044 K"
-"svchost.exe","2020","Services","0","13,440 K"
-"svchost.exe","2028","Services","0","3,216 K"
-"svchost.exe","1164","Services","0","5,512 K"
-"svchost.exe","1872","Services","0","12,460 K"
-"NVDisplay.Container.exe","2188","Services","0","16,868 K"
-"svchost.exe","2284","Services","0","9,208 K"
-"svchost.exe","2356","Services","0","12,304 K"
-"svchost.exe","2420","Services","0","7,848 K"
-"svchost.exe","2428","Services","0","2,476 K"
-"svchost.exe","2436","Services","0","5,000 K"
-"Memory Compression","2596","Services","0","3,350,164 K"
-"svchost.exe","2652","Services","0","3,136 K"
-"svchost.exe","2724","Services","0","6,696 K"
-"svchost.exe","2744","Services","0","6,964 K"
-"svchost.exe","2776","Services","0","17,552 K"
-"svchost.exe","2816","Services","0","5,616 K"
-"svchost.exe","2884","Services","0","11,836 K"
-"svchost.exe","2928","Services","0","3,116 K"
-"svchost.exe","2944","Services","0","2,888 K"
-"svchost.exe","3020","Services","0","6,732 K"
-"svchost.exe","3032","Services","0","5,520 K"
-"svchost.exe","1856","Services","0","15,732 K"
-"svchost.exe","3124","Services","0","5,624 K"
-"svchost.exe","3180","Services","0","16,156 K"
-"audiodg.exe","3220","Services","0","15,096 K"
-"svchost.exe","3276","Services","0","5,176 K"
-"svchost.exe","3324","Services","0","5,280 K"
-"spoolsv.exe","3448","Services","0","6,308 K"
-"svchost.exe","3504","Services","0","3,636 K"
-"svchost.exe","3548","Services","0","4,148 K"
-"svchost.exe","3640","Services","0","56,592 K"
-"svchost.exe","3652","Services","0","2,660 K"
-"svchost.exe","3664","Services","0","2,784 K"
-"svchost.exe","3680","Services","0","37,620 K"
-"svchost.exe","3688","Services","0","3,920 K"
-"svchost.exe","3696","Services","0","4,912 K"
-"DavyJonesHeartbeat.exe","3740","Services","0","44,888 K"
-"jhi_service.exe","3748","Services","0","2,684 K"
-"sshd.exe","3880","Services","0","4,084 K"
-"ssh-agent.exe","3892","Services","0","2,148 K"
-"wslservice.exe","3916","Services","0","17,328 K"
-"svchost.exe","3924","Services","0","18,320 K"
-"svchost.exe","3932","Services","0","1,908 K"
-"WebManagement.exe","3956","Services","0","8,140 K"
-"svchost.exe","3964","Services","0","14,576 K"
-"svchost.exe","3980","Services","0","5,596 K"
-"WMIRegistrationService.exe","3988","Services","0","4,092 K"
-"tailscaled.exe","4404","Services","0","39,560 K"
-"svchost.exe","4892","Services","0","11,744 K"
-"svchost.exe","4984","Services","0","1,780 K"
-"NVDisplay.Container.exe","5316","Console","1","19,372 K"
-"tailscaled.exe","6184","Services","0","50,496 K"
-"svchost.exe","7080","Services","0","25,100 K"
-"svchost.exe","6320","Services","0","4,448 K"
-"MouseWithoutBorders.exe","5020","Console","1","38,968 K"
-"sihost.exe","6368","Console","1","34,384 K"
-"MouseWithoutBorders.exe","6428","Console","1","9,768 K"
-"svchost.exe","6744","Services","0","3,148 K"
-"svchost.exe","6740","Console","1","20,104 K"
-"svchost.exe","6820","Console","1","4,132 K"
-"svchost.exe","2140","Console","1","36,596 K"
-"taskhostw.exe","1760","Console","1","14,052 K"
-"svchost.exe","1532","Services","0","16,880 K"
-"AggregatorHost.exe","4500","Services","0","13,260 K"
-"explorer.exe","7348","Console","1","234,092 K"
-"svchost.exe","7388","Services","0","10,188 K"
-"svchost.exe","7872","Services","0","11,148 K"
-"CrossDeviceResume.exe","8008","Console","1","7,908 K"
-"svchost.exe","8068","Services","0","4,004 K"
-"svchost.exe","8248","Console","1","21,040 K"
-"SearchHost.exe","8904","Console","1","53,860 K"
-"StartMenuExperienceHost.exe","8912","Console","1","67,124 K"
-"Widgets.exe","9056","Console","1","48,584 K"
-"RuntimeBroker.exe","9116","Console","1","39,764 K"
-"svchost.exe","9124","Console","1","6,340 K"
-"svchost.exe","9356","Services","0","22,500 K"
-"WidgetService.exe","9412","Console","1","18,280 K"
-"svchost.exe","10116","Services","0","3,896 K"
-"svchost.exe","7024","Services","0","6,312 K"
-"msedgewebview2.exe","10284","Console","1","48,432 K"
-"ShellExperienceHost.exe","10484","Console","1","48,052 K"
-"msedgewebview2.exe","10768","Console","1","5,416 K"
-"ctfmon.exe","6332","Console","1","19,092 K"
-"msedgewebview2.exe","11272","Console","1","21,284 K"
-"msedgewebview2.exe","11340","Console","1","7,708 K"
-"msedgewebview2.exe","11376","Console","1","12,844 K"
-"msedgewebview2.exe","11696","Console","1","42,416 K"
-"LockApp.exe","11704","Console","1","2,868 K"
-"RuntimeBroker.exe","12476","Console","1","11,052 K"
-"svchost.exe","12660","Console","1","9,580 K"
-"svchost.exe","12856","Services","0","19,380 K"
-"PowerToys.exe","11948","Console","1","34,336 K"
-"PowerToys.QuickAccess.exe","12240","Console","1","28,084 K"
-"svchost.exe","12992","Services","0","5,300 K"
-"PowerToys.AlwaysOnTop.exe","14208","Console","1","3,492 K"
-"PowerToys.Awake.exe","14216","Console","1","20,544 K"
-"PowerToys.FancyZones.exe","13520","Console","1","6,276 K"
-"Microsoft.CmdPal.UI.exe","12020","Console","1","50,408 K"
-"SearchIndexer.exe","11728","Services","0","40,540 K"
-"cua-driver.exe","13056","Console","1","16,988 K"
-"conhost.exe","7916","Console","1","1,064 K"
-"PowerToys.Peek.UI.exe","10060","Console","1","20,988 K"
-"Microsoft.CmdPal.Ext.PowerToys.exe","14852","Console","1","11,172 K"
-"TextInputHost.exe","15192","Console","1","36,616 K"
-"SecurityHealthSystray.exe","15096","Console","1","7,036 K"
-"SecurityHealthService.exe","13480","Services","0","15,416 K"
-"MouseWithoutBordersHelper.exe","15696","Console","1","42,420 K"
-"python.exe","17068","Console","1","872 K"
-"conhost.exe","17076","Console","1","1,632 K"
-"python.exe","17124","Console","1","107,356 K"
-"python.exe","13760","Console","1","868 K"
-"conhost.exe","17012","Console","1","1,104 K"
-"python.exe","17200","Console","1","9,008 K"
-"headroom.exe","17192","Console","1","920 K"
-"conhost.exe","7240","Console","1","1,096 K"
-"cmd.exe","15240","Console","1","1,100 K"
-"conhost.exe","17264","Console","1","1,084 K"
-"cmd.exe","17248","Console","1","1,108 K"
-"conhost.exe","16556","Console","1","1,108 K"
-"node.exe","15260","Console","1","12,416 K"
-"python.exe","14296","Console","1","820 K"
-"node.exe","17732","Console","1","1,768 K"
-"python.exe","15424","Console","1","9,296 K"
-"pinchtab-windows-amd64.exe","18244","Console","1","36,184 K"
-"pinchtab-windows-amd64.exe","18016","Console","1","37,512 K"
-"mempalace-mcp.exe","18320","Console","1","908 K"
-"conhost.exe","18352","Console","1","1,084 K"
-"python.exe","6620","Console","1","832 K"
-"python.exe","6600","Console","1","3,864 K"
-"pinchtab-windows-amd64.exe","18092","Console","1","37,528 K"
-"svchost.exe","18212","Services","0","17,724 K"
-"svchost.exe","7936","Services","0","45,784 K"
-"chrome.exe","12640","Console","1","35,120 K"
-"chrome.exe","17168","Console","1","1,424 K"
-"chrome.exe","16640","Console","1","5,272 K"
-"chrome.exe","18340","Console","1","13,828 K"
-"chrome.exe","18284","Console","1","2,868 K"
-"chrome.exe","18264","Console","1","3,832 K"
-"chrome.exe","3732","Console","1","3,328 K"
-"chrome.exe","1008","Console","1","2,888 K"
-"msedgewebview2.exe","4020","Console","1","7,064 K"
-"msedgewebview2.exe","3516","Console","1","4,120 K"
-"msedgewebview2.exe","7428","Console","1","2,460 K"
-"msedgewebview2.exe","7624","Console","1","5,056 K"
-"msedgewebview2.exe","17116","Console","1","1,860 K"
-"svchost.exe","5548","Services","0","21,804 K"
-"msedgewebview2.exe","5404","Console","1","2,268 K"
-"svchost.exe","18888","Services","0","10,720 K"
-"svchost.exe","18936","Services","0","20,140 K"
-"tailscale-ipn.exe","19208","Console","1","21,816 K"
-"svchost.exe","17060","Services","0","3,392 K"
-"dasHost.exe","18608","Services","0","4,300 K"
-"svchost.exe","11428","Services","0","4,688 K"
-"hid.exe","17428","Console","1","4,884 K"
-"RuntimeBroker.exe","20156","Console","1","21,424 K"
-"svchost.exe","13648","Services","0","10,188 K"
-"svchost.exe","11056","Services","0","21,972 K"
-"svchost.exe","17812","Services","0","7,852 K"
-"cmd.exe","2536","Console","1","1,892 K"
-"conhost.exe","2580","Console","1","3,192 K"
-"ollama app.exe","3084","Console","1","129,164 K"
-"ollama.exe","7248","Console","1","32,300 K"
-"conhost.exe","7504","Console","1","3,896 K"
-"ApplicationFrameHost.exe","7944","Console","1","42,092 K"
-"svchost.exe","2160","Services","0","2,640 K"
-"UserOOBEBroker.exe","4888","Console","1","5,532 K"
-"svchost.exe","12140","Services","0","4,796 K"
-"svchost.exe","14468","Services","0","4,932 K"
-"RuntimeBroker.exe","22072","Console","1","3,748 K"
-"svchost.exe","22500","Services","0","4,668 K"
-"dllhost.exe","4068","Console","1","16,408 K"
-"dllhost.exe","10176","Console","1","9,360 K"
-"dllhost.exe","20232","Console","1","10,028 K"
-"dllhost.exe","2988","Console","1","12,676 K"
-"dllhost.exe","12512","Console","1","11,644 K"
-"gortex.exe","22308","Console","1","400,724 K"
-"taskhostw.exe","6812","Console","1","17,476 K"
-"cmd.exe","20848","Console","1","1,096 K"
-"conhost.exe","11848","Console","1","1,080 K"
-"gortex.exe","22284","Console","1","13,752 K"
-"Docker Desktop.exe","22024","Console","1","5,912 K"
-"com.docker.backend.exe","19580","Console","1","29,316 K"
-"conhost.exe","9460","Console","1","9,416 K"
-"com.docker.backend.exe","19012","Console","1","143,696 K"
-"com.docker.build.exe","15564","Console","1","43,280 K"
-"Docker Desktop.exe","22524","Console","1","90,748 K"
-"wsl.exe","18672","Console","1","3,400 K"
-"wsl.exe","19108","Console","1","3,416 K"
-"wsl.exe","23028","Console","1","4,740 K"
-"wsl.exe","8256","Console","1","5,604 K"
-"vmcompute.exe","16916","Services","0","9,352 K"
-"vmwp.exe","19940","Services","0","12,224 K"
-"vmmemWSL","20204","Services","0","2,869,588 K"
-"dllhost.exe","23448","Console","1","5,836 K"
-"Docker Desktop.exe","20828","Console","1","29,004 K"
-"Docker Desktop.exe","17188","Console","1","10,008 K"
-"dllhost.exe","20680","Console","1","4,472 K"
-"wslrelay.exe","10260","Console","1","4,544 K"
-"wslhost.exe","17860","Console","1","4,584 K"
-"wslhost.exe","9652","Console","1","4,592 K"
-"conhost.exe","5588","Console","1","4,200 K"
-"wslhost.exe","23040","Console","1","3,352 K"
-"conhost.exe","2896","Console","1","3,208 K"
-"wslhost.exe","10356","Console","1","3,264 K"
-"conhost.exe","21412","Console","1","3,188 K"
-"conhost.exe","19648","Console","1","3,172 K"
-"msrdc.exe","14696","Console","1","12,260 K"
-"docker-agent.exe","25528","Console","1","23,044 K"
-"svchost.exe","25908","Services","0","4,688 K"
-"svchost.exe","7980","Services","0","3,600 K"
-"FileCoAuth.exe","2568","Console","1","33,392 K"
-"python.exe","9864","Console","1","3,144 K"
-"python.exe","26152","Console","1","63,292 K"
-"python.exe","27380","Console","1","3,372 K"
-"python.exe","27216","Console","1","64,132 K"
-"python.exe","3560","Console","1","3,996 K"
-"python.exe","16964","Console","1","40,052 K"
-"python.exe","22440","Console","1","3,372 K"
-"python.exe","16260","Console","1","41,012 K"
-"EchoWarp.exe","20072","Console","1","45,068 K"
-"conhost.exe","16080","Console","1","10,480 K"
-"svchost.exe","11788","Console","1","14,240 K"
-"SystemSettings.exe","20040","Console","1","2,156 K"
-"ShellHost.exe","24568","Console","1","54,164 K"
-"RuntimeBroker.exe","5876","Console","1","24,004 K"
-"python.exe","29948","Console","1","12,600 K"
-"python.exe","10464","Console","1","55,640 K"
-"OBus.exe","7956","Console","1","1,080 K"
-"OBus.exe","19272","Console","1","1,900 K"
-"Obus.exe","20840","Console","1","30,856 K"
-"node.exe","11924","Console","1","99,644 K"
-"dllhost.exe","23824","Console","1","9,276 K"
-"python.exe","22664","Console","1","12,652 K"
-"python.exe","31852","Console","1","134,872 K"
-"MsMpEng.exe","24760","Services","0","361,388 K"
-"MpDefenderCoreService.exe","30856","Services","0","25,436 K"
-"NisSrv.exe","24532","Services","0","15,768 K"
-"python.exe","7464","Console","1","12,656 K"
-"python.exe","8516","Console","1","132,972 K"
-"python.exe","4540","Console","1","12,676 K"
-"python.exe","30768","Console","1","134,308 K"
-"OneDrive.Sync.Service.exe","10360","Console","1","46,068 K"
-"python.exe","2900","Console","1","12,732 K"
-"python.exe","29732","Console","1","133,620 K"
-"python.exe","25468","Console","1","12,732 K"
-"python.exe","19768","Console","1","134,064 K"
-"python.exe","9072","Console","1","12,720 K"
-"python.exe","8200","Console","1","133,700 K"
-"python.exe","12844","Console","1","12,720 K"
-"python.exe","31188","Console","1","53,604 K"
-"python.exe","14124","Console","1","12,720 K"
-"python.exe","7448","Console","1","53,212 K"
-"python.exe","10340","Console","1","12,744 K"
-"python.exe","32144","Console","1","134,380 K"
-"python.exe","5652","Console","1","12,744 K"
-"python.exe","9364","Console","1","133,460 K"
-"python.exe","176","Console","1","12,724 K"
-"python.exe","23852","Console","1","134,608 K"
-"python.exe","9592","Console","1","12,748 K"
-"python.exe","23392","Console","1","134,868 K"
-"msedge.exe","5792","Console","1","165,828 K"
-"msedge.exe","15400","Console","1","12,488 K"
-"msedge.exe","24852","Console","1","56,792 K"
-"msedge.exe","11092","Console","1","44,100 K"
-"msedge.exe","488","Console","1","19,740 K"
-"msedge.exe","21900","Console","1","56,292 K"
-"cmd.exe","26552","Console","1","5,704 K"
-"conhost.exe","31520","Console","1","9,776 K"
-"extension-host.exe","5556","Console","1","5,968 K"
-"msedge.exe","22208","Console","1","14,212 K"
-"msedge.exe","16752","Console","1","29,240 K"
-"ChatGPT.exe","9192","Console","1","270,156 K"
-"ChatGPT.exe","29596","Console","1","8,624 K"
-"ChatGPT.exe","13352","Console","1","114,292 K"
-"ChatGPT.exe","22184","Console","1","48,864 K"
-"ChatGPT.exe","24352","Console","1","30,644 K"
-"codex.exe","20016","Console","1","168,516 K"
-"conhost.exe","31988","Console","1","7,380 K"
-"ChatGPT.exe","22360","Console","1","361,060 K"
-"ChatGPT.exe","23608","Console","1","200,296 K"
-"ChatGPT.exe","31304","Console","1","190,976 K"
-"python.exe","21744","Console","1","4,828 K"
-"mempalace-mcp.exe","31424","Console","1","4,836 K"
-"gortex.exe","22756","Console","1","48,080 K"
-"cmd.exe","14116","Console","1","6,292 K"
-"python.exe","7964","Console","1","4,820 K"
-"python.exe","24268","Console","1","16,560 K"
-"python.exe","27744","Console","1","20,608 K"
-"python.exe","21420","Console","1","12,724 K"
-"node.exe","20544","Console","1","43,184 K"
-"python.exe","23212","Console","1","11,200 K"
-"WmiPrvSE.exe","27896","Services","0","15,968 K"
-"svchost.exe","16328","Services","0","9,516 K"
-"node_repl.exe","32024","Console","1","8,344 K"
-"node_repl.exe","18272","Console","1","13,836 K"
-"mempalace-mcp.exe","30792","Console","1","4,832 K"
-"gortex.exe","30272","Console","1","47,680 K"
-"python.exe","14052","Console","1","4,836 K"
-"cmd.exe","27392","Console","1","6,288 K"
-"python.exe","28416","Console","1","4,824 K"
-"python.exe","14500","Console","1","16,568 K"
-"python.exe","32308","Console","1","12,732 K"
-"node.exe","28792","Console","1","43,216 K"
-"python.exe","5948","Console","1","20,632 K"
-"python.exe","32728","Console","1","13,852 K"
-"codex-code-mode-host.exe","11316","Console","1","22,012 K"
-"node.exe","3116","Console","1","31,536 K"
-"node.exe","11984","Console","1","45,084 K"
-"codex.exe","9004","Console","1","41,848 K"
-"python.exe","8788","Console","1","132,036 K"
-"conhost.exe","31572","Console","1","9,756 K"
-"conhost.exe","29672","Console","1","8,224 K"
-"pwsh.exe","16224","Console","1","76,464 K"
-"node.exe","31532","Console","1","44,388 K"
-"cmd.exe","12824","Console","1","6,316 K"
-"node.exe","24636","Console","1","43,528 K"
-"electron.exe","16436","Console","1","77,344 K"
-"electron.exe","6564","Console","1","73,752 K"
-"Obus.exe","13432","Console","1","8,100 K"
-"electron.exe","31112","Console","1","42,496 K"
-"Obus.exe","16760","Console","1","56,492 K"
-"electron.exe","15920","Console","1","78,560 K"
-"electron.exe","7796","Console","1","81,352 K"
-"ChatGPT.exe","21252","Console","1","27,596 K"
-"M365Copilot.exe","30280","Console","1","120,604 K"
-"RuntimeBroker.exe","21028","Console","1","21,264 K"
-"msedgewebview2.exe","30616","Console","1","9,472 K"
-"msedgewebview2.exe","26464","Console","1","12,416 K"
-"msedgewebview2.exe","15536","Console","1","5,284 K"
-"msedgewebview2.exe","29312","Console","1","4,372 K"
-"msedgewebview2.exe","28272","Console","1","1,752 K"
-"msedgewebview2.exe","19372","Console","1","3,180 K"
-"msedgewebview2.exe","21192","Console","1","136,048 K"
-"msedgewebview2.exe","31780","Console","1","12,516 K"
-"msedgewebview2.exe","29852","Console","1","74,612 K"
-"msedgewebview2.exe","30836","Console","1","37,284 K"
-"msedgewebview2.exe","6444","Console","1","19,440 K"
-"msedgewebview2.exe","18696","Console","1","175,780 K"
-"smartscreen.exe","20236","Console","1","13,140 K"
-"bash.exe","20324","Console","1","6,488 K"
-"conhost.exe","28216","Console","1","7,624 K"
-"bash.exe","29264","Console","1","11,004 K"
-"bash.exe","12280","Console","1","9,696 K"
-"tee.exe","29924","Console","1","5,884 K"
-"SearchProtocolHost.exe","23832","Services","0","21,156 K"
-"bash.exe","25124","Console","1","8,140 K"
-"tasklist.exe","27892","Console","1","12,040 K"
-"WmiPrvSE.exe","29432","Services","0","15,192 K"
+| Repo | Branch | Head | Remote | In Sync | Push Result |
+|------|--------|------|--------|---------|-------------|
+| obus-moa-exe | master | `7368ad0` (Cron: add report 0455 — all repos pushed, build stalled 13d, no active agents) | origin/master | ✅ YES | Pushed this cycle |
+| obus-moa-exe | codex/autonomy-context-agents | `ab02750` (chore: refresh push status report (04:22 cycle)) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
+| mythos-router-source | main | `032e0c2` (Update: policy.json, MEMORY.md, soul.md) | origin/main | ✅ YES | Already pushed |
+| temporal | main | `561ba4ee4` (Initial temporal clone) | origin/main | ✅ YES | Already pushed |
+| hermes-photon-client | master | `d7acf11` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
+| hermes-photon-server | master | `9cf3bd5` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
+| warden | main | `6c7b2e9` (chore: stage modified src/index.ts) | origin/main | ✅ YES | Already pushed |
+| warden-discord-bot | main | `4fa686e` (fix(diva): correct CRLF escaping) | origin/main | ✅ YES | Already pushed |
+| DavyJonesBot/workspace | main | `249b5bf` (fix: keep music search within music channel) | C:/Users/Hermes/DavyJonesBot/davy-jones-bot.git (local) | ⚠️ NO | Bundle push fails (ahead 10, new untracked dir) |
+| mempalace | develop | `b522512` (chore: sync with upstream develop) | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden |
+| MoA-source | main | `fd816ca` (feat: provider usage tracking) | togethercomputer/MoA | ❌ NO | 403 Forbidden |
+| models-dev-source | dev | `aa6d1fb5d` (Remove deleted workflow/agent files) | github.com:SgtSlummy/models.dev.git | ❌ NO | SSH auth failure |
+| warden-source | main | `794cfcf` (Merge PR #945) | origin | ❌ NO | 403 Forbidden |
+| awesome-free-llm-apis-mnfst-source | main | `167013f` (docs: regenerate README from data.json) | mnfst/awesome-free-llm-apis.git | ❌ NO | 403 Forbidden |
+| awesome-free-models-source | main | `1230f2e` (Update README.md) | 12britz/awesome-free-models.git | ❌ NO | 403 Forbidden |
+| awesome-freellm-apis-source | main | `3b73eb8` (chore: sync README from freellm.net data) | open-free-llm-api/awesome-freellm-apis.git | ❌ NO | 403 Forbidden |
+| free-ai-coding-source | main | `2b80a87` (Merge pull request #44) | inmve/free-ai-coding.git | ❌ NO | 403 Forbidden |
+| free-coding-models-source | main | `fb1d802` (fix(test): codingIndex is a measured subset) | vava-nessa/free-coding-models.git | ❌ NO | 403 Forbidden |
+
+**8 of 18 repos pushed clean. 10 blocked (8×403, 1×SSH, 1×stale bundle).**
+
+## Push Failure Log
+
+### DavyJonesBot/workspace (active)
+- remote: C:/Users/Hermes/DavyJonesBot/davy-jones-bot.git (local path)
+- error: push to local git remote fails — bundle likely stale or path issue
+- branch: main (ahead 10)
+- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir with verified SLSA provenance
+
+### mempalace
+- remote: SgtSlummy/mempalace.git (develop, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### MoA-source
+- remote: togethercomputer/MoA.git (main, ahead 4)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### models-dev-source
+- remote: github.com:SgtSlummy/models.dev.git (dev, ahead 1)
+- error: SSH permission denied (publickey) — no valid SSH key
+- state: clean
+
+### warden-source
+- remote: wardenenv/warden.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### awesome-free-llm-apis-mnfst-source
+- remote: mnfst/awesome-free-llm-apis.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### awesome-free-models-source
+- remote: 12britz/awesome-free-models.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### awesome-freellm-apis-source
+- remote: open-free-llm-api/awesome-freellm-apis.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### free-ai-coding-source
+- remote: inmve/free-ai-coding.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+### free-coding-models-source
+- remote: vava-nessa/free-coding-models.git (main, ahead 1)
+- error: 403 Forbidden — SgtSlummy not a collaborator
+- state: clean
+
+Note: All accessible repos pushed clean. Auth failures are pre-existing — no new action possible.
+
+## Submodules (unchanged)
+
+| Submodule | Path | Commit | Status |
+|-----------|------|--------|--------|
+| Understand-Anything | `Understand-Anything/` | `99e62b7` | Clean (detached) |
+| warpdotdev-warp | `third_party/warpdotdev-warp/` | `8c2cc73` | Clean (detached) |
+| warp | `warp/` | `3504ce5` | Clean (detached) |
+
+All submodules on detached HEADs, no local changes. 403 on push is pre-existing.
+
+## Build / AUI Status
+- Latest build directory: `build-aui-loop76/` (Aug 25) — **STALLED ~13 days**
+- Latest dist directory: `dist-aui-loop76/` — matches build
+- No new build loops since loop76. No EXE or installer progress.
+
+## Active Job Progress
+- **Cron auto-push:** ✅ Loop #455 completed — pushed 7368ad0
+- **Build pipeline:** 🔴 Still stalled at loop76
+- **Active builders:** None detected
+- **Active agent jobs:** None detected
+
+## Verdict
+All 8 accessible repos pushed clean across this and prior cycles. 10 repos blocked by 403/SSH/stale bundle — all pre-existing, no action possible. Build stalled at loop76 (~13 days). No active build or agent jobs making progress.
