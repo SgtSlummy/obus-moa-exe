@@ -6,6 +6,7 @@ service shares the existing Obus catalogue; it does not restart the dashboard.
 from __future__ import annotations
 from contextlib import contextmanager
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -13,6 +14,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import tempfile
 import threading
 import urllib.request
 import uuid
@@ -23,10 +25,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
 
 CONTRACT = 'raph-obus-game-v1'
+STT_CONTRACT = 'raph-obus-game-stt-v1'
+RUNTIME_CONTRACT = 'raph-obus-game-runtime-v1'
 ROOT = Path(os.environ.get('OBUS_GAME_DATA_DIR', Path.home() / '.occultbus' / 'game-agent'))
 CORE = os.environ.get('OBUS_GAME_CORE_URL', 'http://127.0.0.1:38173').rstrip('/')
 LOCK = threading.RLock()
 INFERENCE = threading.Lock()
+STT_LOCK = threading.Lock()
+STT_MODEL = None
+STT_MODEL_PATH = ""
+MAX_STT_AUDIO_BYTES = 6_000_000
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -203,6 +211,97 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
             db.execute('INSERT INTO jobs VALUES(?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
         return result
 
+def _game_stt_model_path() -> Path:
+    configured = str(os.environ.get("OBUS_GAME_STT_MODEL_PATH") or "").strip()
+    return Path(configured) if configured else ROOT / "models" / "faster-whisper-tiny"
+
+
+def local_stt_status() -> dict[str, object]:
+    model_path = _game_stt_model_path()
+    try:
+        import faster_whisper  # noqa: F401
+        dependency_available = True
+    except ImportError:
+        dependency_available = False
+    model_available = (model_path / "model.bin").is_file() and (model_path / "config.json").is_file()
+    return {
+        "mode": "local-only",
+        "engine": "faster-whisper",
+        "dependency_available": dependency_available,
+        "model_available": model_available,
+        "ready": dependency_available and model_available,
+        "model_source": "OBUS_GAME_STT_MODEL_PATH" if os.environ.get("OBUS_GAME_STT_MODEL_PATH") else "private-game-data",
+        "runtime_envelope_required": True,
+        "route_ready": False,
+        "reason": "Scoped STT dispatch requires an active private game-host runtime lease.",
+    }
+
+
+def _scoped_stt_audio(body: object) -> bytes:
+    required = {"contract", "scope", "session", "requestId", "runtime", "audio_base64", "mime_type"}
+    if not isinstance(body, dict) or set(body) != required:
+        raise HTTPException(400, "Scoped STT v1 envelope required")
+    scope = body.get("scope")
+    runtime = body.get("runtime")
+    if body.get("contract") != STT_CONTRACT or not isinstance(scope, dict) or set(scope) != {"campaign", "owner", "role"}:
+        raise HTTPException(400, "Invalid scoped STT envelope")
+    if not all(isinstance(scope.get(field), str) and 0 < len(scope[field]) <= 100 for field in ("campaign", "owner")) or scope.get("role") not in {"host", "player"}:
+        raise HTTPException(400, "Invalid scoped STT scope")
+    if not all(isinstance(body.get(field), str) and 0 < len(body[field]) <= 100 for field in ("session", "requestId")):
+        raise HTTPException(400, "Invalid scoped STT identifiers")
+    if not isinstance(runtime, dict) or set(runtime) != {"contract", "bootEpoch", "generation", "sessionPolicyRevision"} or runtime.get("contract") != RUNTIME_CONTRACT:
+        raise HTTPException(400, "Invalid STT runtime envelope")
+    if not all(isinstance(runtime.get(field), str) for field in ("bootEpoch", "generation")) or not isinstance(runtime.get("sessionPolicyRevision"), int) or isinstance(runtime.get("sessionPolicyRevision"), bool) or runtime["sessionPolicyRevision"] < 0:
+        raise HTTPException(400, "Invalid STT runtime fence")
+    try:
+        uuid.UUID(runtime["bootEpoch"])
+        uuid.UUID(runtime["generation"])
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "Invalid STT runtime fence") from None
+    return _decode_stt_request({"audio_base64": body["audio_base64"], "mime_type": body["mime_type"]})
+
+
+def _decode_stt_request(body: object) -> bytes:
+    if not isinstance(body, dict) or set(body) != {"audio_base64", "mime_type"}:
+        raise HTTPException(400, "Invalid audio request")
+    encoded = body.get("audio_base64")
+    if body.get("mime_type") != "audio/wav" or not isinstance(encoded, str) or len(encoded) > 8_500_000:
+        raise HTTPException(400, "Invalid audio request")
+    try:
+        audio = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Invalid audio encoding") from None
+    if len(audio) > MAX_STT_AUDIO_BYTES or len(audio) < 44 or audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
+        raise HTTPException(400, "Invalid WAV audio")
+    return audio
+
+
+def _transcribe_game_audio(audio: bytes) -> tuple[str, str]:
+    status = local_stt_status()
+    model_path = _game_stt_model_path()
+    if not status["ready"]:
+        raise RuntimeError("Private game local STT is not ready; install Faster-Whisper and a private local model first")
+    temporary_name = ""
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temporary_audio:
+            temporary_audio.write(audio)
+            temporary_name = temporary_audio.name
+        global STT_MODEL, STT_MODEL_PATH
+        with STT_LOCK:
+            if STT_MODEL is None or STT_MODEL_PATH != str(model_path):
+                from faster_whisper import WhisperModel
+                STT_MODEL = WhisperModel(str(model_path), device="cpu", compute_type="int8")
+                STT_MODEL_PATH = str(model_path)
+            segments, _info = STT_MODEL.transcribe(temporary_name, vad_filter=True)
+            transcript = " ".join(segment.text.strip() for segment in segments).strip()
+        if not transcript:
+            raise RuntimeError("Private game local STT returned no speech")
+        return transcript[:8000], model_path.name
+    finally:
+        if temporary_name:
+            Path(temporary_name).unlink(missing_ok=True)
+
+
 from contextlib import asynccontextmanager
 @asynccontextmanager
 async def startup(application):
@@ -226,7 +325,7 @@ async def private_access(request: Request, call_next):
     return await call_next(request)
 @app.get('/api/game/capabilities')
 def capabilities():
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_policy':'explicit zero-cost, no-fallback, no-tools pins only; request must be local-free and exportable','codex_available':False,'retrieval':'scoped lexical; embedding integration pending'}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_policy':'explicit zero-cost, no-fallback, no-tools pins only; request must be local-free and exportable','codex_available':False,'retrieval':'scoped lexical; embedding integration pending','local_stt':local_stt_status()}
 @app.post('/api/game/sources')
 def put_source(source: Source):
     ingest(source)
@@ -236,11 +335,9 @@ async def route(job: Job):
     return await asyncio.to_thread(run_job,job)
 @app.post('/api/voice/transcribe')
 async def transcribe(request: Request):
-    body=await request.json()
-    if set(body) != {'audio_base64','mime_type'} or body['mime_type'] != 'audio/wav' or len(body['audio_base64'])>8500000:
-        raise HTTPException(400,'Invalid audio')
-    headers={'X-OBus-Access':os.environ['OBUS_ACCESS_TOKEN']} if os.environ.get('OBUS_ACCESS_TOKEN') else {}
     try:
-        return await asyncio.to_thread(_http_json,CORE+'/api/voice/transcribe',headers,body,120)
-    except Exception:
-        raise HTTPException(503,'Obus local speech recognition is unavailable')
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Invalid audio request") from None
+    _scoped_stt_audio(body)
+    raise HTTPException(409, "runtime_host_generation_required: scoped STT remains disabled until private host authority is active")
