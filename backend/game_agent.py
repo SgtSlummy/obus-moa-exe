@@ -1,0 +1,244 @@
+"""Private Obus game agent. Run: python -m uvicorn backend.game_agent:app --host 127.0.0.1 --port 38175.
+
+Obus owns every model call, scoped retrieval and routing decision here. This
+service shares the existing Obus catalogue; it does not restart the dashboard.
+"""
+from __future__ import annotations
+from contextlib import contextmanager
+import asyncio
+import hashlib
+import hmac
+import json
+import os
+from pathlib import Path
+import secrets
+import sqlite3
+import threading
+import urllib.request
+import uuid
+from typing import Literal
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
+
+CONTRACT = 'raph-obus-game-v1'
+ROOT = Path(os.environ.get('OBUS_GAME_DATA_DIR', Path.home() / '.occultbus' / 'game-agent'))
+CORE = os.environ.get('OBUS_GAME_CORE_URL', 'http://127.0.0.1:38173').rstrip('/')
+LOCK = threading.RLock()
+INFERENCE = threading.Lock()
+
+class Strict(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+class Scope(Strict):
+    campaign: str = Field(min_length=1, max_length=100)
+    owner: str = Field(min_length=1, max_length=100)
+    role: Literal['host', 'player']
+class Policy(Strict):
+    mode: Literal['local', 'local-free'] = 'local-free'
+    codex: bool = False
+    exportable: bool = False
+    escalationEligible: bool = False
+    namespace: str = Field(min_length=1, max_length=100)
+    tools: Literal[False] = False
+    personal_memory: Literal[False] = False
+    auto_memory: Literal[False] = False
+class Job(Strict):
+    contract: Literal['raph-obus-game-v1']
+    scope: Scope
+    session: str = Field(min_length=1, max_length=100)
+    requestId: str = Field(min_length=1, max_length=100)
+    task: Literal['narration','dialogue','intent','summary','final','council','counsel','prepare','contradiction','cue']
+    instructions: str = Field(max_length=8000)
+    evidence: dict | list
+    policy: Policy
+    max_tokens: int = Field(default=900, ge=16, le=6000)
+class Source(Strict):
+    campaign: str = Field(min_length=1, max_length=100)
+    ref: str = Field(min_length=1, max_length=160)
+    revision: int = Field(ge=0)
+    audience: Literal['party','host','private']
+    owner: str = Field(default='', max_length=100)
+    text: str = Field(max_length=16000)
+    provenance: str = Field(min_length=1, max_length=160)
+    exportable: bool = False
+    deleted: bool = False
+
+
+def token():
+    ROOT.mkdir(parents=True, exist_ok=True)
+    path = ROOT / 'service-token'
+    try:
+        with path.open('x', encoding='utf-8') as handle:
+            handle.write(secrets.token_hex(32))
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
+    except FileExistsError:
+        pass
+    return path.read_text(encoding='utf-8').strip()
+
+@contextmanager
+def database():
+    ROOT.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(ROOT / 'game.sqlite', timeout=10)
+    db.row_factory = sqlite3.Row
+    db.executescript('CREATE TABLE IF NOT EXISTS sources(campaign TEXT,ref TEXT,revision INTEGER,audience TEXT,owner TEXT,exportable INTEGER,body TEXT,PRIMARY KEY(campaign,ref)); CREATE TABLE IF NOT EXISTS jobs(campaign TEXT,owner TEXT,request TEXT,fingerprint TEXT,body TEXT,PRIMARY KEY(campaign,owner,request));')
+    try:
+        with db:
+            yield db
+    finally:
+        db.close()
+
+def ingest(source: Source):
+    with LOCK, database() as db:
+        old = db.execute('SELECT revision FROM sources WHERE campaign=? AND ref=?', (source.campaign, source.ref)).fetchone()
+        if old and old['revision'] > source.revision:
+            return
+        # Tombstones preserve the revision guard against late source updates.
+        db.execute('INSERT INTO sources VALUES(?,?,?,?,?,?,?) ON CONFLICT(campaign,ref) DO UPDATE SET revision=excluded.revision,audience=excluded.audience,owner=excluded.owner,exportable=excluded.exportable,body=excluded.body', (source.campaign, source.ref, source.revision, source.audience, source.owner, int(source.exportable), source.model_dump_json()))
+
+def retrieve(scope: Scope, query: str):
+    import re
+    words = set(re.findall(r'\w{3,}', query.lower()))
+    with LOCK, database() as db:
+        rows = db.execute("SELECT body FROM sources WHERE campaign=? AND (audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?))", (scope.campaign, scope.role, scope.owner)).fetchall()
+    eligible = [json.loads(row['body']) for row in rows]
+    ranked = sorted((s for s in eligible if not s['deleted']), key=lambda s: (-sum(w in s['text'].lower() for w in words), s['ref']))
+    out, budget = [], 5000
+    for s in ranked:
+        if not any(w in s['text'].lower() for w in words):
+            continue
+        text = s['text'][:budget]
+        if not text or len(out) == 6:
+            break
+        out.append({**s, 'text': text})
+        budget -= len(text)
+    return out
+
+def catalogue():
+    req = urllib.request.Request(CORE + '/api/dashboard')
+    if os.environ.get('OBUS_ACCESS_TOKEN'):
+        req.add_header('X-OBus-Access', os.environ['OBUS_ACCESS_TOKEN'])
+    with _NO_REDIRECT_OPENER.open(req, timeout=10) as response:
+        raw = response.read(1000001)
+    if len(raw) > 1000000:
+        raise RuntimeError('Obus catalogue too large')
+    return json.loads(raw).get('providers', [])
+
+def approved_free(keys):
+    # Explicit Obus operator attestations pin a concrete provider/model/endpoint.
+    # Generic OmniRoute auto/best-free and coding-agent proxies are NOT proof of
+    # zero-cost, tool-free, destination-restricted execution.
+    path = ROOT / 'free-routes.json'
+    if not path.exists():
+        return []
+    configured = json.loads(path.read_text(encoding='utf-8'))
+    result = []
+    for pin in configured if isinstance(configured, list) else []:
+        if pin.get('zero_charge') is not True or pin.get('no_fallback') is not True or pin.get('no_tools') is not True:
+            continue
+        for key in keys:
+            if all(key.get(k) == pin.get(k) for k in ['id','provider','model','base_url']) and key.get('connected') and key.get('verified'):
+                try:
+                    _validated_provider_base_url(key['provider'], key['base_url'])
+                    if key['provider'] not in {'codex','ollama'}:
+                        result.append(key)
+                except RuntimeError:
+                    pass
+    return result
+
+def complete_local(key, prompt, maximum):
+    base = _validated_provider_base_url('ollama', key['base_url'])
+    if urllib.parse.urlsplit(base).hostname not in {'127.0.0.1','localhost','::1'}:
+        raise RuntimeError('Local provider is not loopback')
+    result = _http_json(base + '/api/chat', {}, {'model': key['model'], 'stream': False, 'think': False,
+        'messages': [{'role': 'system', 'content': 'You are the Obus Raphael game agent. Use supplied authorized evidence only. Do not execute tools or decide mechanical outcomes.'}, {'role':'user','content':prompt}],
+        'options': {'num_ctx':8192,'num_predict':maximum,'temperature':0.3}, 'keep_alive':'5m'}, timeout=90)
+    if result.get('message', {}).get('tool_calls'):
+        raise RuntimeError('Tool response not allowed')
+    return result.get('message', {}).get('content', '')
+
+def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_remote_provider):
+    if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
+        raise HTTPException(400, 'Invalid campaign evidence')
+    fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
+    identity = (job.scope.campaign, job.scope.owner, job.requestId)
+    with INFERENCE:
+        with database() as db:
+            prior = db.execute('SELECT fingerprint,body FROM jobs WHERE campaign=? AND owner=? AND request=?', identity).fetchone()
+        if prior:
+            if prior['fingerprint'] != fingerprint:
+                raise HTTPException(409, 'Request ID conflict')
+            return json.loads(prior['body'])
+        sources = retrieve(job.scope, str(job.evidence.get('question','')) if isinstance(job.evidence,dict) else job.task)
+        prompt = json.dumps({'task':job.task,'instructions':job.instructions,'evidence':job.evidence,'retrieved':sources}, ensure_ascii=False)
+        keys = get_keys()
+        locals_ = [k for k in keys if k.get('id') == 'key-local-ollama' and k.get('provider') == 'ollama' and k.get('connected') and k.get('verified')]
+        routes = [(k, 'local') for k in locals_]
+        if job.policy.mode == 'local-free' and job.policy.exportable and all(s['exportable'] for s in sources):
+            routes += [(k,'free') for k in approved_free(keys)]
+        # Existing Codex CLI adapter can execute read-only tools; it is excluded
+        # until Obus has a proven tool-free inference adapter. Logged-in != safe.
+        trace, text, selected = [], '', None
+        for key, destination in routes:
+            for attempt in range(2 if destination == 'local' else 1):
+                stage = {'provider':key['id'],'model':key['model'],'destination':destination,'cost':'zero' if destination == 'free' else 'local','attempt':attempt+1}
+                try:
+                    text = local(key,prompt,job.max_tokens) if destination == 'local' else remote(key,prompt)
+                    if not isinstance(text,str) or not text.strip() or len(text)>16000 or '<script' in text.lower():
+                        raise RuntimeError('Invalid output')
+                    stage['status']='ready'; trace.append(stage); selected=key; break
+                except Exception:
+                    stage['status']='failed'; trace.append(stage); text=''
+            if text:
+                break
+        if not text:
+            raise HTTPException(503, 'No eligible Obus game provider completed the request')
+        result={'text':text.strip(),'routeId':str(uuid.uuid4()),'model':selected['model'],'trace':trace,'sources':[{'ref':s['ref'],'revision':s['revision']} for s in sources]}
+        with database() as db:
+            db.execute('INSERT INTO jobs VALUES(?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
+        return result
+
+from contextlib import asynccontextmanager
+@asynccontextmanager
+async def startup(application):
+    token()
+    yield
+
+app = FastAPI(title='Obus Campaign Game Agent', lifespan=startup)
+@app.middleware('http')
+async def private_access(request: Request, call_next):
+    if request.client and request.client.host not in {'127.0.0.1','::1','testclient'}:
+        return JSONResponse(status_code=403,content={'error':'Local service only'})
+    if not hmac.compare_digest(request.headers.get('X-Obus-Game-Token',''), token()):
+        return JSONResponse(status_code=401,content={'error':'Game service authentication required'})
+    if request.method in {'POST','PUT','PATCH'}:
+        body=bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body)>9000000:
+                return JSONResponse(status_code=413,content={'error':'Request too large'})
+        request._body=bytes(body)
+    return await call_next(request)
+@app.get('/api/game/capabilities')
+def capabilities():
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'remote_routes':False,'codex_available':False,'retrieval':'scoped lexical; embedding integration pending'}
+@app.post('/api/game/sources')
+def put_source(source: Source):
+    ingest(source)
+    return {'saved':True}
+@app.post('/api/game/route')
+async def route(job: Job):
+    return await asyncio.to_thread(run_job,job)
+@app.post('/api/voice/transcribe')
+async def transcribe(request: Request):
+    body=await request.json()
+    if set(body) != {'audio_base64','mime_type'} or body['mime_type'] != 'audio/wav' or len(body['audio_base64'])>8500000:
+        raise HTTPException(400,'Invalid audio')
+    headers={'X-OBus-Access':os.environ['OBUS_ACCESS_TOKEN']} if os.environ.get('OBUS_ACCESS_TOKEN') else {}
+    try:
+        return await asyncio.to_thread(_http_json,CORE+'/api/voice/transcribe',headers,body,120)
+    except Exception:
+        raise HTTPException(503,'Obus local speech recognition is unavailable')
