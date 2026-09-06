@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import base64
 import sys
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from backend import game_agent as agent
@@ -101,6 +104,81 @@ def test_scoped_stt_rejects_invalid_runtime_fence_before_dispatch(tmp_path, monk
 
     assert response.status_code == 400
     assert called is False
+
+
+def test_scoped_stt_replays_only_an_identical_private_receipt(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent, "ROOT", tmp_path)
+    monkeypatch.setattr(agent, "RUNTIME", None)
+    authority = agent.runtime_authority()
+    runtime = authority.register(
+        {
+            "contract": "raph-obus-game-runtime-v1",
+            "campaign": "campaign-1",
+            "session": "session-1",
+            "generation": str(uuid.uuid4()),
+            "expectedBootEpoch": authority.boot_epoch,
+            "expectedGeneration": None,
+            "opId": str(uuid.uuid4()),
+            "leaseSeconds": 30,
+        }
+    )["runtime"]
+    payload = _scoped_payload()
+    payload["runtime"] = {key: runtime[key] for key in ("contract", "bootEpoch", "generation", "sessionPolicyRevision")}
+    calls: list[bytes] = []
+
+    def local_transcribe(audio: bytes):
+        calls.append(audio)
+        return "private transcript", "test-model"
+
+    monkeypatch.setattr(agent, "_transcribe_game_audio", local_transcribe)
+    first = agent._transcribe_scoped_stt(payload, WAV_FIXTURE)
+    second = agent._transcribe_scoped_stt(payload, WAV_FIXTURE)
+    assert first == second
+    assert calls == [WAV_FIXTURE]
+    assert first["receipt"]["retention"] == {"raw_audio_persisted": False, "request_evidence_persisted": False, "general_memory_writes": False, "route_journal_writes": False, "game_receipt_persisted": True, "transcript_persisted_in_game_receipt": True}
+    with pytest.raises(HTTPException, match="STT request ID conflict"):
+        agent._transcribe_scoped_stt(payload, WAV_FIXTURE + b"different")
+
+
+def test_master_policy_change_during_stt_cannot_commit_a_receipt(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent, "ROOT", tmp_path)
+    monkeypatch.setattr(agent, "RUNTIME", None)
+    authority = agent.runtime_authority()
+    runtime = authority.register(
+        {
+            "contract": "raph-obus-game-runtime-v1",
+            "campaign": "campaign-1",
+            "session": "session-1",
+            "generation": str(uuid.uuid4()),
+            "expectedBootEpoch": authority.boot_epoch,
+            "expectedGeneration": None,
+            "opId": str(uuid.uuid4()),
+            "leaseSeconds": 30,
+        }
+    )["runtime"]
+    payload = _scoped_payload()
+    payload["runtime"] = {key: runtime[key] for key in ("contract", "bootEpoch", "generation", "sessionPolicyRevision")}
+
+    def local_transcribe(_audio: bytes):
+        authority.patch_policy(
+            {
+                "contract": "raph-obus-game-runtime-v1",
+                "campaign": "campaign-1",
+                "session": "session-1",
+                "generation": payload["runtime"]["generation"],
+                "expectedBootEpoch": payload["runtime"]["bootEpoch"],
+                "expectedSessionPolicyRevision": payload["runtime"]["sessionPolicyRevision"],
+                "opId": str(uuid.uuid4()),
+                "policy": {"enabled": False, "mode": "local", "codex": False, "exportable": False},
+            }
+        )
+        return "late transcript", "test-model"
+
+    monkeypatch.setattr(agent, "_transcribe_game_audio", local_transcribe)
+    with pytest.raises(HTTPException, match="runtime_fence_stale"):
+        agent._transcribe_scoped_stt(payload, WAV_FIXTURE)
+    with agent.database() as db:
+        assert db.execute("SELECT 1 FROM stt_jobs").fetchone() is None
 
 
 def test_transcribe_game_audio_removes_transient_wav_and_uses_cpu_int8(tmp_path, monkeypatch):

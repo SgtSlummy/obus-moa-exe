@@ -1,8 +1,8 @@
-"""Durable, private host-generation authority for the game agent.
+"""Durable, private campaign-runtime authority for the game agent.
 
-This module owns only authorization state: a local host control key, signed
-control-plane requests, one-time nonces, idempotent operations, and runtime
-fences. It never selects or calls an inference provider.
+A campaign owns one host generation, lease, and local-only policy.  A session
+holds only a lease under that generation and an effective policy revision.  The
+module never selects or calls an inference provider.
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ class RuntimeSnapshot:
 
 
 class GameRuntimeAuthority:
-    """Local, durable capability authority for one game-agent process lifetime."""
+    """Local campaign master authority for a single game-agent process boot."""
 
     def __init__(self, root: Path, *, clock: Callable[[], int] = _now_ms) -> None:
         self.root = root
@@ -129,18 +129,19 @@ class GameRuntimeAuthority:
             yield connection
             connection.execute("COMMIT")
         except BaseException:
-            connection.execute("ROLLBACK")
+            if connection.in_transaction:
+                connection.execute("ROLLBACK")
             raise
         finally:
             connection.close()
 
     def _initialize(self) -> None:
-        with self._transaction() as db:
-            db.executescript(
+        connection = self._connect()
+        try:
+            connection.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS sessions(
-                  campaign TEXT NOT NULL,
-                  session TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS campaign_runtime(
+                  campaign TEXT PRIMARY KEY,
                   boot_epoch TEXT NOT NULL,
                   generation TEXT,
                   policy_revision INTEGER NOT NULL,
@@ -148,7 +149,14 @@ class GameRuntimeAuthority:
                   enabled INTEGER NOT NULL,
                   mode TEXT NOT NULL,
                   codex INTEGER NOT NULL,
-                  exportable INTEGER NOT NULL,
+                  exportable INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS session_runtime(
+                  campaign TEXT NOT NULL,
+                  session TEXT NOT NULL,
+                  generation TEXT,
+                  policy_revision INTEGER NOT NULL,
+                  lease_expires_at_ms INTEGER,
                   PRIMARY KEY(campaign, session)
                 );
                 CREATE TABLE IF NOT EXISTS nonces(
@@ -164,6 +172,8 @@ class GameRuntimeAuthority:
                 );
                 """
             )
+        finally:
+            connection.close()
 
     def _signed_bytes(self, method: str, path: str, timestamp: str, nonce: str, body: Mapping[str, Any]) -> bytes:
         digest = hashlib.sha256(canonical_json(body)).hexdigest()
@@ -193,30 +203,45 @@ class GameRuntimeAuthority:
             except sqlite3.IntegrityError as exc:
                 raise RuntimeDenied(409, "host_nonce_replayed") from exc
 
-    def _snapshot_from(self, row: sqlite3.Row | None) -> RuntimeSnapshot:
-        if row is None or row["boot_epoch"] != self.boot_epoch or not row["generation"]:
-            return RuntimeSnapshot(self.boot_epoch, None, row["policy_revision"] if row else 0, None, False)
-        expires = int(row["lease_expires_at_ms"] or 0)
-        if expires <= self._clock():
-            return RuntimeSnapshot(self.boot_epoch, None, int(row["policy_revision"]), None, False)
+    def _campaign_row(self, db: sqlite3.Connection, campaign: str) -> sqlite3.Row | None:
+        return db.execute("SELECT * FROM campaign_runtime WHERE campaign=?", (campaign,)).fetchone()
+
+    def _session_row(self, db: sqlite3.Connection, campaign: str, session: str) -> sqlite3.Row | None:
+        return db.execute("SELECT * FROM session_runtime WHERE campaign=? AND session=?", (campaign, session)).fetchone()
+
+    def _campaign_active(self, master: sqlite3.Row | None) -> bool:
+        return bool(
+            master
+            and master["boot_epoch"] == self.boot_epoch
+            and master["generation"]
+            and int(master["lease_expires_at_ms"] or 0) > self._clock()
+        )
+
+    def _snapshot_from(self, master: sqlite3.Row | None, child: sqlite3.Row | None) -> RuntimeSnapshot:
+        revision = int(child["policy_revision"]) if child else int(master["policy_revision"]) if master else 0
+        if not self._campaign_active(master):
+            return RuntimeSnapshot(self.boot_epoch, None, revision, None, False)
+        if child is None or child["generation"] != master["generation"] or int(child["lease_expires_at_ms"] or 0) <= self._clock():
+            return RuntimeSnapshot(self.boot_epoch, None, revision, None, False)
         return RuntimeSnapshot(
             self.boot_epoch,
-            str(row["generation"]),
-            int(row["policy_revision"]),
-            expires,
-            bool(row["enabled"]),
-            str(row["mode"]),
-            bool(row["codex"]),
-            bool(row["exportable"]),
+            str(master["generation"]),
+            revision,
+            min(int(master["lease_expires_at_ms"]), int(child["lease_expires_at_ms"])),
+            bool(master["enabled"]),
+            str(master["mode"]),
+            bool(master["codex"]),
+            bool(master["exportable"]),
         )
 
     def snapshot(self, campaign: str, session: str) -> RuntimeSnapshot:
         connection = self._connect()
         try:
-            row = connection.execute("SELECT * FROM sessions WHERE campaign=? AND session=?", (campaign, session)).fetchone()
+            master = self._campaign_row(connection, campaign)
+            child = self._session_row(connection, campaign, session)
         finally:
             connection.close()
-        return self._snapshot_from(row)
+        return self._snapshot_from(master, child)
 
     def _validate_common(self, body: Mapping[str, Any], fields: set[str]) -> None:
         if set(body) != fields or body.get("contract") != RUNTIME_CONTRACT:
@@ -248,18 +273,50 @@ class GameRuntimeAuthority:
         )
         return response
 
-    def _current_row(self, db: sqlite3.Connection, campaign: str, session: str) -> sqlite3.Row | None:
-        return db.execute("SELECT * FROM sessions WHERE campaign=? AND session=?", (campaign, session)).fetchone()
-
-    def _require_current(self, row: sqlite3.Row | None, body: Mapping[str, Any]) -> None:
+    def _require_current(self, master: sqlite3.Row | None, child: sqlite3.Row | None, body: Mapping[str, Any]) -> None:
         if body["expectedBootEpoch"] != self.boot_epoch:
             raise RuntimeDenied(409, "runtime_boot_epoch_stale")
-        if row is None or row["boot_epoch"] != self.boot_epoch or not row["generation"]:
+        if master is None or master["boot_epoch"] != self.boot_epoch or not master["generation"]:
             raise RuntimeDenied(409, "runtime_host_generation_required")
-        if int(row["lease_expires_at_ms"] or 0) <= self._clock():
+        if int(master["lease_expires_at_ms"] or 0) <= self._clock():
             raise RuntimeDenied(409, "runtime_generation_expired")
-        if row["generation"] != body["generation"]:
+        if master["generation"] != body["generation"]:
             raise RuntimeDenied(409, "runtime_generation_stale")
+        if child is None or child["generation"] != master["generation"]:
+            raise RuntimeDenied(409, "runtime_session_generation_required")
+        if int(child["lease_expires_at_ms"] or 0) <= self._clock():
+            raise RuntimeDenied(409, "runtime_session_lease_expired")
+
+    def _save_session(self, db: sqlite3.Connection, campaign: str, session: str, generation: str, revision: int, expires: int) -> None:
+        db.execute(
+            """INSERT INTO session_runtime(campaign,session,generation,policy_revision,lease_expires_at_ms)
+               VALUES(?,?,?,?,?)
+               ON CONFLICT(campaign,session) DO UPDATE SET generation=excluded.generation,
+               policy_revision=excluded.policy_revision,lease_expires_at_ms=excluded.lease_expires_at_ms""",
+            (campaign, session, generation, revision, expires),
+        )
+
+    def _reset_campaign(self, db: sqlite3.Connection, body: Mapping[str, Any], generation: str, lease: int, master: sqlite3.Row | None) -> RuntimeSnapshot:
+        next_master_revision = (int(master["policy_revision"]) + 1) if master else 0
+        previous_child = self._session_row(db, body["campaign"], body["session"])
+        session_revision = (int(previous_child["policy_revision"]) + 1) if previous_child else next_master_revision
+        expires = self._clock() + lease * 1000
+        db.execute(
+            """INSERT INTO campaign_runtime(campaign,boot_epoch,generation,policy_revision,lease_expires_at_ms,enabled,mode,codex,exportable)
+               VALUES(?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(campaign) DO UPDATE SET boot_epoch=excluded.boot_epoch,generation=excluded.generation,
+               policy_revision=excluded.policy_revision,lease_expires_at_ms=excluded.lease_expires_at_ms,enabled=excluded.enabled,
+               mode=excluded.mode,codex=excluded.codex,exportable=excluded.exportable""",
+            (body["campaign"], self.boot_epoch, generation, next_master_revision, expires, 1, "local", 0, 0),
+        )
+        # A new master generation invalidates every old child fence.  The caller's
+        # session is then registered under the new generation in the same write.
+        db.execute(
+            "UPDATE session_runtime SET generation=NULL, lease_expires_at_ms=NULL, policy_revision=policy_revision+1 WHERE campaign=?",
+            (body["campaign"],),
+        )
+        self._save_session(db, body["campaign"], body["session"], generation, session_revision, expires)
+        return RuntimeSnapshot(self.boot_epoch, generation, session_revision, expires, True)
 
     def register(self, body: Mapping[str, Any]) -> dict[str, Any]:
         fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedGeneration", "opId", "leaseSeconds"}
@@ -275,25 +332,27 @@ class GameRuntimeAuthority:
             replay = self._operation(db, "register", body)
             if replay is not None:
                 return replay
-            row = self._current_row(db, body["campaign"], body["session"])
-            current = self._snapshot_from(row).generation
+            master = self._campaign_row(db, body["campaign"])
+            active = self._campaign_active(master)
+            current = str(master["generation"]) if active else None
             if current is None:
                 if expected is not None:
                     raise RuntimeDenied(409, "runtime_generation_cas_failed")
-            elif expected != current:
+                snapshot = self._reset_campaign(db, body, generation, lease, master)
+                response = {"status": "registered", "runtime": snapshot.public()}
+                return self._record_operation(db, "register", body, response)
+            if expected != current:
                 raise RuntimeDenied(409, "runtime_generation_cas_failed")
-            if generation == current:
-                raise RuntimeDenied(409, "runtime_generation_reused")
+            if generation != current:
+                snapshot = self._reset_campaign(db, body, generation, lease, master)
+                response = {"status": "registered", "runtime": snapshot.public()}
+                return self._record_operation(db, "register", body, response)
+            child = self._session_row(db, body["campaign"], body["session"])
+            revision = int(child["policy_revision"]) if child and child["generation"] == current else int(master["policy_revision"])
             expires = self._clock() + lease * 1000
-            db.execute(
-                """INSERT INTO sessions(campaign,session,boot_epoch,generation,policy_revision,lease_expires_at_ms,enabled,mode,codex,exportable)
-                   VALUES(?,?,?,?,?,?,?,?,?,?)
-                   ON CONFLICT(campaign,session) DO UPDATE SET boot_epoch=excluded.boot_epoch,generation=excluded.generation,
-                   policy_revision=excluded.policy_revision,lease_expires_at_ms=excluded.lease_expires_at_ms,enabled=excluded.enabled,
-                   mode=excluded.mode,codex=excluded.codex,exportable=excluded.exportable""",
-                (body["campaign"], body["session"], self.boot_epoch, generation, 0, expires, 1, "local", 0, 0),
-            )
-            response = {"status": "registered", "runtime": RuntimeSnapshot(self.boot_epoch, generation, 0, expires, True).public()}
+            self._save_session(db, body["campaign"], body["session"], current, revision, expires)
+            refreshed_child = self._session_row(db, body["campaign"], body["session"])
+            response = {"status": "registered", "runtime": self._snapshot_from(master, refreshed_child).public()}
             return self._record_operation(db, "register", body, response)
 
     def renew(self, body: Mapping[str, Any]) -> dict[str, Any]:
@@ -304,17 +363,21 @@ class GameRuntimeAuthority:
         if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
             raise RuntimeDenied(400, "runtime_policy_revision_invalid")
         lease = self._lease_seconds(body)
+        if body["expectedBootEpoch"] != self.boot_epoch:
+            raise RuntimeDenied(409, "runtime_boot_epoch_stale")
         with self._transaction() as db:
             replay = self._operation(db, "renew", body)
             if replay is not None:
                 return replay
-            row = self._current_row(db, body["campaign"], body["session"])
-            self._require_current(row, body)
-            if row["policy_revision"] != revision:
+            master = self._campaign_row(db, body["campaign"])
+            child = self._session_row(db, body["campaign"], body["session"])
+            self._require_current(master, child, body)
+            if child["policy_revision"] != revision:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
             expires = self._clock() + lease * 1000
-            db.execute("UPDATE sessions SET lease_expires_at_ms=? WHERE campaign=? AND session=?", (expires, body["campaign"], body["session"]))
-            response = {"status": "renewed", "runtime": RuntimeSnapshot(self.boot_epoch, body["generation"], revision, expires, bool(row["enabled"]), str(row["mode"]), bool(row["codex"]), bool(row["exportable"])).public()}
+            db.execute("UPDATE session_runtime SET lease_expires_at_ms=? WHERE campaign=? AND session=?", (expires, body["campaign"], body["session"]))
+            refreshed_child = self._session_row(db, body["campaign"], body["session"])
+            response = {"status": "renewed", "runtime": self._snapshot_from(master, refreshed_child).public()}
             return self._record_operation(db, "renew", body, response)
 
     def patch_policy(self, body: Mapping[str, Any]) -> dict[str, Any]:
@@ -329,18 +392,59 @@ class GameRuntimeAuthority:
             raise RuntimeDenied(400, "runtime_policy_invalid")
         if not isinstance(policy["enabled"], bool) or policy["mode"] != "local" or policy["codex"] is not False or policy["exportable"] is not False:
             raise RuntimeDenied(409, "runtime_policy_not_local_only")
+        if body["expectedBootEpoch"] != self.boot_epoch:
+            raise RuntimeDenied(409, "runtime_boot_epoch_stale")
         with self._transaction() as db:
             replay = self._operation(db, "patch_policy", body)
             if replay is not None:
                 return replay
-            row = self._current_row(db, body["campaign"], body["session"])
-            self._require_current(row, body)
-            if row["policy_revision"] != revision:
+            master = self._campaign_row(db, body["campaign"])
+            child = self._session_row(db, body["campaign"], body["session"])
+            self._require_current(master, child, body)
+            if child["policy_revision"] != revision:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
-            next_revision = revision + 1
             db.execute(
-                "UPDATE sessions SET policy_revision=?, enabled=?, mode='local', codex=0, exportable=0 WHERE campaign=? AND session=?",
-                (next_revision, int(policy["enabled"]), body["campaign"], body["session"]),
+                "UPDATE campaign_runtime SET policy_revision=policy_revision+1, enabled=?, mode='local', codex=0, exportable=0 WHERE campaign=?",
+                (int(policy["enabled"]), body["campaign"]),
             )
-            response = {"status": "policy_updated", "runtime": RuntimeSnapshot(self.boot_epoch, body["generation"], next_revision, int(row["lease_expires_at_ms"]), policy["enabled"]).public()}
+            # Every current session gets a new effective revision in one transaction,
+            # so queued or late work holding any old four-field fence fails closed.
+            db.execute("UPDATE session_runtime SET policy_revision=policy_revision+1 WHERE campaign=?", (body["campaign"],))
+            refreshed_master = self._campaign_row(db, body["campaign"])
+            refreshed_child = self._session_row(db, body["campaign"], body["session"])
+            response = {"status": "policy_updated", "runtime": self._snapshot_from(refreshed_master, refreshed_child).public()}
             return self._record_operation(db, "patch_policy", body, response)
+
+    def revoke_session(self, body: Mapping[str, Any]) -> dict[str, Any]:
+        """Immediately invalidate one child fence without altering campaign policy."""
+        fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId"}
+        self._validate_common(body, fields)
+        _uuid4(body.get("generation"), "runtime_generation_invalid")
+        revision = body.get("expectedSessionPolicyRevision")
+        if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+            raise RuntimeDenied(400, "runtime_policy_revision_invalid")
+        if body["expectedBootEpoch"] != self.boot_epoch:
+            raise RuntimeDenied(409, "runtime_boot_epoch_stale")
+        with self._transaction() as db:
+            replay = self._operation(db, "revoke_session", body)
+            if replay is not None:
+                return replay
+            master = self._campaign_row(db, body["campaign"])
+            child = self._session_row(db, body["campaign"], body["session"])
+            if master is None or master["boot_epoch"] != self.boot_epoch or not master["generation"]:
+                raise RuntimeDenied(409, "runtime_host_generation_required")
+            if int(master["lease_expires_at_ms"] or 0) <= self._clock():
+                raise RuntimeDenied(409, "runtime_generation_expired")
+            if master["generation"] != body["generation"]:
+                raise RuntimeDenied(409, "runtime_generation_stale")
+            if child is None or child["generation"] != master["generation"]:
+                raise RuntimeDenied(409, "runtime_session_generation_required")
+            if child["policy_revision"] != revision:
+                raise RuntimeDenied(409, "runtime_policy_revision_stale")
+            db.execute(
+                "UPDATE session_runtime SET generation=NULL, lease_expires_at_ms=NULL, policy_revision=policy_revision+1 WHERE campaign=? AND session=?",
+                (body["campaign"], body["session"]),
+            )
+            revoked = self._session_row(db, body["campaign"], body["session"])
+            response = {"status": "session_revoked", "runtime": self._snapshot_from(master, revoked).public()}
+            return self._record_operation(db, "revoke_session", body, response)
