@@ -161,6 +161,8 @@ def complete_local(key, prompt, maximum):
     return result.get('message', {}).get('content', '')
 
 def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_remote_provider):
+    if job.policy.codex or job.policy.escalationEligible:
+        raise HTTPException(409, 'Codex escalation is not supported by this game agent')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
         raise HTTPException(400, 'Invalid campaign evidence')
     fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
