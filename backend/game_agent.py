@@ -16,6 +16,7 @@ import secrets
 import sqlite3
 import tempfile
 import threading
+import time
 import urllib.request
 import uuid
 from typing import Literal
@@ -35,6 +36,8 @@ STT_LOCK = threading.Lock()
 STT_MODEL = None
 STT_MODEL_PATH = ""
 MAX_STT_AUDIO_BYTES = 6_000_000
+BOOT_EPOCH = str(uuid.uuid4())
+HOST_SIGNATURE_SKEW_SECONDS = 60
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
