@@ -23,6 +23,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
+from backend.game_runtime import GameRuntimeAuthority
 
 CONTRACT = 'raph-obus-game-v1'
 STT_CONTRACT = 'raph-obus-game-stt-v1'
@@ -35,6 +36,14 @@ STT_LOCK = threading.Lock()
 STT_MODEL = None
 STT_MODEL_PATH = ""
 MAX_STT_AUDIO_BYTES = 6_000_000
+RUNTIME: GameRuntimeAuthority | None = None
+
+
+def runtime_authority() -> GameRuntimeAuthority:
+    global RUNTIME
+    if RUNTIME is None or RUNTIME.root != ROOT:
+        RUNTIME = GameRuntimeAuthority(ROOT)
+    return RUNTIME
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -51,6 +60,11 @@ class Policy(Strict):
     tools: Literal[False] = False
     personal_memory: Literal[False] = False
     auto_memory: Literal[False] = False
+class RuntimeFence(Strict):
+    contract: Literal['raph-obus-game-runtime-v1']
+    bootEpoch: str
+    generation: str
+    sessionPolicyRevision: int = Field(ge=0)
 class Job(Strict):
     contract: Literal['raph-obus-game-v1']
     scope: Scope
@@ -60,6 +74,7 @@ class Job(Strict):
     instructions: str = Field(max_length=8000)
     evidence: dict | list
     policy: Policy
+    runtime: RuntimeFence
     max_tokens: int = Field(default=900, ge=16, le=6000)
 class Source(Strict):
     campaign: str = Field(min_length=1, max_length=100)
@@ -168,9 +183,22 @@ def complete_local(key, prompt, maximum):
         raise RuntimeError('Tool response not allowed')
     return result.get('message', {}).get('content', '')
 
+def _require_runtime(campaign: str, session: str, fence: RuntimeFence) -> None:
+    snapshot = runtime_authority().snapshot(campaign, session)
+    if not snapshot.generation:
+        raise HTTPException(409, "runtime_host_generation_required")
+    if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != (fence.bootEpoch, fence.generation, fence.sessionPolicyRevision):
+        raise HTTPException(409, "runtime_fence_stale")
+    if not snapshot.enabled:
+        raise HTTPException(409, "game_ai_disabled")
+
+
 def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_remote_provider):
     if job.policy.codex:
         raise HTTPException(409, 'Codex escalation is not supported by this game agent')
+    _require_runtime(job.scope.campaign, job.session, job.runtime)
+    if job.policy.mode != 'local' or job.policy.exportable:
+        raise HTTPException(409, 'runtime policy permits local-only dispatch')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
         raise HTTPException(400, 'Invalid campaign evidence')
     fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
@@ -184,6 +212,7 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
             return json.loads(prior['body'])
         sources = retrieve(job.scope, str(job.evidence.get('question','')) if isinstance(job.evidence,dict) else job.task)
         prompt = json.dumps({'task':job.task,'instructions':job.instructions,'evidence':job.evidence,'retrieved':sources}, ensure_ascii=False)
+        _require_runtime(job.scope.campaign, job.session, job.runtime)
         keys = get_keys()
         locals_ = [k for k in keys if k.get('id') == 'key-local-ollama' and k.get('provider') == 'ollama' and k.get('connected') and k.get('verified')]
         routes = [(k, 'local') for k in locals_]
@@ -258,7 +287,7 @@ def _scoped_stt_audio(body: object) -> bytes:
         uuid.UUID(runtime["generation"])
     except (ValueError, TypeError, AttributeError):
         raise HTTPException(400, "Invalid STT runtime fence") from None
-    return _decode_stt_request({"audio_base64": body["audio_base64"], "mime_type": body["mime_type"]})
+    return body, _decode_stt_request({"audio_base64": body["audio_base64"], "mime_type": body["mime_type"]})
 
 
 def _decode_stt_request(body: object) -> bytes:
@@ -339,5 +368,10 @@ async def transcribe(request: Request):
         body = await request.json()
     except ValueError:
         raise HTTPException(400, "Invalid audio request") from None
-    _scoped_stt_audio(body)
-    raise HTTPException(409, "runtime_host_generation_required: scoped STT remains disabled until private host authority is active")
+    scoped, audio = _scoped_stt_audio(body)
+    _require_runtime(scoped["scope"]["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"]))
+    try:
+        transcript, model = await asyncio.to_thread(_transcribe_game_audio, audio)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"status":"completed","result":{"kind":"transcript","text":transcript,"engine":"game-local-faster-whisper","model":model,"trace":[{"stage":"local_stt","destination":"local","status":"ready"}]},"receipt":{"audio_bytes":len(audio),"retention":{"raw_audio_persisted":False,"general_memory_writes":False,"route_journal_writes":False}}}
