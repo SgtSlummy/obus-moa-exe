@@ -161,7 +161,7 @@ def complete_local(key, prompt, maximum):
     return result.get('message', {}).get('content', '')
 
 def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_remote_provider):
-    if job.policy.codex or job.policy.escalationEligible:
+    if job.policy.codex:
         raise HTTPException(409, 'Codex escalation is not supported by this game agent')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
         raise HTTPException(400, 'Invalid campaign evidence')
@@ -226,7 +226,7 @@ async def private_access(request: Request, call_next):
     return await call_next(request)
 @app.get('/api/game/capabilities')
 def capabilities():
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'remote_routes':False,'codex_available':False,'retrieval':'scoped lexical; embedding integration pending'}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_policy':'explicit zero-cost, no-fallback, no-tools pins only; request must be local-free and exportable','codex_available':False,'retrieval':'scoped lexical; embedding integration pending'}
 @app.post('/api/game/sources')
 def put_source(source: Source):
     ingest(source)

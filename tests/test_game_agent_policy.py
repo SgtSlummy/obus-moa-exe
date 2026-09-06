@@ -32,8 +32,7 @@ def _job(**policy_overrides):
     )
 
 
-@pytest.mark.parametrize("policy", [{"codex": True}, {"escalationEligible": True}])
-def test_unsupported_codex_policy_rejects_before_any_provider_or_fallback_dispatch(policy):
+def test_codex_policy_rejects_before_any_provider_or_fallback_dispatch():
     calls: list[str] = []
 
     def catalogue():
@@ -49,14 +48,14 @@ def test_unsupported_codex_policy_rejects_before_any_provider_or_fallback_dispat
         return "unexpected"
 
     with pytest.raises(HTTPException) as raised:
-        run_job(_job(**policy), get_keys=catalogue, local=local, remote=remote)
+        run_job(_job(codex=True), get_keys=catalogue, local=local, remote=remote)
 
     assert raised.value.status_code == 409
     assert "Codex escalation is not supported" in str(raised.value.detail)
     assert calls == []
 
 
-def test_successful_local_execution_does_not_dispatch_free_fallback(tmp_path, monkeypatch):
+def test_escalation_eligible_task_runs_locally_without_free_or_codex_dispatch(tmp_path, monkeypatch):
     monkeypatch.setattr("backend.game_agent.ROOT", tmp_path)
     calls: list[str] = []
     local_key = {
@@ -77,7 +76,7 @@ def test_successful_local_execution_does_not_dispatch_free_fallback(tmp_path, mo
         raise AssertionError("A local success must not fall back to a remote provider")
 
     result = run_job(
-        _job(),
+        _job(escalationEligible=True),
         get_keys=lambda: [local_key],
         local=local,
         remote=remote,
@@ -95,3 +94,14 @@ def test_successful_local_execution_does_not_dispatch_free_fallback(tmp_path, mo
         }
     ]
     assert calls == ["local:test-local"]
+
+
+def test_capabilities_distinguish_generic_remote_routes_from_verified_free_fallback():
+    from backend.game_agent import capabilities
+
+    declared = capabilities()
+
+    assert declared["generic_remote_routes"] is False
+    assert declared["verified_free_route_fallback"] is True
+    assert "zero-cost" in declared["free_route_policy"]
+    assert declared["codex_available"] is False
