@@ -333,7 +333,9 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(result["model"], "gpt-oss:20b")
         self.assertEqual(captured["url"], "http://127.0.0.1:11434/api/generate")
         self.assertEqual(captured["body"]["keep_alive"], -1)
-        self.assertEqual(captured["body"]["prompt"], "")
+        # Warmup intentionally sends no prompt: some reasoning models otherwise
+        # start an unbounded generation instead of merely loading into memory.
+        self.assertNotIn("prompt", captured["body"])
         self.assertNotIn("api_key", json.dumps(captured).lower())
 
     def test_warmup_rejects_uninstalled_models_before_generation(self):
