@@ -42,13 +42,25 @@ def _inactive_fence():
 
 def _active_runtime(tmp_path):
     authority = game_agent.runtime_authority()
+    master = authority.register(
+        {
+            "contract": "raph-obus-game-runtime-v1",
+            "campaign": "campaign-1",
+            "session": "campaign",
+            "generation": str(uuid.uuid4()),
+            "expectedBootEpoch": authority.boot_epoch,
+            "expectedGeneration": None,
+            "opId": str(uuid.uuid4()),
+            "leaseSeconds": 30,
+        }
+    )["runtime"]
     return authority.register(
         {
             "contract": "raph-obus-game-runtime-v1",
             "campaign": "campaign-1",
             "session": "session-1",
-            "generation": str(uuid.uuid4()),
-            "expectedBootEpoch": authority.boot_epoch,
+            "generation": master["generation"],
+            "expectedBootEpoch": master["bootEpoch"],
             "expectedGeneration": None,
             "opId": str(uuid.uuid4()),
             "leaseSeconds": 30,
