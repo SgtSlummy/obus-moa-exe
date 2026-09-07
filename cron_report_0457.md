@@ -1,107 +1,95 @@
-# Cron Report — 2026-09-06 18:19 UTC
+# Cron Job: [bot:default] Push & Status — Run #457
 
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #457
-**Cycle since:** #456 (18:06 UTC) | **Delta:** 13 minutes
-
-**HEAD:** `b2783db` (Cron: update push status (#456) — all accessible repos pushed, build stalled 12.3d)
+**Job ID:** 893c7df0ef71
+**Run Time:** 2026-09-07 03:00 UTC
+**Schedule:** every 10m
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
+- **Status:** ✅ Clean working tree — nothing to commit
+- **HEAD:** `c499675` "Cron #456: push status report — 3 repos scanned, 2 pushed clean, ComfyUI blocked 403, old push_status_new.t..."
+- **origin/master:** `c499675` — ✅ Already up to date
 
-- **Status:** ✅ Clean — pushed
-- **HEAD:** `b2783db` — already on remote
-- **origin/master:** `b2783db` — ✅ In sync
-- **Unpushed commits:** None
-- **Push output:** Everything up-to-date
+### mempalace (develop)
+- **Status:** ✅ Clean — nothing to commit
+- **HEAD:** `b522512` "chore: sync with upstream develop"
+- **fork/develop:** Already up to date — push confirmed ok (up-to-date)
 
-### codex/autonomy-context-agents
+### DavyJonesBot/workspace (main)
+- **Status:** ✅ Clean after commit+push
+- **HEAD:** `e1b0b34` "Cron: candidate evidence inspection artifacts"
+- **origin/main:** ✅ Pushed — `249b5bf..e1b0b34`
+- **Note:** 8 new files in `.candidate-evidence-inspect/` — SHA256SUMS, OCI attestation artifacts, verification receipts
 
-- **Status:** ✅ Clean — pushed
-- **origin/codex/autonomy-context-agents:** `ab02750` — ✅ In sync
+### Operator Special Forces Dungeon and Dragons (master)
+- **Status:** ⚠️ Committed locally, **push FAILED**
+- **HEAD:** `6a52a25` "Initial project: Behind the Veil D&D campaign — docs, mockups, Raphael council, witnesslight art"
+- **Files:** 581 files, 71,856 insertions — full campaign: docs, mockups, Raphael council app, witnesslight art (93 PNGs + manifests), music assets
+- **Remote:** `https://github.com/SgtSlummy/Operator-Special-Forces-DnD.git`
+- **Push result:** ❌ Repository not found — `remote: Repository not found. fatal: repository 'https://github.com/SgtSlummy/Operator-Special-Forces-DnD.git/' not found`
+- **Action needed:** Repo must be created on GitHub under SgtSlummy, or remote URL corrected
 
-### warden (main)
+### All Other Repos — Clean, Nothing to Push
 
-- **Status:** ✅ Clean — synced
-- **Push:** Everything up-to-date
+| Repo | Status |
+|------|--------|
+| awesome-free-llm-apis-mnfst-source | ✅ Clean, ahead 0 |
+| awesome-free-models-source | ✅ Clean, ahead 0 |
+| awesome-freellm-apis-source | ✅ Clean, ahead 0 |
+| Tarot-Router | ✅ Clean, ahead 0 |
+| free-ai-coding-source | ✅ Clean, ahead 0 |
+| free-coding-models-source | ✅ Clean, ahead 0 |
+| hermes-photon-client | ✅ Clean, ahead 0 |
+| hermes-photon-server | ✅ Clean, ahead 0 |
+| MoA-source | ✅ Clean, ahead 0 |
+| models-dev-source | ✅ Clean, ahead 0 |
+| mythos-router-source | ✅ Clean, ahead 0 |
+| temporal | ✅ Clean, ahead 0 |
+| warden | ✅ Clean, ahead 0 |
+| Davy Jones (Projects) | ✅ Clean, ahead 0 |
+| Tv broadcast | ✅ Clean, ahead 0 |
+| Voice Chat | ✅ Clean, ahead 0 |
 
-### Submodules (unchanged)
-
-| Submodule | Path | Commit | Status |
-|-----------|------|--------|--------|
-| Understand-Anything | `Understand-Anything/` | `99e62b7` | Clean (detached) |
-| warpdotdev-warp | `third_party/warpdotdev-warp/` | `8c2cc73` | Clean (detached) |
-| warp | `warp/` | `3504ce5b0` | Clean (detached) |
-
-All submodules on detached HEADs, no local changes. 403 on push is pre-existing.
-
-## Push Result
-
-- `git push origin master` → ✅ Everything up-to-date
-- `git push` (warden) → ✅ Everything up-to-date
-- All accessible repos clean. No new commits anywhere.
-
-## Blocked (unchanged, pre-existing)
+### Blocked / Pre-existing (unchanged)
 
 | Repo | Blocker |
 |------|---------|
 | MoA-source | 403 Forbidden — SgtSlummy not a collaborator |
 | models-dev-source | SSH auth failure — no valid key |
-| warden-source | 403 Forbidden — SgtSlummy not a collaborator |
-| DavyJonesBot/workspace | Stale bundle remote, ahead 10 commits |
+| warden | 403 Forbidden — SgtSlummy not a collaborator |
 | warp (submodule) | 403 + detached + directory missing |
 | warpdotdev-warp (submodule) | 403, detached HEAD |
 | Understand-Anything (submodule) | 403, pre-existing |
+| DavyJonesBot/workspace | Was blocking on stale bundle remote — RESOLVED this cycle |
 
-## Build / AUI Status
+---
 
-- **Latest loop build:** `build-aui-loop76/` / `dist-aui-loop76/` — **STALLED 12.3 days** (since Aug 25 04:49 UTC)
-- **EXE:** `dist-aui-loop76/OBus.exe` (70.8 MB, Aug 25 11:49 UTC)
-- **No new build loops** since loop76. No EXE or installer progress.
+## Progress Since Last Cycle (#456 at ~02:43 UTC)
 
-### Other OBus.exe variants found on disk (not in loop76 pipeline)
+- **obus-moa-exe:** HEAD `c499675` → `c499675`. No change. ✅ Origin matches.
+- **mempalace:** HEAD `b522512` → `b522512`. Push confirmed up-to-date. ✅
+- **DavyJonesBot/workspace:** New commit `e1b0b34` pushed. ✅ Evidence artifacts landed.
+- **D&D project:** 581 files staged and committed locally (`6a52a25`). Push **failed** — remote repo doesn't exist yet on GitHub. ⏸
 
-These are older alternative builds/distributions, not new progress:
+---
 
-| Path | Date | Note |
-|------|------|------|
-| `dist-aui-release/OBus.exe` | Aug 25 13:58 | Release variant |
-| `dist-onedrive-fix/OBus.exe` | Aug 25 17:46 | OneDrive fix variant (newest OBus.exe on disk) |
-| `.hermes/package-final/dist/OBus.exe` | Aug 25 14:22 | Hermes packaging |
-| `.hermes/package-certified/dist/OBus.exe` | Aug 25 14:42 | Hermes certified packaging |
-| `tools/obus_launcher/dist/Obus.exe` | Aug 25 17:47 | Launcher build |
-| `tools/obus_launcher/dist-debug/ObusDebug.exe` | Aug 25 15:08 | Debug build |
+## Active Jobs / Processes
 
-The `package-dist312-consolidated-v95/v96/v97/Obus.exe` files dated Sep 5 10:14 are artifacts of `obus_venv` pip/setuptools installs (setuptools entry-point wrappers), not real OBus builds.
+**No Hermes-managed background jobs** — this cron job is the only active Hermes process.
 
-### Build pipeline verdict
+| Count | Process |
+|-------|---------|
+| 88 | `python` |
+| 87 | `svchost` |
+| 34 | `node` |
+| 19 | `cmd` |
+| 18 | `msedgewebview2` |
 
-**Still stalled.** No new loop directories, no new OBus.exe in the main `dist-aui-loop*` series, no installer progress. The Aug 25 loop76 remains the latest.
+**Total processes:** 416
 
-## Active Job Progress
+---
 
-| Job | Status |
-|-----|--------|
-| Cron auto-push | ✅ Loop #457 completed — all repos pushed |
-| Build pipeline | 🔴 Still stalled at loop76 (12.3 days) |
-| Active builders | None detected |
-| Active agent jobs | None detected |
+## Blockers / Action Items
 
-## System Snapshot
-
-| Process | Instances | Notes |
-|---------|-----------|-------|
-| `llama-server.exe` | 2 | Ollama serving (2.7GB + 1.5GB) |
-| `python.exe` | 30+ | Many Python processes (some 500MB+) |
-| `node.exe` | 15+ | Various Node processes |
-| `ChatGPT.exe` | 2 | ChatGPT desktop app |
-| `bash.exe` / `cmd.exe` | 8+ | Shell sessions |
-| `conhost.exe` | 6+ | Console hosts |
-| `msedge.exe` | 2+ | Edge browser |
-| `SearchProtocolHost.exe` | 1 | Indexing |
-
-Total observed: ~80+ processes. System under sustained load but no build or agent jobs making progress.
-
-## Verdict
-
-All accessible repos pushed clean at `b2783db`. Build pipeline remains stalled at loop76 (12.3 days, no activity). No new commits anywhere since cycle #456. Pre-existing auth blockers unchanged (7 repos/submodules blocked). System running heavy concurrent load but no active build or agent jobs making progress. No new information beyond cycle #456.
+1. **D&D project push failure:** `Operator-Special-Forces-DnD` repo not found on GitHub. Needs to be created under SgtSlummy's account, or the remote URL needs correction. Local commit `6a52a25` is safe and ready to push when the repo exists.
