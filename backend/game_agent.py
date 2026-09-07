@@ -419,17 +419,17 @@ def get_runtime(campaign: str, session: str):
 
 @app.put('/api/game/runtime/host-generation')
 async def register_host_generation(request: Request):
-    return await _host_control_async(request, runtime_authority().register)
+    return (await _host_control_async(request, runtime_authority().register))["runtime"]
 
 
 @app.post('/api/game/runtime/host-generation/renew')
 async def renew_host_generation(request: Request):
-    return await _host_control_async(request, runtime_authority().renew)
+    return (await _host_control_async(request, runtime_authority().renew))["runtime"]
 
 
-@app.patch('/api/game/runtime/policy')
+@app.patch('/api/game/runtime')
 async def patch_runtime_policy(request: Request):
-    return await _host_control_async(request, runtime_authority().patch_policy)
+    return (await _host_control_async(request, runtime_authority().patch_policy))["runtime"]
 
 
 @app.post('/api/game/runtime/session/revoke')
