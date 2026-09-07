@@ -38,6 +38,29 @@ STT_MODEL = None
 STT_MODEL_PATH = ""
 MAX_STT_AUDIO_BYTES = 6_000_000
 RUNTIME: GameRuntimeAuthority | None = None
+ACTIVE_GAME_REQUESTS: dict[tuple[str, str], dict[str, int]] = {}
+
+
+@contextmanager
+def _tracked_dispatch(campaign: str, session: str, gate):
+    """Count process-local work per scope and clear counts on every exit."""
+    identity = (campaign, session)
+    state = 'queuedCount'
+    with LOCK:
+        counts = ACTIVE_GAME_REQUESTS.setdefault(identity, {'queuedCount': 0, 'dispatchedCount': 0})
+        counts[state] += 1
+    try:
+        with gate:
+            with LOCK:
+                counts['queuedCount'] -= 1
+                counts['dispatchedCount'] += 1
+                state = 'dispatchedCount'
+            yield
+    finally:
+        with LOCK:
+            counts[state] -= 1
+            if not any(counts.values()):
+                ACTIVE_GAME_REQUESTS.pop(identity, None)
 
 
 def runtime_authority() -> GameRuntimeAuthority:
@@ -221,7 +244,8 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
         raise HTTPException(400, 'Invalid campaign evidence')
     fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
     identity = (job.scope.campaign, job.session, job.scope.owner, job.requestId)
-    with INFERENCE:
+    with _tracked_dispatch(job.scope.campaign, job.session, INFERENCE):
+        _require_runtime(job.scope.campaign, job.session, job.runtime)
         with database() as db:
             prior = db.execute('SELECT fingerprint,body FROM game_jobs WHERE campaign=? AND session=? AND owner=? AND request=?', identity).fetchone()
         if prior:
@@ -347,7 +371,7 @@ def _transcribe_game_audio(audio: bytes) -> tuple[str, str]:
             transcript = " ".join(segment.text.strip() for segment in segments).strip()
         if not transcript:
             raise RuntimeError("Private game local STT returned no speech")
-        return transcript[:8000], model_path.name
+        return transcript[:6000], model_path.name
     finally:
         if temporary_name:
             Path(temporary_name).unlink(missing_ok=True)
@@ -365,14 +389,31 @@ def _transcribe_scoped_stt(scoped: dict, audio: bytes) -> dict:
         "mime_type": scoped["mime_type"],
         "audio_sha256": hashlib.sha256(audio).hexdigest(),
     }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    with STT_REQUESTS:
+    receipt = {"kind": "stt", "requestId": scoped["requestId"], "audioSha256": hashlib.sha256(audio).hexdigest(),
+               "audio_bytes": len(audio), "retention": {"raw_audio_persisted": False, "request_evidence_persisted": False,
+               "general_memory_writes": False, "route_journal_writes": False, "game_receipt_persisted": True,
+               "transcript_persisted_in_game_receipt": False}}
+    with _tracked_dispatch(scope["campaign"], scoped["session"], STT_REQUESTS):
+        # Recheck after queueing, including receipt replay and direct callers.
+        _require_runtime(scope["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"]))
         with database() as db:
             prior = db.execute("SELECT fingerprint,body FROM stt_jobs WHERE campaign=? AND session=? AND owner=? AND request=?", identity).fetchone()
         if prior:
             if prior["fingerprint"] != fingerprint:
                 raise HTTPException(409, "STT request ID conflict")
-            return json.loads(prior["body"])
-        _require_runtime(scope["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"]))
+            saved = json.loads(prior["body"])
+            for key in ("engine", "model"):
+                value = saved.get("receipt", {}).get(key)
+                if isinstance(value, str) and len(value) <= 200:
+                    receipt[key] = value
+            replay = {"status": "completed_receipt_only", "receipt": receipt}
+            encoded = json.dumps(replay, separators=(",", ":"))
+            if encoded != prior["body"]:
+                # Normalize an encountered legacy receipt without redisclosing
+                # its stored transcript. This is not forensic SQLite erasure.
+                with database() as db:
+                    db.execute("UPDATE stt_jobs SET body=? WHERE campaign=? AND session=? AND owner=? AND request=?", (encoded, *identity))
+            return replay
         try:
             transcript, model = _transcribe_game_audio(audio)
         except RuntimeError as exc:
@@ -380,9 +421,14 @@ def _transcribe_scoped_stt(scoped: dict, audio: bytes) -> dict:
         # The lease/policy is checked again after local work, before any receipt
         # can be persisted, so a late transcript cannot outlive its fence.
         _require_runtime(scope["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"]))
-        response = {"status":"completed","result":{"kind":"transcript","text":transcript,"engine":"game-local-faster-whisper","model":model,"trace":[{"stage":"local_stt","destination":"local","status":"ready"}]},"receipt":{"audio_bytes":len(audio),"retention":{"raw_audio_persisted":False,"request_evidence_persisted":False,"general_memory_writes":False,"route_journal_writes":False,"game_receipt_persisted":True,"transcript_persisted_in_game_receipt":True}}}
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise HTTPException(503, "Private game local STT returned no speech")
+        transcript = transcript.strip()[:6000]
+        receipt.update({"engine": "game-local-faster-whisper", "model": model})
+        response = {"status":"completed","result":{"kind":"transcript","text":transcript,"engine":"game-local-faster-whisper","model":model,"trace":[{"stage":"local_stt","destination":"local","status":"ready"}]},"receipt":receipt}
+        durable = {"status": "completed_receipt_only", "receipt": receipt}
         with database() as db:
-            db.execute("INSERT INTO stt_jobs VALUES(?,?,?,?,?,?)", (*identity, fingerprint, json.dumps(response, separators=(",", ":"))))
+            db.execute("INSERT INTO stt_jobs VALUES(?,?,?,?,?,?)", (*identity, fingerprint, json.dumps(durable, separators=(",", ":"))))
         return response
 
 
@@ -414,7 +460,10 @@ def capabilities():
 
 @app.get('/api/game/runtime')
 def get_runtime(campaign: str, session: str):
-    return runtime_authority().snapshot(campaign, session).public()
+    snapshot = runtime_authority().snapshot(campaign, session).public()
+    with LOCK:
+        counts = dict(ACTIVE_GAME_REQUESTS.get((campaign, session), {'queuedCount': 0, 'dispatchedCount': 0}))
+    return {**snapshot, **counts}
 
 
 @app.put('/api/game/runtime/host-generation')

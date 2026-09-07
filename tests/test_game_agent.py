@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import tempfile
+import threading
 import time
 import unittest
 import uuid
@@ -25,12 +26,17 @@ class GameAgentTests(unittest.TestCase):
         registered = authority.register({
             "contract": "raph-obus-game-runtime-v1",
             "campaign": "a",
-            "session": "s",
+            "session": "campaign",
             "generation": str(uuid.uuid4()),
             "expectedBootEpoch": authority.boot_epoch,
             "expectedGeneration": None,
             "opId": str(uuid.uuid4()),
             "leaseSeconds": 30,
+        })
+        registered = authority.register({
+            "contract": "raph-obus-game-runtime-v1", "campaign": "a", "session": "s",
+            "generation": registered["runtime"]["generation"], "expectedBootEpoch": authority.boot_epoch,
+            "expectedGeneration": None, "opId": str(uuid.uuid4()), "leaseSeconds": 30,
         })
         self.runtime = registered["runtime"]
         self.fence = {key: self.runtime[key] for key in ("contract", "bootEpoch", "generation", "sessionPolicyRevision")}
@@ -84,7 +90,7 @@ class GameAgentTests(unittest.TestCase):
             "session": "s2",
             "generation": self.fence["generation"],
             "expectedBootEpoch": self.fence["bootEpoch"],
-            "expectedGeneration": self.fence["generation"],
+            "expectedGeneration": None,
             "opId": str(uuid.uuid4()),
             "leaseSeconds": 30,
         })["runtime"]
@@ -109,8 +115,8 @@ class GameAgentTests(unittest.TestCase):
         disabled = authority.patch_policy({
             "contract": "raph-obus-game-runtime-v1",
             "campaign": "a",
-            "session": "s",
-            "generation": self.runtime["generation"],
+            "session": "campaign",
+            "expectedGeneration": self.runtime["generation"],
             "expectedBootEpoch": self.runtime["bootEpoch"],
             "expectedSessionPolicyRevision": 0,
             "opId": str(uuid.uuid4()),
@@ -130,8 +136,8 @@ class GameAgentTests(unittest.TestCase):
             authority.patch_policy({
                 "contract": "raph-obus-game-runtime-v1",
                 "campaign": "a",
-                "session": "s",
-                "generation": self.fence["generation"],
+                "session": "campaign",
+                "expectedGeneration": self.fence["generation"],
                 "expectedBootEpoch": self.fence["bootEpoch"],
                 "expectedSessionPolicyRevision": self.fence["sessionPolicyRevision"],
                 "opId": str(uuid.uuid4()),
@@ -151,8 +157,8 @@ class GameAgentTests(unittest.TestCase):
             authority.patch_policy({
                 "contract": "raph-obus-game-runtime-v1",
                 "campaign": "a",
-                "session": "s",
-                "generation": self.fence["generation"],
+                "session": "campaign",
+                "expectedGeneration": self.fence["generation"],
                 "expectedBootEpoch": self.fence["bootEpoch"],
                 "expectedSessionPolicyRevision": self.fence["sessionPolicyRevision"],
                 "opId": str(uuid.uuid4()),
@@ -191,7 +197,7 @@ class GameAgentTests(unittest.TestCase):
             "session": "admin",
             "generation": self.fence["generation"],
             "expectedBootEpoch": authority.boot_epoch,
-            "expectedGeneration": self.fence["generation"],
+            "expectedGeneration": None,
             "opId": str(uuid.uuid4()),
             "leaseSeconds": 30,
         }
@@ -201,10 +207,10 @@ class GameAgentTests(unittest.TestCase):
             timestamp = str(int(time.time()))
             nonce = "b" * 64
             signature = hmac.new(authority.host_key(), authority._signed_bytes("PUT", "/api/game/runtime/host-generation", timestamp, nonce, body), hashlib.sha256).hexdigest()
-            headers = {**service_headers, "X-Obus-Game-Timestamp": timestamp, "X-Obus-Game-Nonce": nonce, "X-Obus-Game-Signature": signature}
+            headers = {**service_headers, "X-Obus-Game-Host-Timestamp": timestamp, "X-Obus-Game-Host-Nonce": nonce, "X-Obus-Game-Host-Signature": signature}
             registered = client.put("/api/game/runtime/host-generation", json=body, headers=headers)
             self.assertEqual(registered.status_code, 200)
-            self.assertEqual(registered.json()["runtime"]["generation"], body["generation"])
+            self.assertEqual(registered.json()["generation"], body["generation"])
             self.assertEqual(client.put("/api/game/runtime/host-generation", json=body, headers=headers).status_code, 409)
             revoke = {
                 "contract": "raph-obus-game-runtime-v1",
@@ -212,16 +218,59 @@ class GameAgentTests(unittest.TestCase):
                 "session": "admin",
                 "generation": body["generation"],
                 "expectedBootEpoch": body["expectedBootEpoch"],
-                "expectedSessionPolicyRevision": registered.json()["runtime"]["sessionPolicyRevision"],
+                "expectedSessionPolicyRevision": registered.json()["sessionPolicyRevision"],
                 "opId": str(uuid.uuid4()),
             }
             revoke_nonce = "c" * 64
             revoke_signature = hmac.new(authority.host_key(), authority._signed_bytes("POST", "/api/game/runtime/session/revoke", timestamp, revoke_nonce, revoke), hashlib.sha256).hexdigest()
-            revoke_headers = {**service_headers, "X-Obus-Game-Timestamp": timestamp, "X-Obus-Game-Nonce": revoke_nonce, "X-Obus-Game-Signature": revoke_signature}
+            revoke_headers = {**service_headers, "X-Obus-Game-Host-Timestamp": timestamp, "X-Obus-Game-Host-Nonce": revoke_nonce, "X-Obus-Game-Host-Signature": revoke_signature}
             revoked = client.post("/api/game/runtime/session/revoke", json=revoke, headers=revoke_headers)
             self.assertEqual(revoked.status_code, 200)
             self.assertEqual(revoked.json()["status"], "session_revoked")
             self.assertIsNone(revoked.json()["runtime"]["generation"])
+
+    def test_runtime_counts_track_waiting_running_and_failed_jobs(self):
+        waiting, release_gate, dispatched, finish = (threading.Event() for _ in range(4))
+        errors = []
+
+        class Gate:
+            def __enter__(self):
+                waiting.set()
+                if not release_gate.wait(5):
+                    raise RuntimeError("gate timeout")
+
+            def __exit__(self, *_args):
+                return False
+
+        def work():
+            try:
+                with g._tracked_dispatch("a", "s", Gate()):
+                    dispatched.set()
+                    if not finish.wait(5):
+                        raise RuntimeError("worker timeout")
+                    raise RuntimeError("synthetic failure")
+            except RuntimeError as error:
+                errors.append(str(error))
+
+        worker = threading.Thread(target=work)
+        worker.start()
+        try:
+            self.assertTrue(waiting.wait(5))
+            self.assertEqual(g.get_runtime("a", "s")["queuedCount"], 1)
+            self.assertEqual(g.get_runtime("a", "s")["dispatchedCount"], 0)
+            self.assertEqual(g.get_runtime("other", "s")["queuedCount"], 0)
+            release_gate.set()
+            self.assertTrue(dispatched.wait(5))
+            self.assertEqual(g.get_runtime("a", "s")["queuedCount"], 0)
+            self.assertEqual(g.get_runtime("a", "s")["dispatchedCount"], 1)
+        finally:
+            release_gate.set()
+            finish.set()
+            worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(errors, ["synthetic failure"])
+        self.assertEqual(g.get_runtime("a", "s")["queuedCount"], 0)
+        self.assertEqual(g.get_runtime("a", "s")["dispatchedCount"], 0)
 
     def test_service_token_required(self):
         client = TestClient(g.app)

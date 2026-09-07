@@ -1,10 +1,10 @@
 #!/bin/bash
-# Complete OBus build and deployment script
+# Complete local OBus build and artifact deployment script
 
 set -e
 
 echo "========================================================================"
-echo "OBUS MOA - UNIQUE EMBLEM, BUILD & CLOUD DEPLOYMENT"
+echo "OBUS MOA - UNIQUE EMBLEM, BUILD & LOCAL ARTIFACT DEPLOYMENT"
 echo "========================================================================"
 
 # 1. Create emblem SVG
@@ -70,35 +70,35 @@ elif [[ -f "$LEGACY_EXE" ]]; then
     echo "   ⚠ Using: $SOURCE_EXE (LEGACY - has NOT been rebuilt)"
 fi
 
-# 4. Copy to cloud drive
+# 4. Copy to local artifact storage
 echo ""
 echo "4. Deploying to cloud drive..."
-CLOUD_DIR='/c/Users/Hermes/OneDrive/OBus-MOA-Digital'
-mkdir -p "$CLOUD_DIR"
+ARTIFACT_DIR='/c/Users/Hermes/Projects/Obus-Artifacts'
+mkdir -p "$ARTIFACT_DIR"
 
 if [[ -f "$SOURCE_EXE" ]]; then
-    CLOUD_EXE="$CLOUD_DIR/OBus.exe"
-    cp "$SOURCE_EXE" "$CLOUD_EXE"
+    ARTIFACT_EXE="$ARTIFACT_DIR/OBus.exe"
+    cp "$SOURCE_EXE" "$ARTIFACT_EXE"
     
     # Get file info
-    SIZE_MB=$(du -m "$CLOUD_EXE" | cut -f1)
-    SHA256=$(sha256sum "$CLOUD_EXE" | cut -d' ' -f1)
+    SIZE_MB=$(du -m "$ARTIFACT_EXE" | cut -f1)
+    SHA256=$(sha256sum "$ARTIFACT_EXE" | cut -d' ' -f1)
     
-    echo "   ✓ Copied to: $CLOUD_EXE"
+    echo "   ✓ Copied to: $ARTIFACT_EXE"
     echo "   ✓ Size: ${SIZE_MB}MB"
     echo "   ✓ SHA256: $SHA256"
     
     # 5. Copy to desktop
     DESKTOP_EXE='/c/Users/Hermes/Desktop/OBus.exe'
-    cp "$CLOUD_EXE" "$DESKTOP_EXE"
+    cp "$ARTIFACT_EXE" "$DESKTOP_EXE"
     echo "   ✓ Copied to desktop: $DESKTOP_EXE"
     
     # Copy emblem to cloud
-    cp "$EMBLEM_SVG" "$CLOUD_DIR/OBus_Emblem.svg"
-    echo "   ✓ Emblem copied: $CLOUD_DIR/OBus_Emblem.svg"
+    cp "$EMBLEM_SVG" "$ARTIFACT_DIR/OBus_Emblem.svg"
+    echo "   ✓ Emblem copied: $ARTIFACT_DIR/OBus_Emblem.svg"
     
     # 6. Create README
-    cat > "$CLOUD_DIR/README.md" << 'READMEEOF'
+    cat > "$ARTIFACT_DIR/README.md" << 'READMEEOF'
 # OBus MOA Digital
 **Unique Tarot-Powered AI Agent Orchestrator**
 
@@ -132,14 +132,14 @@ READMEEOF
     
     # 7. Open in Explorer and launch
     echo ""
-    echo "5. Opening cloud drive and launching..."
+    echo "5. Opening local artifacts and launching..."
     
     # Open Explorer with file selected
-    Explorer.exe /select,"$CLOUD_EXE" 2>/dev/null || echo "   ! Could not open Explorer"
+    Explorer.exe /select,"$ARTIFACT_EXE" 2>/dev/null || echo "   ! Could not open Explorer"
     
     # Launch EXE
-    CMD_START='start "" "'$CLOUD_EXE'"'
-    echo "   🎯 Launching: $CLOUD_EXE"
+    CMD_START='start "" "'$ARTIFACT_EXE'"'
+    echo "   🎯 Launching: $ARTIFACT_EXE"
     
 else
     echo "   ❌ ERROR: No EXE found to deploy"
@@ -152,8 +152,8 @@ echo "COMPLETE - OBus MOA EXE READY"
 echo "========================================================================"
 echo ""
 echo "🚀 Desktop: /c/Users/Hermes/Desktop/OBus.exe"
-echo "☁️  Cloud: /c/Users/Hermes/OneDrive/OBus-MOA-Digital/OBus.exe"
-echo "🎨 Emblem: /c/Users/Hermes/OneDrive/OBus-MOA-Digital/OBus_Emblem.svg"
+echo "🏠 Local: /c/Users/Hermes/Projects/Obus-Artifacts/OBus.exe"
+echo "🎨 Emblem: /c/Users/Hermes/Projects/Obus-Artifacts/OBus_Emblem.svg"
 echo ""
 echo "📋 First Run:"
 echo "   1. Double-click the EXE"

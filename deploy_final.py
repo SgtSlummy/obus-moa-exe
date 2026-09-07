@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Create emblem, deploy EXE to cloud, and launch"""
+"""Create the local Obus artifact bundle and launch it."""
 import os, shutil, subprocess, hashlib
 from pathlib import Path
 
 # Paths
 PROJECT_ROOT = Path(r'C:\Users\Hermes\Documents\obus-moa-exe')
-CLOUD_ROOT = Path(r'C:\Users\Hermes\OneDrive\OBus-MOA-Digital')
+ARTIFACT_ROOT = Path(r'C:\Users\Hermes\Projects\Obus-Artifacts')
 DESKTOP = Path(r'C:\Users\Hermes\Desktop')
 
 # Ensure cloud directory exists
-CLOUD_ROOT.mkdir(parents=True, exist_ok=True)
+ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
 
 print("=" * 70)
 print("OBUS MOA - EMBLEM, DEPLOY & LAUNCH")
@@ -45,7 +45,7 @@ emblem_svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <circle cx="128" cy="222" r="12" fill="url(#cyan)"/>
 </svg>'''
 
-svg_path = CLOUD_ROOT / 'OBus_Emblem.svg'
+svg_path = ARTIFACT_ROOT / 'OBus_Emblem.svg'
 with open(svg_path, 'w', encoding='utf-8') as f:
     f.write(emblem_svg)
 print(f"  ✓ SVG emblem: {svg_path}")
@@ -69,14 +69,14 @@ try:
         y = cy + math.sin(a) * 103
         d.ellipse((x-4, y-4, x+4, y+4), fill=(245, 197, 66, 255) if i % 2 == 0 else (0, 225, 255, 255))
     d.text((128, 180), "OBUS", fill=(255, 245, 210, 255), anchor="mm")
-    ico_path = CLOUD_ROOT / 'OBus_Emblem.ico'
+    ico_path = ARTIFACT_ROOT / 'OBus_Emblem.ico'
     img.save(ico_path, format='ICO')
     print(f"  ✓ ICO emblem: {ico_path}")
 except ImportError:
     print("  ⚠ Pillow not available, SVG only")
 
 # 2. Find and copy EXE
-print(f"\n2. COPYING EXE TO CLOUD")
+print(f"\n2. COPYING EXE TO LOCAL ARTIFACTS")
 print("-" * 50)
 
 dist_exe = PROJECT_ROOT / 'dist' / 'OBus.exe'
@@ -92,47 +92,47 @@ if not exe_src:
     exe_src = legacy
 
 if exe_src:
-    cloud_exe = CLOUD_ROOT / 'OBus.exe'
+    artifact_exe = ARTIFACT_ROOT / 'OBus.exe'
     desktop_exe = DESKTOP / 'OBus.exe'
     
-    shutil.copy2(exe_src, cloud_exe)
+    shutil.copy2(exe_src, artifact_exe)
     shutil.copy2(exe_src, desktop_exe)
     
-    size_mb = cloud_exe.stat().st_size / 1024 / 1024
+    size_mb = artifact_exe.stat().st_size / 1024 / 1024
     sha256 = hashlib.sha256()
-    with open(cloud_exe, 'rb') as f:
+    with open(artifact_exe, 'rb') as f:
         for chunk in iter(lambda: f.read(8192), b''):
             sha256.update(chunk)
     
-    print(f"  ✓ Cloud EXE: {cloud_exe}")
+    print(f"  ✓ Local artifact EXE: {artifact_exe}")
     print(f"  ✓ Desktop:   {desktop_exe}")
     print(f"  Size:        {size_mb:.2f} MB")
     print(f"  SHA256:      {sha256.hexdigest()[:32]}...")
 else:
     print("  ❌ No EXE found!")
-    cloud_exe = None
+    artifact_exe = None
 
 # 3. Open explorer and launch
 print(f"\n" + "=" * 70)
 print("OPENING CLOUD & LAUNCHING")
 print("=" * 70)
 
-if cloud_exe and cloud_exe.exists():
+if artifact_exe and artifact_exe.exists():
     # Open Explorer selecting file
-    subprocess.run(f'explorer.exe /select,"{cloud_exe}"', shell=True)
-    print(f"\n✅ Opened OneDrive\\OBus-MOA-Digital with EXE selected")
+    subprocess.run(f'explorer.exe /select,"{artifact_exe}"', shell=True)
+    print(f"\n✅ Opened local Obus-Artifacts with EXE selected")
     
     # Launch EXE
-    subprocess.Popen([str(cloud_exe)], shell=True)
-    print(f"✅ Launched: {cloud_exe}")
+    subprocess.Popen([str(artifact_exe)], shell=True)
+    print(f"✅ Launched: {artifact_exe}")
     print(f"\n🌐 Dashboard: http://127.0.0.1:38173/")
     print(f"🧭 First run: Ollama setup wizard")
 
 print(f"\n" + "=" * 70)
 print("COMPLETE")
 print("=" * 70)
-if cloud_exe:
-    print(f"☁️  Cloud:  {cloud_exe}")
+if artifact_exe:
+    print(f"🏠 Local:  {artifact_exe}")
     print(f"🏠 Desktop: {DESKTOP / 'OBus.exe'}")
-    print(f"🎨 Emblem: {CLOUD_ROOT / 'OBus_Emblem.svg'}")
+    print(f"🎨 Emblem: {ARTIFACT_ROOT / 'OBus_Emblem.svg'}")
 print("=" * 70)

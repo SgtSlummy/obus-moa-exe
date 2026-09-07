@@ -73,6 +73,16 @@ class RuntimeSnapshot:
             "generation": self.generation,
             "sessionPolicyRevision": self.policy_revision,
             "leaseExpiresAtMs": self.lease_expires_at_ms,
+            "requiredForRoute": True,
+            "effectivePolicy": {
+                "enabled": self.enabled,
+                "mode": self.mode,
+                "codex": self.codex,
+                "exportable": self.exportable,
+                "tools": False,
+                "personalMemory": False,
+                "autoMemory": False,
+            },
             "policy": {
                 "enabled": self.enabled,
                 "mode": self.mode,
@@ -181,9 +191,9 @@ class GameRuntimeAuthority:
 
     def verify_host(self, method: str, path: str, body: Mapping[str, Any], headers: Mapping[str, str]) -> None:
         normalized = {str(key).lower(): str(value) for key, value in headers.items()}
-        timestamp = normalized.get("x-obus-game-timestamp", "")
-        nonce = normalized.get("x-obus-game-nonce", "")
-        signature = normalized.get("x-obus-game-signature", "")
+        timestamp = normalized.get("x-obus-game-host-timestamp", "")
+        nonce = normalized.get("x-obus-game-host-nonce", "")
+        signature = normalized.get("x-obus-game-host-signature", "")
         if not re.fullmatch(r"[0-9]{10,}", timestamp):
             raise RuntimeDenied(401, "host_timestamp_invalid")
         if abs((self._clock() // 1000) - int(timestamp)) > SKEW_SECONDS:
@@ -335,6 +345,26 @@ class GameRuntimeAuthority:
             master = self._campaign_row(db, body["campaign"])
             active = self._campaign_active(master)
             current = str(master["generation"]) if active else None
+            if body["session"] != "campaign":
+                # A child can only join the live campaign generation. Its CAS
+                # compares the child snapshot, never the parent's generation.
+                if current is None:
+                    raise RuntimeDenied(409, "runtime_host_generation_required")
+                if generation != current:
+                    raise RuntimeDenied(409, "runtime_generation_stale")
+                child = self._session_row(db, body["campaign"], body["session"])
+                observed = self._snapshot_from(master, child)
+                if expected != observed.generation:
+                    raise RuntimeDenied(409, "runtime_generation_cas_failed")
+                revision = max(int(master["policy_revision"]), int(child["policy_revision"]) if child else 0)
+                if child is not None and observed.generation is None:
+                    # Rejoining must not revive an expired or revoked fence.
+                    revision += 1
+                expires = self._clock() + lease * 1000
+                self._save_session(db, body["campaign"], body["session"], current, revision, expires)
+                refreshed_child = self._session_row(db, body["campaign"], body["session"])
+                response = {"status": "registered", "runtime": self._snapshot_from(master, refreshed_child).public()}
+                return self._record_operation(db, "register", body, response)
             if current is None:
                 if expected is not None:
                     raise RuntimeDenied(409, "runtime_generation_cas_failed")
@@ -351,8 +381,10 @@ class GameRuntimeAuthority:
             revision = int(child["policy_revision"]) if child and child["generation"] == current else int(master["policy_revision"])
             expires = self._clock() + lease * 1000
             self._save_session(db, body["campaign"], body["session"], current, revision, expires)
+            db.execute("UPDATE campaign_runtime SET lease_expires_at_ms=? WHERE campaign=?", (expires, body["campaign"]))
+            refreshed_master = self._campaign_row(db, body["campaign"])
             refreshed_child = self._session_row(db, body["campaign"], body["session"])
-            response = {"status": "registered", "runtime": self._snapshot_from(master, refreshed_child).public()}
+            response = {"status": "registered", "runtime": self._snapshot_from(refreshed_master, refreshed_child).public()}
             return self._record_operation(db, "register", body, response)
 
     def renew(self, body: Mapping[str, Any]) -> dict[str, Any]:
@@ -376,14 +408,19 @@ class GameRuntimeAuthority:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
             expires = self._clock() + lease * 1000
             db.execute("UPDATE session_runtime SET lease_expires_at_ms=? WHERE campaign=? AND session=?", (expires, body["campaign"], body["session"]))
+            if body["session"] == "campaign":
+                db.execute("UPDATE campaign_runtime SET lease_expires_at_ms=? WHERE campaign=?", (expires, body["campaign"]))
+            refreshed_master = self._campaign_row(db, body["campaign"])
             refreshed_child = self._session_row(db, body["campaign"], body["session"])
-            response = {"status": "renewed", "runtime": self._snapshot_from(master, refreshed_child).public()}
+            response = {"status": "renewed", "runtime": self._snapshot_from(refreshed_master, refreshed_child).public()}
             return self._record_operation(db, "renew", body, response)
 
     def patch_policy(self, body: Mapping[str, Any]) -> dict[str, Any]:
-        fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId", "policy"}
+        fields = {"contract", "campaign", "session", "expectedGeneration", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId", "policy"}
         self._validate_common(body, fields)
-        _uuid4(body.get("generation"), "runtime_generation_invalid")
+        if body["session"] != "campaign":
+            raise RuntimeDenied(403, "runtime_master_policy_required")
+        _uuid4(body.get("expectedGeneration"), "runtime_generation_invalid")
         revision = body.get("expectedSessionPolicyRevision")
         policy = body.get("policy")
         if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
@@ -400,7 +437,7 @@ class GameRuntimeAuthority:
                 return replay
             master = self._campaign_row(db, body["campaign"])
             child = self._session_row(db, body["campaign"], body["session"])
-            self._require_current(master, child, body)
+            self._require_current(master, child, {**body, "generation": body["expectedGeneration"]})
             if child["policy_revision"] != revision:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
             db.execute(
@@ -419,6 +456,8 @@ class GameRuntimeAuthority:
         """Immediately invalidate one child fence without altering campaign policy."""
         fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId"}
         self._validate_common(body, fields)
+        if body["session"] == "campaign":
+            raise RuntimeDenied(403, "runtime_child_session_required")
         _uuid4(body.get("generation"), "runtime_generation_invalid")
         revision = body.get("expectedSessionPolicyRevision")
         if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
