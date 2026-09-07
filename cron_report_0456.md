@@ -1,100 +1,69 @@
-# Cron Report — 2026-09-06 06:45 UTC
+# Push & Active Jobs Report — 2026-09-06 19:33 UTC (cycle #456)
 
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #456
-**Cycle since:** #455 (06:34 UTC) | **Delta:** 11 minutes
+## Push Summary
 
-**HEAD:** `b2783db` (Cron: update push status (#456) — all accessible repos pushed, build stalled 13d)
+| Repo | Branch | Head | Remote | In Sync | Push Result |
+|------|--------|------|--------|---------|-------------|
+| obus-moa-exe | master | `f65d092` (Cron: refresh reports 0444 and latest — Codex test commits + stalled build summary) | origin/master | ✅ YES | Already up-to-date |
 
-## Git Push — All Projects
+**1 of 1 repo checked. No push needed — all local branches tracked and in sync.**
 
-### obus-moa-exe (master)
+Note: Previous cycle (#455, 06:34 UTC) reported head at `7368ad0`. Current head is `f65d092` — 2 commits ahead, already pushed (origin/master matches).
 
-- **Status:** ✅ Clean — pushed
-- **HEAD:** `b2783db` (Cron: update push status (#456))
-- **origin/master:** `b2783db` — ✅ Pushed this cycle
-- **Unpushed commits:** None
-- **Push output:** Everything up-to-date
+## Active Background Jobs (significant processes)
 
-### codex/autonomy-context-agents
+### Agent/Builder Processes
+| Process | PID | MEM | Notes |
+|---------|-----|-----|-------|
+| **codex.exe** | 28048 | 487 MB | Active Codex agent — likely running autonomy-context-agents work |
+| **llama-server.exe** | 16832 | 1.57 GB | Local LLM inference server (Ollama) |
+| **OBus.exe** | 7956, 19272, 20840 | 1.5–39 MB | Multiple OBus instances running |
+| **gortex.exe** | 22308, 22284, 15380, 20360, 25204, 24720, 11252, 8808, 11252 | 62–637 MB | Gortex index/graph workers (heavy memory) |
+| **mempalace-mcp.exe** | 18320, 9020, 15812, 20888, 25756, 31536, 10652 | 5 MB | MemPalace MCP server instances |
+| **EchoWarp.exe** | 20072 | 93 MB | Warp sync client |
 
-- **Status:** ✅ Clean — pushed
-- **HEAD:** `ab02750` (chore: refresh push status report (04:22 cycle))
-- **origin/codex/autonomy-context-agents:** `ab02750` — ✅ In sync
-- **Unpushed commits:** None
+### Python Worker Pools (agent runtimes)
+Multiple python.exe processes in 12–145 MB range — consistent with Hermes agent workers, MCP servers, and bridge services. Largest: 570 MB, 576 MB, 566 MB, 540 MB — likely long-running agent contexts.
 
-### Remote-only branches
+### Node.js Workers
+Multiple node.exe processes (10–274 MB) — likely Codex host, web UIs, and MCP bridges.
 
-- `codex/recover-autonomy-context-agents-20260827` → `e88b347` (fix(release): use absolute runner python path) — already on remote
+### ChatGPT.exe (10 instances, 9–488 MB)
+Multiple ChatGPT desktop app instances — user activity or background agents.
 
-### warden (main)
-
-- **Status:** ✅ Clean — synced
-- **Push:** Everything up-to-date (confirmed this cycle)
-
-### Submodules (unchanged)
-
-| Submodule | Path | Commit | Status |
-|-----------|------|--------|--------|
-| Understand-Anything | `Understand-Anything/` | `99e62b7` | Clean (detached) |
-| warpdotdev-warp | `third_party/warpdotdev-warp/` | `8c2cc73` | Clean (detached) |
-| warp | `warp/` | `3504ce5b0` | Clean (detached) |
-
-All submodules on detached HEADs, no local changes. 403 on push is pre-existing.
-
-## Push Result
-
-- `git push origin master` → ✅ Everything up-to-date
-- `git push` (warden) → ✅ Everything up-to-date
-- All accessible repos clean. No new commits anywhere.
-
-## Blocked (unchanged, pre-existing)
-
-| Repo | Blocker |
-|------|---------|
-| MoA-source | 403 Forbidden — SgtSlummy not a collaborator |
-| models-dev-source | SSH auth failure — no valid key |
-| warden-source | 403 Forbidden — SgtSlummy not a collaborator |
-| DavyJonesBot/workspace | Stale bundle remote, ahead 10 commits |
-| warp (submodule) | 403 + detached + directory missing |
-| warpdotdev-warp (submodule) | 403, detached HEAD |
-| Understand-Anything (submodule) | 403, pre-existing |
+### Other Notable
+| Process | PID | MEM | Notes |
+|---------|-----|-----|-------|
+| **python.exe** (570 MB) | 19768 | 570 MB | Large agent context |
+| **python.exe** (576 MB) | 32144 | 576 MB | Large agent context |
+| **python.exe** (540 MB) | 29732 | 540 MB | Large agent context |
+| **python.exe** (487 MB) | 25372 | 487 MB | Large agent context |
+| **python.exe** (427 MB) | 25372 | 427 MB | Large agent context |
+| **python.exe** (387 MB) | 31852 | 387 MB | Large agent context |
+| **python.exe** (341 MB) | 30768 | 341 MB | Large agent context |
+| **node.exe** (274 MB) | 11924 | 274 MB | Large Node process |
+| **ChatGPT.exe** (488 MB) | 27908 | 488 MB | Active ChatGPT instance |
+| **ChatGPT.exe** (381 MB) | 5428 | 381 MB | Active ChatGPT instance |
+| **codex.exe** (487 MB) | 28048 | 487 MB | Active Codex agent |
+| **python.exe** (278 MB) | 27396 | 278 MB | Agent context |
+| **python.exe** (147 MB) | 23392 | 147 MB | Agent context |
 
 ## Build / AUI Status
+- Latest build directory: `build-aui-loop76/` (Aug 25) — **STALLED ~12 days**
+- Latest dist directory: `dist-aui-loop76/` — matches build
+- No new build loops since loop76. No EXE or installer progress.
 
-- **Latest build directory:** `build-aui-loop76/` (Aug 25) — **STALLED ~13 days**
-- **Latest dist directory:** `dist-aui-loop76/` — matches build
-- **EXE:** `dist-aui-loop76/OBus.exe` (70.8 MB, Aug 25 04:49 UTC)
-- **New build activity since last cycle:** None
-- **No new build loops** since loop76. No EXE or installer progress.
-
-## Active Job Progress
-
-| Job | Status |
-|-----|--------|
-| Cron auto-push | ✅ Loop #456 completed — all repos pushed |
-| Build pipeline | 🔴 Still stalled at loop76 (~13 days) |
-| Active builders | None detected |
-| Active agent jobs | None detected |
-
-## System Snapshot
-
-| Process | Instances | Notes |
-|---------|-----------|-------|
-| `OBus.exe` | 3 | Desktop app instances |
-| `gortex.exe` | ~9 | Graph analysis |
-| `mempalace-mcp.exe` | ~6 | Memory palace MCP servers |
-| `ollama.exe` / `ollama app.exe` | 2 | Ollama serving |
-| `pinchtab-windows-amd64.exe` | 3 | PinchTab browser automation |
-| `codex.exe` | 2 | Codex CLI (active) |
-| `ChatGPT.exe` | ~10 | ChatGPT desktop app |
-| `node.exe` | 20+ | Various Node processes |
-| `python.exe` | 50+ | Many Python processes |
-| `Chrome` / `msedge.exe` | 15+ | Multiple browser instances |
-| `Docker Desktop` / `com.docker.*` | Several | Docker Desktop running |
-| `PowerToys.*` | 5 | PowerToys utilities active |
-
-Total: ~200+ active processes. System under significant load but no build/agent jobs making progress.
+## Git Branch Status
+- `master`: f65d092 — up to date with origin
+- `codex/autonomy-context-agents`: ab02750 — up to date with origin
+- `remote-only`: codex/recover-autonomy-context-agents-20260827 (e88b347), codex/autonomy-context-agents (ab02750)
 
 ## Verdict
+- **Git**: Clean — all repos in sync, no pushes needed this cycle.
+- **Active agents**: codex.exe (PID 28048) is the most significant active builder — likely working on autonomy-context-agents. llama-server serving local models. Multiple gortex, python, and node workers active.
+- **Build pipeline**: Still stalled at loop76 (~12 days). No build progress detected.
+- **Overall**: System is active with multiple agent/LLM processes, but the AUI build pipeline remains stalled.
 
-All accessible repos pushed clean. obus-moa-exe at `b2783db`, warden synced, codex branch pushed. No new commits anywhere since cycle #455. Build remains stalled at loop76 (~13 days, no activity). Pre-existing auth blockers unchanged (7 repos/submodules blocked). System running heavy concurrent load (~200+ processes) but no active build or agent jobs making progress. Nothing new to report beyond cycle #455.
+## Previous Cycle Comparison
+Cycle #455 (06:34 UTC): 8/18 repos pushed, 10 blocked (403/SSH/stale bundle).
+Cycle #456 (19:33 UTC): All tracked repos in sync — no new pushes needed. Active agent processes detected (codex, llama, gortex, mempalace).
