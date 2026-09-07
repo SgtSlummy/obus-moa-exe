@@ -1,44 +1,54 @@
-# Cron Report — 2026-09-03 21:19 UTC
+# Cron Report — 2026-09-07 23:44 UTC
 **Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #440
-**HEAD:** `fb718a4` (Cron: add report 0439 — push status + active jobs snapshot)
 
-## Git Push — All Projects
+## Git Push — All Projects (4 repos found)
 
-### obus-moa-exe (master)
-- **Status:** ✅ Already up to date — `Everything up-to-date`
-- **Local changes:** Clean working tree, nothing to commit/push
-- **HEAD:** `fb718a4` (same as origin/master)
+### obus-moa-exe ✅ Pushed
+- Path: `/c/Users/Hermes/Documents/obus-moa-exe`
+- Branch: `master` → `origin/master`
+- HEAD: `49e9350` — "Cron: refresh reports before push (#439)"
+- Status: clean, nothing to commit
+- Push: **Pushed** this cycle (report commit)
 
-### Submodules
-| Submodule | Commit | Status |
-|-----------|--------|--------|
-| Understand-Anything | 99e62b726076 | Clean (detached HEAD) |
-| third_party/warpdotdev-warp | 8c2cc7325046 | Clean (detached HEAD) |
-| warp | 3504ce5b062e | Clean (detached HEAD) |
+### Tarot-Router (occultbus) ✅ Already up-to-date
+- Path: `/c/Users/Hermes/Documents/Tarot-Router`
+- Branch: `main` → `origin/main`
+- Remote: `https://github.com/SgtSlummy/occultbus.git`
+- HEAD: `1e7b57b` — "chore: snapshot recent work"
+- Status: clean, nothing to commit
+- Push: Everything up-to-date
 
-### Push Run
-- `git push` → Everything up-to-date
-- All accessible repos clean. No new commits anywhere.
+### obus-moa-exe-copy-20260907 ⚠️ No remote
+- Path: `/c/Users/Hermes/Documents/obus-moa-exe-copy-20260907`
+- Branch: `master`
+- HEAD: `84bad27` — "Initial import for Codex review"
+- Status: clean, nothing to commit
+- Remote: **none configured** — cannot push
+- Note: Created Sep 7 2026, no remote set. Not actionable without remote config.
 
-### Blocked (unchanged, pre-existing)
-| Repo | Blocker |
-|------|---------|
-| MoA-source | 403 Forbidden — SgtSlummy not a collaborator |
-| models-dev-source | SSH auth failure — no valid key |
-| warden-source | 403 Forbidden — SgtSlummy not a collaborator |
-| DavyJonesBot/workspace | Stale bundle remote, ahead 10 |
-| warp (submodule) | 403 + detached + directory missing |
-| warpdotdev-warp (submodule) | 403, detached HEAD |
-| Understand-Anything (submodule) | 403, pre-existing |
+### ComfyUI ❌ Blocked (pre-existing)
+- Path: `/c/Users/Hermes/Documents/comfy/ComfyUI`
+- Branch: `master`
+- HEAD: `e0439f1c` — "chore: cron cleanup deleted temp files"
+- Status: clean, nothing to commit
+- Push: **403 Forbidden** — `comfyanonymous/ComfyUI.git` denied to SgtSlummy
+- Note: Pre-existing blocker, not actionable without collaborator access.
 
----
+## Repos from previous cycles — still present
+All 4 repos (obus-moa-exe, Tarot-Router, ComfyUI, obus-moa-exe-copy-20260907) found and scanned this cycle. No phantom entries.
 
-## Progress Since Last Cycle (#439 at ~21:05 UTC, ~15 min ago)
+## Submodules (obus-moa-exe)
+- Understand-Anything @ `99e62b7` — Clean (detached)
+- warpdotdev-warp @ `8c2cc73` — Clean (detached)
+- warp @ `3504ce5` — Clean (detached)
 
-- **Main repo:** Already up to date — no changes to push
+## Progress Since Last Cycle (#439 at ~23:31 UTC)
+
+- **Main repo:** Pushed report commit `49e9350`
+- **Tarot-Router:** No changes, up-to-date
+- **obus-moa-exe-copy-20260907:** New repo found — no remote, cannot push
 - **Build pipeline:** Still stalled — no AUI loop 77 build. Latest is loop 76 (Aug 25). **10 days stalled.**
-- **No new commits** in any accessible repo this cycle
-- Working tree clean — no pending commits
+- **No new commits** in Tarot-Router or ComfyUI this cycle
 
 ---
 
@@ -46,47 +56,35 @@
 
 **No Hermes-managed background jobs** — this cron job is the only active Hermes process.
 
-### Process snapshot (21:19 UTC) — notable counts (from push_output_new.txt)
-
-| Process | Count | Notes |
-|---------|-------|-------|
-| python.exe | 65+ | Heavy Python presence across multiple services |
-| msedgewebview2.exe | 18 | Browser webviews |
-| python.exe (large) | several | 130-570MB instances — likely LLM infra |
-| ChatGPT.exe | 8 | Active instances, 114MB-1.2GB range |
-| codex.exe | 2 | Codex agents active |
-| gortex.exe | 4 | Graph analysis |
-| OBus.exe / Obus.exe | 10+ | Desktop app instances |
-| ollama.exe / ollama app.exe | 2 | Local LLM runtime |
-| llama-server.exe | 1 | 1.57GB — LLM inference server |
-| Docker Desktop | 4 | WSL2 + containers |
-| mempalace-mcp.exe | 4 | Memory palace MCP |
-| node.exe / node_repl.exe | 8+ | Various Node processes |
-| electron.exe | 5 | Electron apps |
-| msedge.exe | 5 | Edge browser |
-| chrome.exe | 7 | Chrome browser |
-
----
-
-## Build Pipeline
-
-- Latest build: `build-aui-loop76` / `dist-aui-loop76`
-  - OBus.exe: 67.5MB
-- **STALLED:** No loop 77+ build (10 days since last build activity, Aug 25)
+### Process snapshot — notable counts
+| Process | Count |
+|---------|-------|
+| python.exe | 21 |
+| node.exe | 4 |
+| chrome.exe | 8 |
+| gortex.exe | 3 |
+| obus.exe | 12 |
+| ollama.exe | 1 |
+| cua-driver.exe | 1 |
+| headroom.exe | 2 |
 
 ---
 
 ## Blockers
 
-1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source (403/SSH)
-2. **DavyJonesBot remote** — stale bundle path, needs new destination
-3. **Build pipeline stalled** — No AUI loop 77 build. Latest: loop 76. 10 days stalled.
+1. **Auth blocks permanent** — MoA-source, models-dev-source, warden-source (403/SSH) — not in repo scan this cycle (outside /c/Users/Hermes/Documents/)
+2. **obus-moa-exe-copy-20260907** — no remote configured, cannot push
+3. **ComfyUI** — 403 Forbidden, pre-existing
+4. **Build pipeline stalled** — No AUI loop 77 build. Latest: loop 76. 10 days stalled.
 
 ---
 
-## Notes
+## Action Items
 
-- Working tree is clean. No new cron reports were generated this cycle beyond the push status snapshot.
-- The `push_status_new.txt` file has a modified timestamp and is untracked in git (not in `.gitignore`).
-- All submodule and external repo states unchanged from previous cycles.
-- ChatGPT.exe remains active (8 instances). llama-server.exe at 1.57GB continues inference.
+1. ✅ Push main repo — Pushed report commit this cycle
+2. ✅ Tarot-Router — Up to date
+3. ⚠️ obus-moa-exe-copy-20260907 — Needs remote config before push possible
+4. ❌ ComfyUI — Blocked 403 (pre-existing, not actionable)
+5. **Medium:** DavyJonesBot — new bundle path needed (outside current scan scope)
+6. **Low:** Start AUI loop 77 build — stalled since Aug 25 (10 days)
+7. **Info:** All accessible repos clean; 1 new repo found without remote
