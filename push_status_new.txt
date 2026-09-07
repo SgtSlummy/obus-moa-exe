@@ -1,105 +1,51 @@
-# Push Status — 2026-09-06 06:34 UTC (cycle #455)
+# Push Status — 2026-09-06 21:21 UTC (cycle #456)
 
-## Push Summary
+## Scan Scope
+All git repositories under `/c/Users/Hermes/Documents/` (matching the push scripts in `temp/`).
 
-| Repo | Branch | Head | Remote | In Sync | Push Result |
-|------|--------|------|--------|---------|-------------|
-| obus-moa-exe | master | `7368ad0` (Cron: add report 0455 — all repos pushed, build stalled 13d, no active agents) | origin/master | ✅ YES | Pushed this cycle |
-| obus-moa-exe | codex/autonomy-context-agents | `ab02750` (chore: refresh push status report (04:22 cycle)) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
-| mythos-router-source | main | `032e0c2` (Update: policy.json, MEMORY.md, soul.md) | origin/main | ✅ YES | Already pushed |
-| temporal | main | `561ba4ee4` (Initial temporal clone) | origin/main | ✅ YES | Already pushed |
-| hermes-photon-client | master | `d7acf11` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
-| hermes-photon-server | master | `9cf3bd5` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
-| warden | main | `6c7b2e9` (chore: stage modified src/index.ts) | origin/main | ✅ YES | Already pushed |
-| warden-discord-bot | main | `4fa686e` (fix(diva): correct CRLF escaping) | origin/main | ✅ YES | Already pushed |
-| DavyJonesBot/workspace | main | `249b5bf` (fix: keep music search within music channel) | C:/Users/Hermes/DavyJonesBot/davy-jones-bot.git (local) | ⚠️ NO | Bundle push fails (ahead 10, new untracked dir) |
-| mempalace | develop | `b522512` (chore: sync with upstream develop) | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden |
-| MoA-source | main | `fd816ca` (feat: provider usage tracking) | togethercomputer/MoA | ❌ NO | 403 Forbidden |
-| models-dev-source | dev | `aa6d1fb5d` (Remove deleted workflow/agent files) | github.com:SgtSlummy/models.dev.git | ❌ NO | SSH auth failure |
-| warden-source | main | `794cfcf` (Merge PR #945) | origin | ❌ NO | 403 Forbidden |
-| awesome-free-llm-apis-mnfst-source | main | `167013f` (docs: regenerate README from data.json) | mnfst/awesome-free-llm-apis.git | ❌ NO | 403 Forbidden |
-| awesome-free-models-source | main | `1230f2e` (Update README.md) | 12britz/awesome-free-models.git | ❌ NO | 403 Forbidden |
-| awesome-freellm-apis-source | main | `3b73eb8` (chore: sync README from freellm.net data) | open-free-llm-api/awesome-freellm-apis.git | ❌ NO | 403 Forbidden |
-| free-ai-coding-source | main | `2b80a87` (Merge pull request #44) | inmve/free-ai-coding.git | ❌ NO | 403 Forbidden |
-| free-coding-models-source | main | `fb1d802` (fix(test): codingIndex is a measured subset) | vava-nessa/free-coding-models.git | ❌ NO | 403 Forbidden |
+## Repositories Found: 3
 
-**8 of 18 repos pushed clean. 10 blocked (8×403, 1×SSH, 1×stale bundle).**
+### obus-moa-exe ✅
+- Path: `/c/Users/Hermes/Documents/obus-moa-exe`
+- Branch: `master` → `origin/master`
+- HEAD: `7f58554` — "Cron: push test_runtime.py warmup assertion fix"
+- Status: clean, nothing to commit
+- Push: Everything up-to-date
 
-## Push Failure Log
+### Tarot-Router (occultbus) ✅
+- Path: `/c/Users/Hermes/Documents/Tarot-Router`
+- Branch: `main` → `origin/main`
+- Remote: `https://github.com/SgtSlummy/occultbus.git`
+- HEAD: `1e7b57b` — "chore: snapshot recent work"
+- Status: clean, nothing to commit
+- Push: Everything up-to-date
 
-### DavyJonesBot/workspace (active)
-- remote: C:/Users/Hermes/DavyJonesBot/davy-jones-bot.git (local path)
-- error: push to local git remote fails — bundle likely stale or path issue
-- branch: main (ahead 10)
-- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir with verified SLSA provenance
+### ComfyUI ❌
+- Path: `/c/Users/Hermes/Documents/comfy/ComfyUI`
+- Branch: `master`
+- HEAD: `e0439f1c` — "chore: cron cleanup deleted temp files"
+- Status: clean, nothing to commit
+- Push: 403 Forbidden — `comfyanonymous/ComfyUI.git` denied to SgtSlummy
+- Note: Branch diverged (2 local vs 83 remote commits). Not actionable without collaborator access.
 
-### mempalace
-- remote: SgtSlummy/mempalace.git (develop, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### MoA-source
-- remote: togethercomputer/MoA.git (main, ahead 4)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### models-dev-source
-- remote: github.com:SgtSlummy/models.dev.git (dev, ahead 1)
-- error: SSH permission denied (publickey) — no valid SSH key
-- state: clean
-
-### warden-source
-- remote: wardenenv/warden.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### awesome-free-llm-apis-mnfst-source
-- remote: mnfst/awesome-free-llm-apis.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### awesome-free-models-source
-- remote: 12britz/awesome-free-models.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### awesome-freellm-apis-source
-- remote: open-free-llm-api/awesome-freellm-apis.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### free-ai-coding-source
-- remote: inmve/free-ai-coding.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### free-coding-models-source
-- remote: vava-nessa/free-coding-models.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-Note: All accessible repos pushed clean. Auth failures are pre-existing — no new action possible.
-
-## Submodules (unchanged)
-
-| Submodule | Path | Commit | Status |
-|-----------|------|--------|--------|
-| Understand-Anything | `Understand-Anything/` | `99e62b7` | Clean (detached) |
-| warpdotdev-warp | `third_party/warpdotdev-warp/` | `8c2cc73` | Clean (detached) |
-| warp | `warp/` | `3504ce5` | Clean (detached) |
-
-All submodules on detached HEADs, no local changes. 403 on push is pre-existing.
+## Repos from Old push_status_new.txt (cycle #455) — NOW ABSENT
+The following 15 repos were listed in the stale #455 report but do NOT exist under `/c/Users/Hermes/Documents/`:
+DavyJonesBot/workspace, mempalace, MoA-source, models-dev-source, warden-source,
+awesome-free-llm-apis-mnfst-source, awesome-free-models-source, awesome-freellm-apis-source,
+free-ai-coding-source, free-coding-models-source, hermes-photon-client, hermes-photon-server,
+temporal, warden, warden-discord-bot.
+No push action possible — old report was phantom/stale state.
 
 ## Build / AUI Status
-- Latest build directory: `build-aui-loop76/` (Aug 25) — **STALLED ~13 days**
-- Latest dist directory: `dist-aui-loop76/` — matches build
-- No new build loops since loop76. No EXE or installer progress.
+- Latest build: `build-aui-loop76/` (Aug 25) — **STALLED ~12 days**
+- Latest EXE: `dist-aui-loop76/OBus.exe` (70.8 MB, Aug 25)
+- No new build loops since loop76.
+- No active builders or agent jobs detected.
 
-## Active Job Progress
-- **Cron auto-push:** ✅ Loop #455 completed — pushed 7368ad0
-- **Build pipeline:** 🔴 Still stalled at loop76
-- **Active builders:** None detected
-- **Active agent jobs:** None detected
+## Submodules (obus-moa-exe, unchanged)
+- Understand-Anything @ `99e62b7` — Clean (detached)
+- warpdotdev-warp @ `8c2cc73` — Clean (detached)
+- warp @ `3504ce5` — Clean (detached)
 
 ## Verdict
-All 8 accessible repos pushed clean across this and prior cycles. 10 repos blocked by 403/SSH/stale bundle — all pre-existing, no action possible. Build stalled at loop76 (~13 days). No active build or agent jobs making progress.
+2 of 3 repos pushed clean (obus-moa-exe + Tarot-Router). ComfyUI blocked 403 (pre-existing). 15 old-repo entries in push_status_new.txt are phantom — old report was stale. Build stalled at loop76, no active agent jobs.
