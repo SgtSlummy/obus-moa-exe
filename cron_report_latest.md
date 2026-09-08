@@ -1,12 +1,12 @@
-# Cron Report — 2026-09-07 19:53 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #448
-**HEAD:** `9b4a73a` (Cron: refresh reports 0447 and latest — push/check cycle)
+# Cron Report — 2026-09-07 19:58 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #449
+**HEAD:** `d0bc40e` (Cron: push report update)
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Working tree:** Clean (0 entries)
-- **HEAD:** `9b4a73a` — Cron: refresh reports 0447 and latest — push/check cycle
+- **HEAD:** `d0bc40e` — Cron: push report update
 - **Push:** ✅ Pushed — Everything up-to-date (origin/master at same SHA)
 - **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
 
@@ -14,6 +14,11 @@
 - **Path:** /c/Users/Hermes/Documents/Tarot-Router
 - **HEAD:** `1e7b57b` — chore: snapshot recent work
 - **Push:** ✅ Pushed — Everything up-to-date
+
+### obus-moa-exe-copy-20260907
+- **Path:** /c/Users/Hermes/Documents/obus-moa-exe-copy-20260907
+- **HEAD:** `84bad27` — Initial import for Codex review
+- **Push:** ❌ No remote configured — cannot push
 
 ### ComfyUI (master)
 - **Path:** /c/Users/Hermes/Documents/comfy/ComfyUI
@@ -31,13 +36,30 @@
 - **Last build:** Aug 25 04:49 UTC
 - **STALLED:** 13 days, no loop 77+ build activity
 
-## Summary
-- **2 of 3 repos pushed clean.** ComfyUI blocked 403 (pre-existing — not actionable without collaborator access).
-- **No new changes** since last cycle (#447). All repos were already in sync.
-- Build remains stalled at loop76.
+## Active Processes (from tasklist)
+- **OBus.exe** — 8 instances running (various PIDs)
+- **gortex.exe** — 4 instances (1 large: 1.4GB at PID 15476)
+- **ollama.exe** + **ollama app.exe** — running
+- **mempalace-mcp.exe** — 4 instances
+- **pinchtab-windows-amd64.exe** — 3 instances
+- **ChatGPT.exe** — 9 instances (large memory: up to 500MB)
+- **codex.exe** + **codex-code-mode-host.exe** — running
+- **node.exe** — many instances (various REPL/processes)
+- **python.exe** — many instances (various)
+- **Chrome/Edge** — browser instances active
+- **headless/background services** — tailscaled, sshd, PowerToys, etc.
 
-## Run #448 Complete
-- Push: ✅ All accessible repos synced
+## Summary
+- **2 of 4 repos pushed clean.** Tarot-Router + obus-moa-exe synced.
+- **1 repo without remote:** obus-moa-exe-copy-20260907 (no push destination)
+- **1 repo blocked:** ComfyUI (403 pre-existing)
+- **No new changes** since last cycle (#448). All repos were already in sync.
+- Build remains stalled at loop76 (13 days).
+- Active agent processes detected: OBus (8x), Gortex (4x), Ollama, Codex, mempalace (4x), ChatGPT (9x)
+
+## Run #449 Complete
+- Push: ✅ 2 of 4 repos synced (2 blocked/unconfigured)
 - Working tree: ✅ Clean
-- Blocked repos: unchanged (1×403 ComfyUI)
+- Blocked repos: unchanged (1×403 ComfyUI, 1×no-remote copy)
 - New activity since last run: none
+- Active processes: multiple OBus/Gortex/Ollama/Codex instances

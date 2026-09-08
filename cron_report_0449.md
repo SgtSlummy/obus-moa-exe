@@ -1,77 +1,65 @@
-# Cron Report — 2026-09-05 06:43 UTC
+# Cron Report — 2026-09-07 19:58 UTC
 **Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #449
-**HEAD:** `de9884a`
+**HEAD:** `d0bc40e` (Cron: push report update)
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
-- **Working tree:** CLEAN
-- **HEAD:** `de9884a Cron: add report 0449 — all repos pushed, build stalled 10d, no new commits`
-- **Push:** ✅ Everything up-to-date
-- **Branch:** master only active
+- **Working tree:** Clean (0 entries)
+- **HEAD:** `d0bc40e` — Cron: push report update
+- **Push:** ✅ Pushed — Everything up-to-date (origin/master at same SHA)
+- **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
 
-### All Other Tracked Repos (pushed clean)
+### Tarot-Router (main)
+- **Path:** /c/Users/Hermes/Documents/Tarot-Router
+- **HEAD:** `1e7b57b` — chore: snapshot recent work
+- **Push:** ✅ Pushed — Everything up-to-date
 
-| Repo | HEAD | Branch | Push | Notes |
-|------|------|--------|------|-------|
-| warden | `6c7b2e9` | main | ✅ | Unchanged |
-| mythos-router-source | `032e0c2` | main | ✅ | Unchanged |
-| temporal | `561ba4ee4` | main | ✅ | Unchanged |
-| hermes-photon-client | `d7acf11` | master | ✅ | Unchanged |
-| hermes-photon-server | `9cf3bd5` | master | ✅ | Unchanged |
-| warden-discord-bot | `4fa686e` | main | ✅ | Unchanged |
-| Tarot-Router | `1e7b57b` | (detached/unknown) | ✅ | Unchanged |
-| DavyJonesBot/workspace | `249b5bf` | main | ⚠️ | Ahead 10, bundle push fails; new untracked `.candidate-evidence-inspect/` dir with verified SLSA attestations |
+### obus-moa-exe-copy-20260907
+- **Path:** /c/Users/Hermes/Documents/obus-moa-exe-copy-20260907
+- **HEAD:** `84bad27` — Initial import for Codex review
+- **Push:** ❌ No remote configured — cannot push
 
-## Blocked Repos (unchanged — no action possible)
+### ComfyUI (master)
+- **Path:** /c/Users/Hermes/Documents/comfy/ComfyUI
+- **HEAD:** `e0439f1c` — chore: cron cleanup deleted temp files
+- **Push:** ❌ 403 Forbidden — comfyanonymous/ComfyUI.git denied to SgtSlummy (pre-existing, not actionable)
 
-| Repo | Remote | Error | State |
-|------|--------|-------|-------|
-| mempalace | MemPalace/mempalace.git (develop) | 403 Forbidden — SgtSlummy not a collaborator | clean, ahead 1 |
-| MoA-source | togethercomputer/MoA.git (main) | 403 Forbidden — SgtSlummy not a collaborator | clean, ahead 4 |
-| models-dev-source | github.com:sst/models.dev.git (dev) | SSH permission denied (publickey) — no valid SSH key | clean, ahead 1 |
-| warden-source | wardenenv/warden.git (main) | 403 Forbidden — SgtSlummy not a collaborator | clean, ahead 1 |
-
-## Submodules (unchanged)
-
-| Submodule | Local HEAD | Push Result |
-|-----------|------------|-------------|
-| third_party/warpdotdev-warp | `8c2cc73` detached | ❌ 403 — pre-existing |
-| warp | `3504ce5` detached, ahead 5/behind 8, **directory MISSING** | ❌ 403 |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 — pre-existing |
+## Submodules (obus-moa-exe, unchanged)
+- Understand-Anything @ `99e62b7` — Clean (detached, 403 pre-existing)
+- warpdotdev-warp @ `8c2cc73` — Clean (detached, 403 pre-existing)
+- warp @ `3504ce5` — Clean (detached, 403 pre-existing)
 
 ## Build Pipeline
-
-- **Latest:** `build-aui-loop76` / `dist-aui-loop76`
+- **Latest:** `build-aui-loop76` (loop 76) / `dist-aui-loop76` (dist 76)
 - **OBus.exe:** 70,777,957 bytes (67.5 MB)
 - **Last build:** Aug 25 04:49 UTC
-- **STALLED:** 11 days — no loop 77+ build activity
-- **No new build directories** created since last run
+- **STALLED:** 13 days, no loop 77+ build activity
 
-## Active Services & Processes
-
-| Process | PID | Memory | Status |
-|---------|-----|--------|--------|
-| OBus.exe (desktop) | 16760 | 107 MB | ✅ Running |
-| OBus.exe (light) | 7956, 19272 | ~9 MB | ✅ Running |
-| Obus.exe (secondary) | 20840, 13432 | 40/8 MB | ✅ Running |
-| EchoWarp.exe | 20072 | 79 MB | ✅ Running |
-| codex.exe | 20016, 9004 | 211/50 MB | ✅ Running (2 instances) |
-| gortex.exe | 22308, 22284, 22756, 30272 | 586/14/48/48 MB | ✅ Running (4 instances) |
-| DavyJonesHeartbeat | 3740 | 49 MB | ✅ UP :3000 |
-| uvicorn | — | — | ✅ UP :8000 |
-| Ollama | 3084, 7248 | 162/35 MB | ✅ Running |
-| Docker Desktop | 22024 | 5/93 MB | ✅ Running |
-
-## Cron Job Health
-
-- Job #449 executed successfully this cycle
-- Previous: #448 (09-05 05:20), #447 (09-04 11:17), continuing every-10m cadence
-- No background processes from prior runs still active
-- No new commits across any tracked repo since cycle #448
+## Active Processes (from tasklist)
+- **OBus.exe** — 8 instances running (various PIDs)
+- **gortex.exe** — 4 instances (1 large: 1.4GB at PID 15476)
+- **ollama.exe** + **ollama app.exe** — running
+- **mempalace-mcp.exe** — 4 instances
+- **pinchtab-windows-amd64.exe** — 3 instances
+- **ChatGPT.exe** — 9 instances (large memory: up to 500MB)
+- **codex.exe** + **codex-code-mode-host.exe** — running
+- **node.exe** — many instances (various REPL/processes)
+- **python.exe** — many instances (various)
+- **Chrome/Edge** — browser instances active
+- **headless/background services** — tailscaled, sshd, PowerToys, etc.
 
 ## Summary
+- **2 of 4 repos pushed clean.** Tarot-Router + obus-moa-exe synced.
+- **1 repo without remote:** obus-moa-exe-copy-20260907 (no push destination)
+- **1 repo blocked:** ComfyUI (403 pre-existing)
+- **No new changes** since last cycle (#448). All repos were already in sync.
+- Build remains stalled at loop76 (13 days).
+- Active agent processes detected: OBus (8x), Gortex (4x), Ollama, Codex, mempalace (4x), ChatGPT (9x)
 
-**12 of 16 repos pushed clean. 4 blocked (3×403, 1×SSH — all pre-existing auth gaps). 1 with no remote push path (DavyJonesBot bundle). 3 submodules 403-blocked. Build pipeline stalled 11 days.**
-
-No material changes since run #448. All accessible repos are in sync, all services are healthy, and the system is stable. The build pipeline remains the primary outstanding item — stalled since Aug 25 with no loop 77+ activity.
+## Run #449 Complete
+- Push: ✅ 2 of 4 repos synced (2 blocked/unconfigured)
+- Working tree: ✅ Clean
+- Blocked repos: unchanged (1×403 ComfyUI, 1×no-remote copy)
+- New activity since last run: none
+- Active processes: multiple OBus/Gortex/Ollama/Codex instances
