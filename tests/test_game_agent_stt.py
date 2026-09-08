@@ -193,13 +193,17 @@ def test_scoped_stt_limits_text_and_rechecks_authority_before_replay(tmp_path, m
         agent._transcribe_scoped_stt(payload, WAV_FIXTURE)
 
 
-def test_transcribe_game_audio_removes_transient_wav_and_uses_cpu_int8(tmp_path, monkeypatch):
+@pytest.mark.parametrize("failure", ["none", "transcribe", "iterate", "empty"])
+def test_transcribe_game_audio_keeps_audio_in_memory_and_releases_it(tmp_path, monkeypatch, failure):
+    import io
+    import tempfile
+
     model_path = tmp_path / "model"
-    model_path.mkdir()
-    (model_path / "model.bin").write_bytes(b"model")
-    (model_path / "config.json").write_text("{}", encoding="utf-8")
-    observed: list[Path] = []
+    observed: list[io.BytesIO] = []
     constructor_options: list[dict[str, object]] = []
+
+    def forbid_audio_file(*_args, **_kwargs):
+        pytest.fail("Raw speech audio must never be written to a temporary file")
 
     class Segment:
         text = " synthetic speech "
@@ -208,20 +212,45 @@ def test_transcribe_game_audio_removes_transient_wav_and_uses_cpu_int8(tmp_path,
         def __init__(self, *_args, **kwargs):
             constructor_options.append(kwargs)
 
-        def transcribe(self, audio_path, **_kwargs):
-            observed.append(Path(audio_path))
-            assert Path(audio_path).is_file()
-            return [Segment()], object()
+        def transcribe(self, audio_stream, **kwargs):
+            assert isinstance(audio_stream, io.BytesIO)
+            assert audio_stream.read() == WAV_FIXTURE
+            assert kwargs == {"vad_filter": True}
+            audio_stream.seek(0)
+            observed.append(audio_stream)
+            if failure == "transcribe":
+                raise RuntimeError("decode failure")
 
+            def segments():
+                # Faster-Whisper returns a lazy iterator; its stream must remain
+                # alive until all segments have been consumed or iteration fails.
+                assert not audio_stream.closed
+                assert audio_stream.read() == WAV_FIXTURE
+                if failure == "empty":
+                    return
+                yield Segment()
+                if failure == "iterate":
+                    raise RuntimeError("decode failure")
+
+            return segments(), object()
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", forbid_audio_file)
     monkeypatch.setattr(agent, "local_stt_status", lambda: {"ready": True})
     monkeypatch.setattr(agent, "_game_stt_model_path", lambda: model_path)
     monkeypatch.setattr(agent, "STT_MODEL", None)
     monkeypatch.setattr(agent, "STT_MODEL_PATH", "")
     monkeypatch.setitem(sys.modules, "faster_whisper", SimpleNamespace(WhisperModel=FakeModel))
 
-    transcript, model = agent._transcribe_game_audio(WAV_FIXTURE)
+    if failure == "none":
+        transcript, model = agent._transcribe_game_audio(WAV_FIXTURE)
+        assert transcript == "synthetic speech"
+        assert model == "model"
+    else:
+        expected = "returned no speech" if failure == "empty" else "decode failure"
+        with pytest.raises(RuntimeError, match=expected):
+            agent._transcribe_game_audio(WAV_FIXTURE)
 
-    assert transcript == "synthetic speech"
-    assert model == "model"
     assert constructor_options == [{"device": "cpu", "compute_type": "int8"}]
-    assert observed and not observed[0].exists()
+    assert len(observed) == 1 and observed[0].closed
+    with pytest.raises(ValueError):
+        observed[0].getvalue()
