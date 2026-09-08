@@ -1,24 +1,31 @@
-FROM python:3.12-slim-bookworm
+FROM quay.io/fedora/python-312:latest
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
+    HOME=/var/lib/obus \
     OCCULTBUS_HOME=/var/lib/obus \
     OBUS_DISABLE_NATIVE_WORKSPACE_PICKER=1
 
 WORKDIR /app
 
-RUN groupadd --gid 10001 obus \
+USER 0
+
+RUN dnf -y install socat \
+    && dnf clean all \
+    && groupadd --gid 10001 obus \
     && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/obus obus \
     && install -d -o obus -g obus /var/lib/obus
 
-COPY requirements.txt ./requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements.txt
+COPY requirements-headless.txt ./requirements-headless.txt
+RUN python -m pip install --no-cache-dir -r requirements-headless.txt
 
 COPY --chown=obus:obus . .
 
 USER obus
+
+ENTRYPOINT []
 
 EXPOSE 38173
 VOLUME ["/var/lib/obus"]
@@ -26,4 +33,4 @@ VOLUME ["/var/lib/obus"]
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=4 \
   CMD ["python", "-c", "import json,urllib.request; response=urllib.request.urlopen('http://127.0.0.1:38173/health', timeout=3); data=json.load(response); assert response.status == 200 and data.get('status') == 'ok'"]
 
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "38173", "--log-level", "info"]
+CMD ["sh", "-c", "socat TCP-LISTEN:38173,fork,reuseaddr TCP:127.0.0.1:38174 & exec python -m uvicorn backend.main:app --host 127.0.0.1 --port 38174 --log-level info"]

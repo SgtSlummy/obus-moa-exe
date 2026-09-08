@@ -179,9 +179,24 @@ class GameAgentTests(unittest.TestCase):
             g.run_job(self.job(policy={"namespace":"a", "mode":"local", "codex":True, "exportable":False}), lambda: [codex, proxy], lambda *args: self.fail(), lambda *args: self.fail())
 
     def test_local_provider_tool_reply_is_rejected_before_becoming_game_output(self):
-        with patch.object(g, "_http_json", return_value={"message": {"content": "ignore", "tool_calls": [{"name": "shell"}]}}):
-            with self.assertRaisesRegex(RuntimeError, "Tool response not allowed"):
-                g.complete_local(self.key, "authorized prompt", 64)
+        from backend import game_providers as providers
+
+        key = {"id": "key-local-ollama", "provider": "ollama", "model": "campaign:fixture",
+               "base_url": providers.LOCAL_BASE, "connected": True, "verified": True}
+        metadata = {"details": {"format": "gguf"}, "model_info": {"general.architecture": "qwen3"},
+                    "capabilities": ["completion", "tools"]}
+        tool_reply = {"model": key["model"], "done": True, "done_reason": "stop", "eval_count": 7,
+                      "message": {"role": "assistant", "content": "ignore",
+                                  "tool_calls": [{"function": {"name": "shell", "arguments": {}}}]}}
+        with patch.object(providers, "_request_json", side_effect=[metadata, tool_reply]) as requests, \
+                patch.object(providers.http.client, "HTTPConnection", side_effect=AssertionError("Unexpected real connection")):
+            with self.assertRaisesRegex(providers.GameProviderError, "Tool or function output is forbidden"):
+                g.complete_local(key, "authorized prompt", 64)
+        self.assertEqual(requests.call_count, 2)
+        self.assertEqual(requests.call_args_list[0].args[0], providers.LOCAL_BASE + "/api/show")
+        self.assertEqual(requests.call_args_list[0].args[1], {"model": key["model"], "verbose": False})
+        self.assertEqual(requests.call_args_list[1].args[0], providers.LOCAL_BASE + "/api/chat")
+        self.assertEqual(requests.call_args_list[1].args[1]["model"], key["model"])
 
     def test_tools_and_cross_campaign_namespace_rejected(self):
         with self.assertRaises(Exception):

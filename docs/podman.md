@@ -32,6 +32,10 @@ Podman Desktop or a running Podman machine is required. From the repository root
 
 This builds `localhost/obus-headless:pilot`, starts it at <http://127.0.0.1:38183>, waits for `/health`, and verifies that the container can reach host Ollama. The native Obus service on `38173` is not stopped or reconfigured.
 
+Inside the container, a small TCP relay forwards the published port to Obus on container loopback. This preserves Obus's local-only dashboard guard even though Podman's Windows VM performs the outer port forwarding.
+
+The helper uses Podman's native build, network, volume, and run commands; it does not require Docker Desktop or an external Compose provider. It also resolves the Podman machine's current Windows-host gateway and maps `host.containers.internal` to it. This keeps Ollama on its existing Windows listener without hard-coding a WSL address that can change after a reboot.
+
 Other commands:
 
 ```powershell

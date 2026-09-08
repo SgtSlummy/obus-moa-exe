@@ -13,17 +13,75 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$composePath = Join-Path $repoRoot "compose.podman.yaml"
+$containerfilePath = Join-Path $repoRoot "Containerfile.podman"
+$imageName = "localhost/obus-headless:pilot"
+$containerName = "$ProjectName-obus-headless-1"
+$volumeName = "${ProjectName}_obus_podman_state"
+$networkName = "${ProjectName}_default"
 $healthUri = "http://127.0.0.1:$HostPort/health"
 $dashboardUri = "http://127.0.0.1:$HostPort/api/dashboard"
 
-function Invoke-PodmanCompose {
-    param([Parameter(Mandatory = $true)][string[]]$ComposeArguments)
+function Invoke-Podman {
+    param([Parameter(Mandatory = $true)][string[]]$PodmanArguments)
 
-    & podman compose --project-name $ProjectName --file $composePath @ComposeArguments
+    & podman @PodmanArguments
     if ($LASTEXITCODE -ne 0) {
-        throw "podman compose failed with exit code $LASTEXITCODE"
+        throw "podman failed with exit code $LASTEXITCODE"
     }
+}
+
+function Get-PodmanWindowsHostGateway {
+    $defaultRoute = (& podman machine ssh "ip route show default" 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $defaultRoute -notmatch "default\s+via\s+(?<gateway>\S+)") {
+        throw "Could not determine the Windows host gateway from the Podman machine. Output: $defaultRoute"
+    }
+    return $Matches.gateway
+}
+
+function Invoke-PodmanBuild {
+    Invoke-Podman -PodmanArguments @(
+        "build", "--format", "docker", "--file", $containerfilePath, "--tag", $imageName, $repoRoot
+    )
+}
+
+function Start-ObusPilot {
+    param([switch]$SkipBuild)
+
+    if (-not $SkipBuild) {
+        Invoke-PodmanBuild
+    }
+    $hostGateway = Get-PodmanWindowsHostGateway
+
+    & podman volume exists $volumeName
+    if ($LASTEXITCODE -ne 0) {
+        Invoke-Podman -PodmanArguments @("volume", "create", $volumeName)
+    }
+    & podman network exists $networkName
+    if ($LASTEXITCODE -ne 0) {
+        Invoke-Podman -PodmanArguments @("network", "create", $networkName)
+    }
+
+    Invoke-Podman -PodmanArguments @(
+        "run", "--detach", "--replace",
+        "--name", $containerName,
+        "--restart", "unless-stopped",
+        "--network", $networkName,
+        "--publish", "127.0.0.1:${HostPort}:38173",
+        "--add-host", "host.containers.internal:$hostGateway",
+        "--env", "HOME=/var/lib/obus",
+        "--env", "OCCULTBUS_HOME=/var/lib/obus",
+        "--env", "OBUS_AUTO_DELIBERATION=false",
+        "--env", "OBUS_DISABLE_NATIVE_WORKSPACE_PICKER=1",
+        "--env", "OBUS_OLLAMA_URL=http://host.containers.internal:11434",
+        "--env", "OBUS_PROVIDER_BASE_URL=http://host.containers.internal:11434/v1",
+        "--env", "COMFYUI_URL=http://host.containers.internal:8188",
+        "--volume", "${volumeName}:/var/lib/obus",
+        "--read-only",
+        "--tmpfs", "/tmp:size=256m,mode=1777",
+        "--cap-drop", "ALL",
+        "--security-opt", "no-new-privileges",
+        $imageName
+    )
 }
 
 function Wait-ObusHealth {
@@ -68,50 +126,38 @@ function Test-ObusPilot {
 if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
     throw "Podman is not installed or is not available on PATH."
 }
-if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
-    throw "Missing compose profile: $composePath"
+if (-not (Test-Path -LiteralPath $containerfilePath -PathType Leaf)) {
+    throw "Missing Podman container definition: $containerfilePath"
 }
 
-$previousPort = $env:OBUS_PODMAN_PORT
-$env:OBUS_PODMAN_PORT = [string]$HostPort
-try {
-    switch ($Action) {
-        "build" {
-            Invoke-PodmanCompose -ComposeArguments @("build")
-        }
-        "up" {
-            Invoke-PodmanCompose -ComposeArguments @("up", "--detach", "--build")
+switch ($Action) {
+    "build" {
+        Invoke-PodmanBuild
+    }
+    "up" {
+        Start-ObusPilot
+        Test-ObusPilot
+    }
+    "down" {
+        Invoke-Podman -PodmanArguments @("rm", "--force", "--ignore", $containerName)
+    }
+    "restart" {
+        Start-ObusPilot -SkipBuild
+        Test-ObusPilot
+    }
+    "status" {
+        Invoke-Podman -PodmanArguments @("ps", "--all", "--filter", "name=^${containerName}$")
+        try {
             Test-ObusPilot
         }
-        "down" {
-            Invoke-PodmanCompose -ComposeArguments @("down", "--remove-orphans")
-        }
-        "restart" {
-            Invoke-PodmanCompose -ComposeArguments @("restart", "obus-headless")
-            Test-ObusPilot
-        }
-        "status" {
-            Invoke-PodmanCompose -ComposeArguments @("ps")
-            try {
-                Test-ObusPilot
-            }
-            catch {
-                Write-Warning $_.Exception.Message
-            }
-        }
-        "logs" {
-            Invoke-PodmanCompose -ComposeArguments @("logs", "--tail", "200", "--follow", "obus-headless")
-        }
-        "verify" {
-            Test-ObusPilot
+        catch {
+            Write-Warning $_.Exception.Message
         }
     }
-}
-finally {
-    if ($null -eq $previousPort) {
-        Remove-Item Env:OBUS_PODMAN_PORT -ErrorAction SilentlyContinue
+    "logs" {
+        Invoke-Podman -PodmanArguments @("logs", "--tail", "200", "--follow", $containerName)
     }
-    else {
-        $env:OBUS_PODMAN_PORT = $previousPort
+    "verify" {
+        Test-ObusPilot
     }
 }

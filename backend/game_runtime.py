@@ -145,6 +145,85 @@ class GameRuntimeAuthority:
         finally:
             connection.close()
 
+    @contextmanager
+    def receipt_transaction(
+        self,
+        campaign: str,
+        session: str,
+        *,
+        boot_epoch: str,
+        generation: str,
+        policy_revision: int,
+    ) -> Iterator[sqlite3.Connection]:
+        """Commit a game receipt under the same SQLite lock used by runtime writers.
+
+        Initialize game.sqlite's schema before entering, and do not enter while
+        holding another game write transaction. Perform inference before this
+        short section; its body may only read/write receipts using the yielded
+        connection, without committing, rolling back or running executescript.
+
+        Two connections give explicit commit order without relying on ATTACH or
+        changing journal modes: runtime BEGIN IMMEDIATE excludes policy writers
+        in every authority/process until the game transaction commits or rolls
+        back. This guard never writes runtime rows. It is not a two-database
+        crash transaction; game.sqlite alone owns receipt atomicity. A crash
+        before its commit rolls back the receipt, while a committed receipt was
+        validated before any subsequent policy writer could acquire the lock.
+        """
+        _string(campaign, "runtime_campaign_invalid")
+        _string(session, "runtime_session_invalid")
+        if (not isinstance(boot_epoch, str) or not isinstance(generation, str)
+                or isinstance(policy_revision, bool) or not isinstance(policy_revision, int)
+                or policy_revision < 0):
+            raise RuntimeDenied(400, "runtime_fence_invalid")
+        expected = (boot_epoch, generation, policy_revision)
+        # Existing-file mode prevents missing initialization from silently
+        # creating a second or empty authoritative game database.
+        game_uri = (self.root / "game.sqlite").resolve().as_uri() + "?mode=rw"
+        game = sqlite3.connect(game_uri, uri=True, timeout=10, isolation_level=None)
+        game.row_factory = sqlite3.Row
+        try:
+            with self._transaction() as runtime:
+                def validate() -> None:
+                    snapshot = self._snapshot_from(
+                        self._campaign_row(runtime, campaign), self._session_row(runtime, campaign, session)
+                    )
+                    if not snapshot.generation:
+                        raise RuntimeDenied(409, "runtime_host_generation_required")
+                    if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != expected:
+                        raise RuntimeDenied(409, "runtime_fence_stale")
+                    if not snapshot.enabled:
+                        raise RuntimeDenied(409, "game_ai_disabled")
+                    if snapshot.mode != "local" or snapshot.codex or snapshot.exportable:
+                        raise RuntimeDenied(409, "runtime_policy_not_local_only")
+
+                def receipt_statements_only(action: int, _arg1, _arg2, _database, _trigger) -> int:
+                    if action in {sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT,
+                                  sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_PRAGMA}:
+                        return sqlite3.SQLITE_DENY
+                    return sqlite3.SQLITE_OK
+
+                try:
+                    game.execute("BEGIN IMMEDIATE")
+                    validate()
+                    # Guard ownership also prevents accidental `with game:` or
+                    # executescript calls from committing before final validation.
+                    game.set_authorizer(receipt_statements_only)
+                    try:
+                        yield game
+                    finally:
+                        game.set_authorizer(None)
+                    # Recheck leases after the body, immediately before commit.
+                    # Policy/generation/revocation writers still cannot proceed.
+                    validate()
+                    game.execute("COMMIT")
+                except BaseException:
+                    if game.in_transaction:
+                        game.execute("ROLLBACK")
+                    raise
+        finally:
+            game.close()
+
     def _initialize(self) -> None:
         connection = self._connect()
         try:

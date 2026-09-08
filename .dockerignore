@@ -1,19 +1,14 @@
-.git
-.git/**
-**/.git
-**/.git/**
-.venv
-venv
-build
-build-*
-dist
-dist-*
-third_party
-warp
-__pycache__
-**/__pycache__
-*.py[cod]
-.pytest_cache
-.hermes
-.occultbus
-*.log
+# Build contexts are allowlisted because this checkout also contains multi-GB
+# Windows packages, virtual environments, and generated UI distributions.
+**
+
+!requirements.txt
+!requirements-headless.txt
+!pytest.ini
+
+!backend/
+!backend/**
+
+# Keep the legacy test-only Dockerfile usable without admitting the full suite.
+!tests/
+!tests/test_deliberate.py

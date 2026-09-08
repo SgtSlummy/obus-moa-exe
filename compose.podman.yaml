@@ -7,7 +7,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${OBUS_PODMAN_PORT:-38183}:38173"
+    extra_hosts:
+      - "host.containers.internal:${OBUS_PODMAN_HOST_GATEWAY:-host-gateway}"
     environment:
+      HOME: /var/lib/obus
       OCCULTBUS_HOME: /var/lib/obus
       OBUS_AUTO_DELIBERATION: "false"
       OBUS_DISABLE_NATIVE_WORKSPACE_PICKER: "1"

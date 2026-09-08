@@ -22,7 +22,8 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
-from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
+from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
+from backend.game_providers import complete_free, complete_local as complete_game_local
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 
@@ -186,37 +187,35 @@ def catalogue():
     return json.loads(raw).get('providers', [])
 
 def approved_free(keys):
-    # Explicit Obus operator attestations pin a concrete provider/model/endpoint.
-    # Generic OmniRoute auto/best-free and coding-agent proxies are NOT proof of
-    # zero-cost, tool-free, destination-restricted execution.
-    path = ROOT / 'free-routes.json'
-    if not path.exists():
+    # Host pins choose a route; the game transport separately enforces its free
+    # variant, zero-price ceiling, downstream destination and response cost.
+    try:
+        with (ROOT / 'free-routes.json').open(encoding='utf-8') as configured_file:
+            encoded = configured_file.read(65537)
+        if len(encoded) > 65536:
+            return []
+        configured = json.loads(encoded)
+    except (OSError, UnicodeError, ValueError):
         return []
-    configured = json.loads(path.read_text(encoding='utf-8'))
     result = []
     for pin in configured if isinstance(configured, list) else []:
-        if pin.get('zero_charge') is not True or pin.get('no_fallback') is not True or pin.get('no_tools') is not True:
+        if not isinstance(pin, dict) or any(pin.get(flag) is not True for flag in ('zero_charge', 'no_fallback', 'no_tools')):
             continue
         for key in keys:
-            if all(key.get(k) == pin.get(k) for k in ['id','provider','model','base_url']) and key.get('connected') and key.get('verified'):
-                try:
-                    _validated_provider_base_url(key['provider'], key['base_url'])
-                    if key['provider'] not in {'codex','ollama'}:
-                        result.append(key)
-                except RuntimeError:
-                    pass
+            if not isinstance(key, dict) or key.get('connected') is not True or key.get('verified') is not True:
+                continue
+            if key.get('provider') != 'openrouter' or key.get('base_url') != 'https://openrouter.ai/api/v1':
+                continue
+            if all(key.get(field) == pin.get(field) for field in ('id', 'provider', 'model', 'base_url')):
+                result.append({**key, 'game_free_pin': dict(pin)})
+                if len(result) == 8:
+                    return result
     return result
 
 def complete_local(key, prompt, maximum):
-    base = _validated_provider_base_url('ollama', key['base_url'])
-    if urllib.parse.urlsplit(base).hostname not in {'127.0.0.1','localhost','::1'}:
-        raise RuntimeError('Local provider is not loopback')
-    result = _http_json(base + '/api/chat', {}, {'model': key['model'], 'stream': False, 'think': False,
-        'messages': [{'role': 'system', 'content': 'You are the Obus Raphael game agent. Use supplied authorized evidence only. Do not execute tools or decide mechanical outcomes.'}, {'role':'user','content':prompt}],
-        'options': {'num_ctx':8192,'num_predict':maximum,'temperature':0.3}, 'keep_alive':'5m'}, timeout=90)
-    if result.get('message', {}).get('tool_calls'):
-        raise RuntimeError('Tool response not allowed')
-    return result.get('message', {}).get('content', '')
+    # The game-specific adapter verifies a concrete local model and checks the
+    # returned model/provenance before exposing text to the existing job API.
+    return complete_game_local(key, prompt, maximum)['text']
 
 def _require_runtime(campaign: str, session: str, fence: RuntimeFence) -> None:
     snapshot = runtime_authority().snapshot(campaign, session)
@@ -228,6 +227,22 @@ def _require_runtime(campaign: str, session: str, fence: RuntimeFence) -> None:
         raise HTTPException(409, "game_ai_disabled")
     if snapshot.mode != "local" or snapshot.codex or snapshot.exportable:
         raise HTTPException(409, "runtime_policy_not_local_only")
+
+
+@contextmanager
+def _receipt_transaction(campaign: str, session: str, fence: RuntimeFence):
+    # Initialize the game schema before taking the runtime writer lock. The
+    # authority owns both validation and the receipt transaction's commit.
+    with database():
+        pass
+    try:
+        with runtime_authority().receipt_transaction(
+            campaign, session, boot_epoch=fence.bootEpoch,
+            generation=fence.generation, policy_revision=fence.sessionPolicyRevision,
+        ) as db:
+            yield db
+    except RuntimeDenied as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.code) from exc
 
 
 async def _host_control_async(request: Request, action) -> dict:
@@ -245,7 +260,7 @@ async def _host_control_async(request: Request, action) -> dict:
         raise HTTPException(exc.status, exc.code) from exc
 
 
-def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_remote_provider):
+def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_free):
     if job.policy.codex:
         raise HTTPException(409, 'Codex escalation is not supported by this game agent')
     _require_runtime(job.scope.campaign, job.session, job.runtime)
@@ -279,7 +294,24 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
                 stage = {'provider':key['id'],'model':key['model'],'destination':destination,'cost':'zero' if destination == 'free' else 'local','attempt':attempt+1}
                 _require_runtime(job.scope.campaign, job.session, job.runtime)
                 try:
-                    text = local(key,prompt,job.max_tokens) if destination == 'local' else remote(key,prompt)
+                    if destination == 'local':
+                        text = local(key, prompt, job.max_tokens)
+                    else:
+                        completion = remote(key, prompt, job.max_tokens)
+                        pin = key.get('game_free_pin', {})
+                        if (not isinstance(completion, dict)
+                                or completion.get('route_id') != key['id']
+                                or completion.get('model') != key['model']
+                                or completion.get('provider') != pin.get('downstream_provider_name')
+                                or completion.get('gateway') != 'openrouter'
+                                or completion.get('destination') != 'external'
+                                or completion.get('cost') != 'zero'):
+                            raise RuntimeError('Invalid free-route provenance')
+                        text = completion.get('text')
+                        stage.update({name: completion[name] for name in (
+                            'provider', 'model', 'endpoint', 'gateway', 'route_id',
+                            'cost_basis', 'completion_tokens', 'response_id',
+                        )})
                     if not isinstance(text,str) or not text.strip() or len(text)>16000 or '<script' in text.lower():
                         raise RuntimeError('Invalid output')
                     stage['status']='ready'; trace.append(stage); selected=key; break
@@ -293,7 +325,7 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
         # late result to become a durable receipt.
         _require_runtime(job.scope.campaign, job.session, job.runtime)
         result={'text':text.strip(),'routeId':str(uuid.uuid4()),'model':selected['model'],'trace':trace,'sources':[{'ref':s['ref'],'revision':s['revision']} for s in sources], 'retention': {'request_evidence_persisted': False, 'general_memory_writes': False, 'route_journal_writes': False, 'game_receipt_persisted': True}}
-        with database() as db:
+        with _receipt_transaction(job.scope.campaign, job.session, job.runtime) as db:
             db.execute('INSERT INTO game_jobs VALUES(?,?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
         return result
 
@@ -417,7 +449,7 @@ def _transcribe_scoped_stt(scoped: dict, audio: bytes) -> dict:
             if encoded != prior["body"]:
                 # Normalize an encountered legacy receipt without redisclosing
                 # its stored transcript. This is not forensic SQLite erasure.
-                with database() as db:
+                with _receipt_transaction(scope["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"])) as db:
                     db.execute("UPDATE stt_jobs SET body=? WHERE campaign=? AND session=? AND owner=? AND request=?", (encoded, *identity))
             return replay
         try:
@@ -433,7 +465,7 @@ def _transcribe_scoped_stt(scoped: dict, audio: bytes) -> dict:
         receipt.update({"engine": "game-local-faster-whisper", "model": model})
         response = {"status":"completed","result":{"kind":"transcript","text":transcript,"engine":"game-local-faster-whisper","model":model,"trace":[{"stage":"local_stt","destination":"local","status":"ready"}]},"receipt":receipt}
         durable = {"status": "completed_receipt_only", "receipt": receipt}
-        with database() as db:
+        with _receipt_transaction(scope["campaign"], scoped["session"], RuntimeFence.model_validate(scoped["runtime"])) as db:
             db.execute("INSERT INTO stt_jobs VALUES(?,?,?,?,?,?)", (*identity, fingerprint, json.dumps(durable, separators=(",", ":"))))
         return response
 
@@ -461,7 +493,7 @@ async def private_access(request: Request, call_next):
     return await call_next(request)
 @app.get('/api/game/capabilities')
 def capabilities():
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':False,'free_route_policy':'runtime authority permits local-only dispatch; no remote or fallback route is available','codex_available':False,'retrieval':'scoped lexical; embedding integration pending','local_stt':local_stt_status()}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':False,'free_route_policy':'runtime authority permits local-only dispatch; no remote or fallback route is available','codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
 
 
 @app.get('/api/game/runtime')
