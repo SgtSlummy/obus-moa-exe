@@ -293,6 +293,22 @@ def _resolve_job_evidence(db, job: Job, request: EvidenceRequest):
         raise HTTPException(exc.status, exc.code) from exc
 
 
+@contextmanager
+def _evidence_transaction(campaign: str, session: str, fence: RuntimeFence):
+    # Consent/corrections must reach the authority even while model use is off.
+    # This separate guard never grants permission to save inference receipts.
+    with database():
+        pass
+    try:
+        with runtime_authority().evidence_transaction(
+            campaign, session, boot_epoch=fence.bootEpoch,
+            generation=fence.generation, policy_revision=fence.sessionPolicyRevision,
+        ) as db:
+            yield db
+    except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
 def _save_evidence_snapshot(body: dict) -> dict:
     try:
         snapshot = EvidenceSnapshot.model_validate(body)
@@ -300,7 +316,7 @@ def _save_evidence_snapshot(body: dict) -> dict:
         raise HTTPException(422, 'evidence_snapshot_invalid') from None
     fence = RuntimeFence.model_validate(snapshot.runtime.model_dump())
     try:
-        with _receipt_transaction(snapshot.campaign, snapshot.session, fence) as db:
+        with _evidence_transaction(snapshot.campaign, snapshot.session, fence) as db:
             return save_snapshot(db, snapshot)
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc

@@ -225,6 +225,29 @@ class EvidenceAPITests(unittest.TestCase):
         self.assertNotIn('rang twice', prompts[0])
         self.assertIn('three times', prompts[0])
 
+    def test_signed_consent_sync_works_with_ai_off_but_generation_stays_denied(self):
+        g._save_evidence_snapshot(self.snapshot())
+        master = self.authority.snapshot('camp', 'campaign')
+        self.authority.patch_policy({
+            'contract': g.RUNTIME_CONTRACT, 'campaign': 'camp', 'session': 'campaign',
+            'expectedBootEpoch': master.boot_epoch, 'expectedGeneration': master.generation,
+            'expectedSessionPolicyRevision': master.policy_revision, 'opId': str(uuid.uuid4()),
+            'policy': {'enabled': False, 'mode': 'local', 'codex': False, 'exportable': False},
+        })
+        runtime = self.client.get('/api/game/runtime?campaign=camp&session=session', headers=self.headers).json()
+        self.fence = {key: runtime[key] for key in ('contract', 'bootEpoch', 'generation', 'sessionPolicyRevision')}
+        changed = self.snapshot(2)
+        changed['participants'][0].update(external=False, externalEpoch=2)
+        with patch.object(self.authority, 'verify_host'):
+            response = self.client.post('/api/game/evidence/snapshot', json=changed, headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['revision'], 2)
+        evidence = {**self.job().evidence, 'revision': 2}
+        with self.assertRaises(HTTPException) as caught:
+            self.run_job(self.job(evidence=evidence), local=lambda *_: self.fail('disabled AI dispatched'))
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(self.receipts(), 0)
+
     def test_local_only_people_remain_usable_for_local_requests(self):
         body = self.snapshot()
         body['participants'][0].update(external=False, externalEpoch=0)

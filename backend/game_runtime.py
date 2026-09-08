@@ -155,11 +155,46 @@ class GameRuntimeAuthority:
         generation: str,
         policy_revision: int,
     ) -> Iterator[sqlite3.Connection]:
-        """Commit a game receipt under the same SQLite lock used by runtime writers.
+        """Commit inference receipts only while the fenced local AI policy is enabled."""
+        with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
+                                    policy_revision=policy_revision, require_enabled=True) as game:
+            yield game
+
+    @contextmanager
+    def evidence_transaction(
+        self,
+        campaign: str,
+        session: str,
+        *,
+        boot_epoch: str,
+        generation: str,
+        policy_revision: int,
+    ) -> Iterator[sqlite3.Connection]:
+        """Synchronize authoritative evidence/consent even while AI is disabled.
+
+        This datastore-only guard grants no inference or provider permission.
+        Live host/session fences, leases and the local-only policy still apply.
+        """
+        with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
+                                    policy_revision=policy_revision, require_enabled=False) as game:
+            yield game
+
+    @contextmanager
+    def _game_transaction(
+        self,
+        campaign: str,
+        session: str,
+        *,
+        boot_epoch: str,
+        generation: str,
+        policy_revision: int,
+        require_enabled: bool,
+    ) -> Iterator[sqlite3.Connection]:
+        """Commit game data under the same SQLite lock used by runtime writers.
 
         Initialize game.sqlite's schema before entering, and do not enter while
         holding another game write transaction. Perform inference before this
-        short section; its body may only read/write receipts using the yielded
+        short section; its body may only read/write game data using the yielded
         connection, without committing, rolling back or running executescript.
 
         Two connections give explicit commit order without relying on ATTACH or
@@ -192,7 +227,7 @@ class GameRuntimeAuthority:
                         raise RuntimeDenied(409, "runtime_host_generation_required")
                     if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != expected:
                         raise RuntimeDenied(409, "runtime_fence_stale")
-                    if not snapshot.enabled:
+                    if require_enabled and not snapshot.enabled:
                         raise RuntimeDenied(409, "game_ai_disabled")
                     if snapshot.mode != "local" or snapshot.codex or snapshot.exportable:
                         raise RuntimeDenied(409, "runtime_policy_not_local_only")
