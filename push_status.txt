@@ -1,61 +1,56 @@
-# Push Status — 2026-09-03 20:30 UTC
+# Push Status Report
+**Generated:** 2026-09-08 12:05 UTC
 
-## Push Summary
+## obus-moa-exe (master)
+| Item | Value |
+|------|-------|
+| Working tree | Clean (only `NUL` untracked, pre-existing) |
+| HEAD | `ab9f2d8` — Cron: push status update (#468) - 2026-09-08 16:57 UTC |
+| Remote | origin/master — **IN SYNC** |
+| Push | Already up to date |
 
-|| Repo | Branch | Head | Remote | In Sync | Push Result |
-||------|--------|------|--------|---------|-------------|
-|| obus-moa-exe | master | `08a364d` (Cron: add report 0437 — all repos pushed, build stalled 9d, ChatGPT gone) | origin/master | ✅ YES | Pushed this cycle |
-| obus-moa-exe | codex/autonomy-context-agents | `9429331` (chore: snapshot tracked file changes) | origin/codex/autonomy-context-agents | ✅ YES | Already pushed |
-| obus-moa-exe | codex/recover-autonomy-context-agents-20260827 | `df485d6` (Store tracked virtualenv executables in LFS) | origin/codex/recover-autonomy-context-agents-20260827 | ✅ YES | Already pushed |
-| Tarot-Router | main | — (no git worktree) | origin/main | ⚠️ UNKNOWN | Cannot verify |
-| warden | main | `6c7b2e9` (chore: stage modified src/index.ts) | origin/main | ✅ YES | Already pushed |
-| warden-discord-bot | main | `4fa686e` (fix(diva): correct CRLF escaping) | origin/main | ✅ YES | Already pushed |
-| mythos-router-source | main | `032e0c2` (Update: policy.json, MEMORY.md, soul.md) | origin/main | ✅ YES | Already pushed |
-| temporal | main | `561ba4ee4` (Initial temporal clone) | origin/main | ✅ YES | Already pushed |
-| hermes-photon-client | master | `d7acf11` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
-| hermes-photon-server | master | `9cf3bd5` (feat: initial setup) | origin/master | ✅ YES | Already pushed |
-| DavyJonesBot/workspace | main | `249b5bf` (fix: keep music search within music channel) | bundle (local) | ⚠️ NO | Bundle push fails (ahead 10, new untracked dir) |
-| mempalace | develop | `b522512` (chore: sync with upstream develop) | fork (SgtSlummy/mempalace) | ❌ NO | 403 Forbidden |
-| MoA-source | main | `fd816ca` (feat: provider usage tracking) | togethercomputer/MoA | ❌ NO | 403 Forbidden |
-| models-dev-source | dev | `aa6d1fb5d` (Remove deleted workflow/agent files) | github.com:sst/models.dev.git | ❌ NO | SSH auth failure |
-| warden-source | main | `794cfcf` (Merge PR #945) | origin | ❌ NO | 403 Forbidden |
+## obus-moa-exe (codex/autonomy-context-agents)
+| Item | Value |
+|------|-------|
+| Working tree | Clean |
+| HEAD | `ab02750` — chore: refresh push status report (04:22 cycle) |
+| Remote | origin/codex/autonomy-context-agents — **IN SYNC** |
+| Push | Already up to date |
 
-**11 of 15 accessible repos pushed clean. 4 blocked (3×403, 1×SSH). 1 with no remote (DavyJonesBot/workspace). 1 with no git worktree (Tarot-Router).**
+## obus-moa-exe (codex/recover-autonomy-context-agents-20260827)
+| Item | Value |
+|------|-------|
+| Working tree | Clean |
+| HEAD | `778428b` — Cron: snapshot AGENTS.md from recovery archive |
+| Remote | origin/ — **IN SYNC** |
+| Push | Already up to date |
 
-## Submodules (unchanged)
+## Blocked Repos (pre-existing, no new action possible)
+| Repo | Branch | Head | Remote | Block |
+|------|--------|------|--------|-------|
+| DavyJonesBot/workspace | main | `249b5bf` | bundle (local) | Stale bundle; needs new destination |
+| mempalace | develop | `b522512` | fork (SgtSlummy) | 403 Forbidden — not a collaborator |
+| MoA-source | main | `fd816ca` | togethercomputer/MoA | 403 Forbidden — not a collaborator |
+| models-dev-source | dev | `aa6d1fb5d` | github.com:sst/models.dev | SSH auth failure — no valid key |
+| warden-source | main | `794cfcf` | origin | 403 Forbidden — not a collaborator |
+| Tarot-Router | main | — | origin/main | No git worktree present |
 
-| Submodule | Local HEAD | Push Result |
-|-----------|------------|-------------|
-| third_party/warpdotdev-warp | `8c2cc73` detached | ❌ 403 (no write access) — pre-existing |
-| warp | `3504ce5` detached, ahead 5/behind 8, directory MISSING | ❌ 403 (no write access) |
-| Understand-Anything | `99e62b7` v1.3.0-574-g99e62b7 | ❌ 403 (no write access) — pre-existing |
+## Submodules (pre-existing blocks)
+| Submodule | Local HEAD | Block |
+|-----------|------------|-------|
+| third_party/warpdotdev-warp | `8c2cc73` detached | 403 (no write access) |
+| warp | `3504ce5` detached, ahead 5/behind 8, dir MISSING | 403 (no write access) |
+| Understand-Anything | `99e62b7` v1.3.0-574 | 403 (no write access) |
 
-## Push Failure Log
+## Build Pipeline
+- **Latest:** `build-aui-loop76` / `dist-aui-loop76`
+- **OBus.exe:** 70,777,957 bytes (67.5 MB)
+- **Last build:** Aug 25 04:49 UTC — **STALLED for 14 days**
+- **No loop 77+ activity.**
 
-### DavyJonesBot/workspace (active)
-- remote: C:/Users/Hermes/DavyJonesBot/incoming/davy-jones-bot.bundle
-- error: push to bundle failed — bundle likely stale
-- branch: main (ahead 10)
-- state: needs a valid remote destination; new untracked `.candidate-evidence-inspect/` dir with verified SLSA provenance
-
-### mempalace
-- remote: MemPalace/mempalace.git (develop, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### MoA-source
-- remote: togethercomputer/MoA.git (main, ahead 4)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-### models-dev-source
-- remote: github.com:sst/models.dev.git (dev, ahead 1)
-- error: SSH permission denied (publickey) — no valid SSH key
-- state: clean
-
-### warden-source
-- remote: wardenenv/warden.git (main, ahead 1)
-- error: 403 Forbidden — SgtSlummy not a collaborator
-- state: clean
-
-Note: All accessible repos pushed clean. Auth failures are pre-existing — no new action possible.
+## Summary
+- **Push:** ✅ All accessible repos already up to date. No new changes to push.
+- **Working tree:** Clean (only pre-existing `NUL` untracked file).
+- **Blocked repos:** 6 blocked (4×403, 1×SSH, 1×stale bundle) — all pre-existing, not actionable.
+- **Build:** STALLED 14 days (loop 76, Aug 25). No new build loop activity.
+- **New changes since last push:** None. HEAD `ab9f2d8` already pushed.
