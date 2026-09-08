@@ -1,35 +1,71 @@
+#!/bin/bash
 set -e
+
+echo "=== Pushing all branches to origin ==="
 cd /c/Users/Hermes/Documents/obus-moa-exe
 
-echo "===== GIT STATUS (main) ====="
-git status --short 2>&1 | head -60
+# Push all branches
+git push origin --all 2>&1 | tee push_branches.txt
+
 echo ""
-echo "===== GIT LOG (last 5) ====="
-git log --oneline -5 2>&1
+echo "=== Pushing all tags ==="
+git push origin --tags 2>&1 | tee -a push_branches.txt
+
 echo ""
-echo "===== GIT BRANCHES ====="
-git branch -vv 2>&1 | head -20
+echo "=== Git status ==="
+git status --short 2>&1 | tee git_status.txt
+
 echo ""
-echo "===== GIT REMOTES ====="
-git remote -v 2>&1
+echo "=== Recent commits ==="
+git log --oneline -10 2>&1 | tee git_log.txt
+
 echo ""
-echo "===== GIT PUSH STATUS (full) ====="
-git push --dry-run 2>&1 | head -40
+echo "=== Unpushed commits ==="
+git log --oneline @{u}..HEAD 2>&1 | tee git_unpushed.txt || echo "No upstream or up to date"
+
 echo ""
-echo "===== LATEST PUSH STATUS FILE ====="
-cat push_status_new.txt 2>/dev/null | tail -40
+echo "=== Build status ==="
+cat build_status_report.txt 2>/dev/null || echo "No build status report"
+
 echo ""
-echo "===== ACTIVE BUILD DIRECTORY (newest, non-empty) ====="
-ls -lt build-aui-loop* 2>/dev/null | head -5
+echo "=== Check for active build loops ==="
+for dir in build-aui-loop*/; do
+    if [ -f "$dir/build_status.txt" ]; then
+        echo "--- $dir ---"
+        cat "$dir/build_status.txt" 2>/dev/null || echo "No status file"
+        echo ""
+    fi
+done
+
 echo ""
-echo "===== LATEST DIST DIRECTORY ====="
-ls -lt dist-aui-loop* 2>/dev/null | head -5
+echo "=== Check deploy directory ==="
+ls -la deploy/ 2>/dev/null || echo "No deploy directory"
+
 echo ""
-echo "===== PYTHON VENV CHECK ====="
-ls -la .venv/bin/python 2>/dev/null && .venv/bin/python --version 2>/dev/null || echo "no .venv python"
+echo "=== Check dist directory for recent EXEs ==="
+ls -lt dist/*.exe 2>/dev/null | head -5 || echo "No EXE files in dist/"
+
 echo ""
-echo "===== CRON REPORT LATEST ====="
-cat cron_report_latest.md 2>/dev/null | head -30
+echo "=== Check latest dist subdirectory ==="
+ls -lt dist-*/ 2>/dev/null | head -10 || echo "No dist-* directories"
+
 echo ""
-echo "===== ACTIVE JOBS FROM LATEST REPORT ====="
-grep -i "active\|running\|in progress\|pending\|queue" cron_report_latest.md 2>/dev/null | head -20
+echo "=== Package directories status ==="
+for dir in package-dist312-consolidated-v*/; do
+    if [ -f "$dir/package_status.txt" ]; then
+        echo "--- $dir ---"
+        cat "$dir/package_status.txt" 2>/dev/null || echo "No status file"
+        echo ""
+    fi
+done
+
+echo ""
+echo "=== Cron reports (last 5) ==="
+ls -lt cron_report_*.md 2>/dev/null | head -5
+
+echo ""
+echo "=== Process check for running builds ==="
+ps aux | grep -E "(python|node|electron|obus)" | grep -v grep || echo "No relevant processes running"
+
+echo ""
+echo "=== Done ==="
