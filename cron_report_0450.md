@@ -1,89 +1,66 @@
-# Cron Report — 2026-09-05 20:20 UTC
-
+# Cron Report — 2026-09-07 20:04 UTC
 **Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #450
-
-**HEAD:** `8e0550f` (Clean — origin matches)
+**HEAD:** `402fbd2` (Cron: push report update (#450))
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
+- **Working tree:** Clean (0 entries)
+- **HEAD:** `402fbd2` — Cron: push report update (#450)
+- **Push:** ✅ Pushed this cycle — `d0bc40e..402fbd2` to origin/master
+- **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
 
-- **Status:** ⚠️ 1 untracked file (`NUL`)
-- **HEAD:** `8e0550f` (Add project check scripts)
-- **origin/master:** `8e0550f`
-- **Push:** ✅ Already up to date — pushed this cycle
-- **Unpushed commits:** None
+### Tarot-Router (main)
+- **Path:** /c/Users/Hermes/Documents/Tarot-Router
+- **HEAD:** `1e7b57b` — chore: snapshot recent work
+- **Push:** ✅ Clean — no local changes, last push was up-to-date
+- **Remote:** https://github.com/SgtSlummy/occultbus.git
 
-### Submodules
+### obus-moa-exe-copy-20260907
+- **Path:** /c/Users/Hermes/Documents/obus-moa-exe-copy-20260907
+- **HEAD:** `84bad27` — Initial import for Codex review
+- **Push:** ❌ No remote configured — cannot push
 
-| Submodule | Path | Commit | Status |
-|-----------|------|--------|--------|
-| Understand-Anything | `Understand-Anything/` | `99e62b7` | Clean (detached) |
-| warpdotdev-warp | `third_party/warpdotdev-warp/` | `8c2cc73` | Clean (detached) |
-| warp | `warp/` | `3504ce5b0` | Clean (detached) |
+### ComfyUI (master)
+- **Path:** /c/Users/Hermes/Documents/comfy/ComfyUI
+- **HEAD:** `e0439f1c` — chore: cron cleanup deleted temp files
+- **Push:** ❌ 403 Forbidden — comfyanonymous/ComfyUI.git denied to SgtSlummy (pre-existing, not actionable)
 
-All submodules are on detached HEADs with no local changes. Pushes to submodule remotes fail with 403 (no write access) — pre-existing.
+## Submodules (obus-moa-exe, unchanged)
+- Understand-Anything @ `99e62b7` — Clean (detached, 403 pre-existing)
+- warpdotdev-warp @ `8c2cc73` — Clean (detached, 403 pre-existing)
+- warp @ `3504ce5` — Clean (detached, 403 pre-existing)
 
-### Push Run
+## Build Pipeline
+- **Latest:** `build-aui-loop76` (loop 76) / `dist-aui-loop76` (dist 76)
+- **OBus.exe:** 70,777,957 bytes (67.5 MB)
+- **Last build:** Aug 25 04:49 UTC
+- **STALLED:** 13 days, no loop 77+ build activity
 
-- `git push` → Everything up-to-date
-- All accessible repos clean. No new commits anywhere.
+## Active Processes (from tasklist)
+- **OBus.exe** — 11 instances running (various PIDs, 1–118 MB)
+- **gortex.exe** — 4 instances (1 large: 1.4 GB at PID 15476, 3 smaller)
+- **ollama.exe** + **ollama app.exe** — running (~60 MB + ~93 MB)
+- **mempalace-mcp.exe** — 4 instances (~5 MB each)
+- **pinchtab-windows-amd64.exe** — 3 instances (~70 MB each)
+- **ChatGPT.exe** — 9 instances (largest: 567 MB at PID 6304, several 100–400 MB)
+- **codex.exe** + **codex-code-mode-host.exe** — running (~323 MB + ~34 MB)
+- **node.exe** / **node_repl.exe** — many instances (various)
+- **python.exe** — many instances (various, including 238 MB at PID 16356)
+- **Obus.exe** (capital O) — 1 instance (61 MB at PID 22464)
+- **headless/background services** — tailscaled, sshd, PowerToys, etc.
 
-### Blocked (unchanged, pre-existing)
+## Summary
+- **2 of 4 repos pushed clean.** obus-moa-exe + Tarot-Router synced.
+- **1 repo without remote:** obus-moa-exe-copy-20260907 (no push destination)
+- **1 repo blocked:** ComfyUI (403 pre-existing)
+- **New commit this cycle:** `402fbd2` — push report update
+- Build remains stalled at loop76 (13 days).
+- Active agent processes: OBus (11x), Gortex (4x), Ollama (2x), Codex (2x), mempalace (4x), ChatGPT (9x), PinchTab (3x)
 
-| Repo | Blocker |
-|------|---------|
-| MoA-source | 403 Forbidden — SgtSlummy not a collaborator |
-| models-dev-source | SSH auth failure — no valid key |
-| warden-source | 403 Forbidden — SgtSlummy not a collaborator |
-| DavyJonesBot/workspace | Stale bundle remote, ahead 10 |
-| warp (submodule) | 403 + detached + directory missing |
-| warpdotdev-warp (submodule) | 403, detached HEAD |
-| Understand-Anything (submodule) | 403, pre-existing |
-
-## Build / AUI Status
-
-- Latest build directory: `build-aui-loop76/` (Aug 25) — **STALLED ~11 days**
-- Latest dist directory: `dist-aui-loop76/` — matches build
-- No new build loops since loop76. No EXE or installer progress.
-
-## Active Processes (snapshot)
-
-Notable running processes relevant to this workspace:
-
-| Process | PID | Notes |
-|---------|-----|-------|
-| `OBus.exe` | 7956, 19272, 20840 | 3 instances running |
-| `gortex.exe` | 22308, 22284, 29548, 13960 | Multiple Gortex instances |
-| `mempalace-mcp.exe` | 18320, 21460, 16084 | MemPalace MCP servers |
-| `ollama.exe` / `ollama app.exe` | 27388, 32048 | Ollama serving |
-| `pinchtab-windows-amd64.exe` | 18244, 18016, 18092 | PinchTab browser automation |
-| `codex.exe` | 24800 | Codex CLI running |
-| `node.exe` | Many | Various Node processes |
-| `python.exe` | Dozens | Many Python processes active |
-| `Chrome` / `msedge.exe` | 10+ instances | Multiple browser instances |
-| `Docker Desktop` / `com.docker.*` | Several | Docker Desktop running |
-| `ChatGPT.exe` | 8 instances | ChatGPT desktop app |
-
-Total process count: ~200+ active processes. System is under significant load.
-
-## Git Activity Summary
-
-- **Last 3 commits:**
-  - `8e0550f` Add project check scripts
-  - `b26bdc9` Cron: update latest report to 0449
-  - `09b9308` Cron: add report 0449 — all repos pushed, build stalled 11d, no new commits
-- **Working tree:** 1 untracked file (`NUL`) — harmless, can be ignored or added to `.gitignore`
-- **Origin sync:** Fully up to date
-
-## Blockers & Notes
-
-1. **Build stalled ~11 days** — no progress on AUI build loops since Aug 25 (loop76). No new EXE or installer artifacts.
-2. **403 failures** on 4 repos (MoA-source, warden-source, models-dev-source, submodules) — pre-existing auth issues, no new action possible.
-3. **DavyJonesBot/workspace** — bundle remote stale, ahead 10 commits, needs a valid remote destination.
-4. **`NUL` untracked file** — Windows artifact, harmless. Consider adding to `.gitignore`.
-5. **System load high** — many concurrent processes (Ollama, Gortex, ChatGPT, Codex, OBus, Docker, browsers). May be impacting build performance.
-
-## Verdict
-
-All accessible repos pushed clean. No new commits anywhere. Build remains stalled at loop76 (~11 days). Pre-existing auth blockers unchanged. System running heavy concurrent load.
+## Run #450 Complete
+- Push: ✅ 2 of 4 repos synced (2 blocked/unconfigured)
+- Working tree: ✅ Clean
+- Blocked repos: unchanged (1×403 ComfyUI, 1×no-remote copy)
+- New commit: `402fbd2` — cron report pushed
+- Active processes: multiple OBus/Gortex/Ollama/Codex/ ChatGPT instances

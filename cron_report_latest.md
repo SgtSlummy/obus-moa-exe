@@ -1,19 +1,20 @@
-# Cron Report — 2026-09-07 19:58 UTC
-**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #449
-**HEAD:** `d0bc40e` (Cron: push report update)
+# Cron Report — 2026-09-07 20:04 UTC
+**Job ID:** 893c7df0ef71 | **Schedule:** every 10m | **Run:** #450
+**HEAD:** `402fbd2` (Cron: push report update (#450))
 
 ## Git Push — All Projects
 
 ### obus-moa-exe (master)
 - **Working tree:** Clean (0 entries)
-- **HEAD:** `d0bc40e` — Cron: push report update
-- **Push:** ✅ Pushed — Everything up-to-date (origin/master at same SHA)
+- **HEAD:** `402fbd2` — Cron: push report update (#450)
+- **Push:** ✅ Pushed this cycle — `d0bc40e..402fbd2` to origin/master
 - **Remote:** https://github.com/SgtSlummy/obus-moa-exe.git
 
 ### Tarot-Router (main)
 - **Path:** /c/Users/Hermes/Documents/Tarot-Router
 - **HEAD:** `1e7b57b` — chore: snapshot recent work
-- **Push:** ✅ Pushed — Everything up-to-date
+- **Push:** ✅ Clean — no local changes, last push was up-to-date
+- **Remote:** https://github.com/SgtSlummy/occultbus.git
 
 ### obus-moa-exe-copy-20260907
 - **Path:** /c/Users/Hermes/Documents/obus-moa-exe-copy-20260907
@@ -37,29 +38,29 @@
 - **STALLED:** 13 days, no loop 77+ build activity
 
 ## Active Processes (from tasklist)
-- **OBus.exe** — 8 instances running (various PIDs)
-- **gortex.exe** — 4 instances (1 large: 1.4GB at PID 15476)
-- **ollama.exe** + **ollama app.exe** — running
-- **mempalace-mcp.exe** — 4 instances
-- **pinchtab-windows-amd64.exe** — 3 instances
-- **ChatGPT.exe** — 9 instances (large memory: up to 500MB)
-- **codex.exe** + **codex-code-mode-host.exe** — running
-- **node.exe** — many instances (various REPL/processes)
-- **python.exe** — many instances (various)
-- **Chrome/Edge** — browser instances active
+- **OBus.exe** — 11 instances running (various PIDs, 1–118 MB)
+- **gortex.exe** — 4 instances (1 large: 1.4 GB at PID 15476, 3 smaller)
+- **ollama.exe** + **ollama app.exe** — running (~60 MB + ~93 MB)
+- **mempalace-mcp.exe** — 4 instances (~5 MB each)
+- **pinchtab-windows-amd64.exe** — 3 instances (~70 MB each)
+- **ChatGPT.exe** — 9 instances (largest: 567 MB at PID 6304, several 100–400 MB)
+- **codex.exe** + **codex-code-mode-host.exe** — running (~323 MB + ~34 MB)
+- **node.exe** / **node_repl.exe** — many instances (various)
+- **python.exe** — many instances (various, including 238 MB at PID 16356)
+- **Obus.exe** (capital O) — 1 instance (61 MB at PID 22464)
 - **headless/background services** — tailscaled, sshd, PowerToys, etc.
 
 ## Summary
-- **2 of 4 repos pushed clean.** Tarot-Router + obus-moa-exe synced.
+- **2 of 4 repos pushed clean.** obus-moa-exe + Tarot-Router synced.
 - **1 repo without remote:** obus-moa-exe-copy-20260907 (no push destination)
 - **1 repo blocked:** ComfyUI (403 pre-existing)
-- **No new changes** since last cycle (#448). All repos were already in sync.
+- **New commit this cycle:** `402fbd2` — push report update
 - Build remains stalled at loop76 (13 days).
-- Active agent processes detected: OBus (8x), Gortex (4x), Ollama, Codex, mempalace (4x), ChatGPT (9x)
+- Active agent processes: OBus (11x), Gortex (4x), Ollama (2x), Codex (2x), mempalace (4x), ChatGPT (9x), PinchTab (3x)
 
-## Run #449 Complete
+## Run #450 Complete
 - Push: ✅ 2 of 4 repos synced (2 blocked/unconfigured)
 - Working tree: ✅ Clean
 - Blocked repos: unchanged (1×403 ComfyUI, 1×no-remote copy)
-- New activity since last run: none
-- Active processes: multiple OBus/Gortex/Ollama/Codex instances
+- New commit: `402fbd2` — cron report pushed
+- Active processes: multiple OBus/Gortex/Ollama/Codex/ ChatGPT instances
