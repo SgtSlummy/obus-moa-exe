@@ -134,6 +134,7 @@ def initialize_schema(db: sqlite3.Connection) -> None:
     statements = (
         "CREATE TABLE IF NOT EXISTS game_evidence_snapshots(campaign TEXT NOT NULL, session TEXT NOT NULL, revision INTEGER NOT NULL, body_hash TEXT NOT NULL, PRIMARY KEY(campaign,session))",
         "CREATE TABLE IF NOT EXISTS game_evidence_participants(campaign TEXT NOT NULL, session TEXT NOT NULL, user TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(campaign,session,user))",
+        "CREATE TABLE IF NOT EXISTS game_evidence_participant_heads(campaign TEXT NOT NULL, session TEXT NOT NULL, user TEXT NOT NULL, capture INTEGER NOT NULL, external INTEGER NOT NULL, capture_epoch INTEGER NOT NULL, external_epoch INTEGER NOT NULL, present INTEGER NOT NULL, PRIMARY KEY(campaign,session,user))",
         "CREATE TABLE IF NOT EXISTS game_evidence_sources(campaign TEXT NOT NULL, session TEXT NOT NULL, ref TEXT NOT NULL, revision INTEGER NOT NULL, audience TEXT NOT NULL, owner TEXT NOT NULL, deleted INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(campaign,session,ref))",
         "CREATE TABLE IF NOT EXISTS game_evidence_source_heads(campaign TEXT NOT NULL, session TEXT NOT NULL, ref TEXT NOT NULL, revision INTEGER NOT NULL, body_hash TEXT NOT NULL, PRIMARY KEY(campaign,session,ref))",
     )
@@ -180,6 +181,21 @@ def save_snapshot(db: sqlite3.Connection, snapshot: EvidenceSnapshot) -> dict:
                "participantCount": len(snapshot.participants)}
     if status == "unchanged":
         return receipt
+    participant_heads = []
+    for participant in body["participants"]:
+        previous = db.execute("SELECT capture,external,capture_epoch,external_epoch,present FROM game_evidence_participant_heads WHERE campaign=? AND session=? AND user=?",
+                              (*identity, participant["user"])).fetchone()
+        capture, external = participant["capture"], participant["external"]
+        capture_epoch, external_epoch = participant["captureEpoch"], participant["externalEpoch"]
+        if previous and (
+            capture_epoch < previous[2] or external_epoch < previous[3]
+            or (capture != bool(previous[0]) and capture_epoch <= previous[2])
+            or (external != bool(previous[1]) and external_epoch <= previous[3])
+            or (not previous[4] and capture and capture_epoch <= previous[2])
+            or (not previous[4] and external and external_epoch <= previous[3])
+        ):
+            raise EvidenceDenied(409, "evidence_consent_conflict")
+        participant_heads.append((*identity, participant["user"], int(capture), int(external), capture_epoch, external_epoch, 1))
     source_rows = []
     source_heads = []
     for source in body["sources"]:
@@ -195,6 +211,8 @@ def save_snapshot(db: sqlite3.Connection, snapshot: EvidenceSnapshot) -> dict:
     db.executemany("INSERT INTO game_evidence_sources VALUES(?,?,?,?,?,?,?,?)", source_rows)
     db.executemany("INSERT INTO game_evidence_participants VALUES(?,?,?,?)",
                    [(*identity, item["user"], _json(item)) for item in body["participants"]])
+    db.execute("UPDATE game_evidence_participant_heads SET present=0 WHERE campaign=? AND session=?", identity)
+    db.executemany("INSERT INTO game_evidence_participant_heads VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(campaign,session,user) DO UPDATE SET capture=excluded.capture,external=excluded.external,capture_epoch=excluded.capture_epoch,external_epoch=excluded.external_epoch,present=excluded.present", participant_heads)
     db.executemany("INSERT INTO game_evidence_source_heads VALUES(?,?,?,?,?) ON CONFLICT(campaign,session,ref) DO UPDATE SET revision=excluded.revision,body_hash=excluded.body_hash", source_heads)
     db.execute("INSERT INTO game_evidence_snapshots VALUES(?,?,?,?) ON CONFLICT(campaign,session) DO UPDATE SET revision=excluded.revision,body_hash=excluded.body_hash",
                (*identity, snapshot.revision, body_hash))
@@ -204,7 +222,7 @@ def save_snapshot(db: sqlite3.Connection, snapshot: EvidenceSnapshot) -> dict:
 def _request_identity(campaign, session, owner, role, revision, external):
     if any(not isinstance(value, str) or not 1 <= len(value) <= 100 for value in (campaign, session, owner)):
         raise EvidenceDenied(400, "evidence_scope_invalid")
-    if role not in {"host", "player"} or type(external) is not bool:
+    if not isinstance(role, str) or role not in {"host", "player"} or type(external) is not bool:
         raise EvidenceDenied(400, "evidence_scope_invalid")
     if type(revision) is not int or not 0 <= revision <= MAX_SAFE_INTEGER:
         raise EvidenceDenied(400, "evidence_revision_invalid")

@@ -314,17 +314,20 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
         raise HTTPException(409, 'runtime policy permits local-only dispatch')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
         raise HTTPException(400, 'Invalid campaign evidence')
+    reference_request = _reference_request(job)
     fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
     identity = (job.scope.campaign, job.session, job.scope.owner, job.requestId)
     with _tracked_dispatch(job.scope.campaign, job.session, INFERENCE):
         _require_runtime(job.scope.campaign, job.session, job.runtime)
         with database() as db:
+            # Replays must still satisfy current source revisions and access.
+            resolved = _resolve_job_evidence(db, job, reference_request) if reference_request else None
             prior = db.execute('SELECT fingerprint,body FROM game_jobs WHERE campaign=? AND session=? AND owner=? AND request=?', identity).fetchone()
         if prior:
             if prior['fingerprint'] != fingerprint:
                 raise HTTPException(409, 'Request ID conflict')
             return json.loads(prior['body'])
-        sources = retrieve(job.scope, str(job.evidence.get('question','')) if isinstance(job.evidence,dict) else job.task)
+        sources = resolved['sources'] if resolved else retrieve(job.scope, str(job.evidence.get('question','')) if isinstance(job.evidence,dict) else job.task)
         prompt = json.dumps({'task':job.task,'instructions':job.instructions,'evidence':job.evidence,'retrieved':sources}, ensure_ascii=False)
         _require_runtime(job.scope.campaign, job.session, job.runtime)
         keys = get_keys()
@@ -339,6 +342,9 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
             for attempt in range(2 if destination == 'local' else 1):
                 stage = {'provider':key['id'],'model':key['model'],'destination':destination,'cost':'zero' if destination == 'free' else 'local','attempt':attempt+1}
                 _require_runtime(job.scope.campaign, job.session, job.runtime)
+                if reference_request:
+                    with database() as db:
+                        _resolve_job_evidence(db, job, reference_request)
                 try:
                     if destination == 'local':
                         text = local(key, prompt, job.max_tokens)
@@ -371,7 +377,11 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
         # late result to become a durable receipt.
         _require_runtime(job.scope.campaign, job.session, job.runtime)
         result={'text':text.strip(),'routeId':str(uuid.uuid4()),'model':selected['model'],'trace':trace,'sources':[{'ref':s['ref'],'revision':s['revision']} for s in sources], 'retention': {'request_evidence_persisted': False, 'general_memory_writes': False, 'route_journal_writes': False, 'game_receipt_persisted': True}}
+        if reference_request:
+            result['evidenceRevision'] = reference_request.revision
         with _receipt_transaction(job.scope.campaign, job.session, job.runtime) as db:
+            if reference_request:
+                _resolve_job_evidence(db, job, reference_request)
             db.execute('INSERT INTO game_jobs VALUES(?,?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
         return result
 
@@ -568,6 +578,28 @@ async def patch_runtime_policy(request: Request):
 @app.post('/api/game/runtime/session/revoke')
 async def revoke_runtime_session(request: Request):
     return await _host_control_async(request, runtime_authority().revoke_session)
+
+
+@app.post('/api/game/evidence/snapshot')
+async def sync_evidence_snapshot(request: Request):
+    # Bound the stream itself before decoding JSON or verifying its signature.
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > 512 * 1024:
+            raise HTTPException(413, 'evidence_snapshot_too_large')
+        chunks.append(chunk)
+    try:
+        body = json.loads(b''.join(chunks))
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(400, 'evidence_snapshot_invalid') from None
+    if not isinstance(body, dict):
+        raise HTTPException(400, 'evidence_snapshot_invalid')
+    try:
+        runtime_authority().verify_host(request.method, request.url.path, body, request.headers)
+        return await asyncio.to_thread(_save_evidence_snapshot, body)
+    except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
 
 
 @app.post('/api/game/sources')
