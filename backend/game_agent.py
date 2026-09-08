@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
-import tempfile
+import io
 import threading
 import urllib.request
 import uuid
@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
+from backend.game_retrieval import rank_sources
 
 CONTRACT = 'raph-obus-game-v1'
 STT_CONTRACT = 'raph-obus-game-stt-v1'
@@ -147,20 +148,17 @@ def ingest(source: Source):
         db.execute('INSERT INTO sources VALUES(?,?,?,?,?,?,?) ON CONFLICT(campaign,ref) DO UPDATE SET revision=excluded.revision,audience=excluded.audience,owner=excluded.owner,exportable=excluded.exportable,body=excluded.body', (source.campaign, source.ref, source.revision, source.audience, source.owner, int(source.exportable), source.model_dump_json()))
 
 def retrieve(scope: Scope, query: str):
-    import re
-    words = set(re.findall(r'\w{3,}', query.lower()))
+    # Apply campaign and audience authorization before any embedding or ranking.
     with LOCK, database() as db:
         rows = db.execute("SELECT body FROM sources WHERE campaign=? AND (audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?))", (scope.campaign, scope.role, scope.owner)).fetchall()
-    eligible = [json.loads(row['body']) for row in rows]
-    ranked = sorted((s for s in eligible if not s['deleted']), key=lambda s: (-sum(w in s['text'].lower() for w in words), s['ref']))
+    eligible = [source for row in rows if not (source := json.loads(row['body']))['deleted']]
+    ranked = rank_sources(scope.campaign, query, eligible)
     out, budget = [], 5000
-    for s in ranked:
-        if not any(w in s['text'].lower() for w in words):
-            continue
-        text = s['text'][:budget]
+    for source in ranked:
+        text = source['text'][:budget]
         if not text or len(out) == 6:
             break
-        out.append({**s, 'text': text})
+        out.append({**source, 'text': text})
         budget -= len(text)
     return out
 
@@ -356,25 +354,20 @@ def _transcribe_game_audio(audio: bytes) -> tuple[str, str]:
     model_path = _game_stt_model_path()
     if not status["ready"]:
         raise RuntimeError("Private game local STT is not ready; install Faster-Whisper and a private local model first")
-    temporary_name = ""
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temporary_audio:
-            temporary_audio.write(audio)
-            temporary_name = temporary_audio.name
-        global STT_MODEL, STT_MODEL_PATH
-        with STT_LOCK:
-            if STT_MODEL is None or STT_MODEL_PATH != str(model_path):
-                from faster_whisper import WhisperModel
-                STT_MODEL = WhisperModel(str(model_path), device="cpu", compute_type="int8")
-                STT_MODEL_PATH = str(model_path)
-            segments, _info = STT_MODEL.transcribe(temporary_name, vad_filter=True)
+    global STT_MODEL, STT_MODEL_PATH
+    with STT_LOCK:
+        if STT_MODEL is None or STT_MODEL_PATH != str(model_path):
+            from faster_whisper import WhisperModel
+            STT_MODEL = WhisperModel(str(model_path), device="cpu", compute_type="int8")
+            STT_MODEL_PATH = str(model_path)
+        # Keep the stream alive while Faster-Whisper's lazy iterator decodes it.
+        # Closing the buffer also releases it if decoding or iteration fails.
+        with io.BytesIO(audio) as audio_stream:
+            segments, _info = STT_MODEL.transcribe(audio_stream, vad_filter=True)
             transcript = " ".join(segment.text.strip() for segment in segments).strip()
-        if not transcript:
-            raise RuntimeError("Private game local STT returned no speech")
-        return transcript[:6000], model_path.name
-    finally:
-        if temporary_name:
-            Path(temporary_name).unlink(missing_ok=True)
+    if not transcript:
+        raise RuntimeError("Private game local STT returned no speech")
+    return transcript[:6000], model_path.name
 
 
 def _transcribe_scoped_stt(scoped: dict, audio: bytes) -> dict:
