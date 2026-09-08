@@ -12,7 +12,15 @@ def git(cmd, cwd='.'):
     r = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
     return r.stdout.strip(), r.stderr.strip(), r.returncode
 
-report_num = 439
+import glob as _glob, re as _re
+
+# Auto-detect next report number from existing cron_report_*.md files
+_report_nums = []
+for _f in _glob.glob('cron_report_*.md'):
+    _m = _re.search(r'cron_report_(\d+)\.md', _f)
+    if _m:
+        _report_nums.append(int(_m.group(1)))
+report_num = (max(_report_nums) + 1) if _report_nums else 1
 now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
 out = []
 out.append(f'# Cron Report — {now}')
