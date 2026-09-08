@@ -26,6 +26,10 @@ Open <http://127.0.0.1:38173>. Runtime data is stored outside the repository und
 
 On macOS or Linux, activate with `source .venv/bin/activate`; desktop packaging is Windows-specific, but the web application is cross-platform.
 
+### Podman headless pilot
+
+A parallel Podman profile can run the headless FastAPI core on `127.0.0.1:38183` while Electron, Codex CLI, MCP stdio, Ollama, and Windows-only integrations stay native. It uses a dedicated state volume and does not replace the normal `38173` service. See [docs/podman.md](docs/podman.md).
+
 ## Codex-first operation
 
 Codex (`key-codex-oauth`) is the default aggregator and primary runtime key for new or implicit state. Existing explicit provider selections are preserved.

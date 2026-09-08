@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url, execute_remote_provider
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
-from backend.game_retrieval import rank_sources
+from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 
 CONTRACT = 'raph-obus-game-v1'
 STT_CONTRACT = 'raph-obus-game-stt-v1'
@@ -148,9 +148,22 @@ def ingest(source: Source):
         db.execute('INSERT INTO sources VALUES(?,?,?,?,?,?,?) ON CONFLICT(campaign,ref) DO UPDATE SET revision=excluded.revision,audience=excluded.audience,owner=excluded.owner,exportable=excluded.exportable,body=excluded.body', (source.campaign, source.ref, source.revision, source.audience, source.owner, int(source.exportable), source.model_dump_json()))
 
 def retrieve(scope: Scope, query: str):
-    # Apply campaign and audience authorization before any embedding or ranking.
+    import re
+    query = query[:1000] if isinstance(query, str) else ''
+    if not query.strip():
+        return []
+    words = sorted(set(re.findall(r'\w{3,}', query.lower())))[:64]
+    # Only constant SQL fragments are composed; every query word stays a parameter.
+    score = ' + '.join("CASE WHEN instr(lower(json_extract(body, '$.text')), ?) > 0 THEN 1 ELSE 0 END" for _ in words) or 'length(ref) * 0'
+    # Filter access and tombstones before ranking or limiting the candidate set.
+    # Database scoring preserves lexical matches beyond the first source refs.
     with LOCK, database() as db:
-        rows = db.execute("SELECT body FROM sources WHERE campaign=? AND (audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?))", (scope.campaign, scope.role, scope.owner)).fetchall()
+        rows = db.execute(
+            "SELECT body FROM sources WHERE campaign=? AND (audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?)) "
+            "AND COALESCE(json_extract(body, '$.deleted'), 0)=0 "
+            f"ORDER BY ({score}) DESC, ref LIMIT ?",
+            (scope.campaign, scope.role, scope.owner, *words, MAX_SCANNED_SOURCES),
+        ).fetchall()
     eligible = [source for row in rows if not (source := json.loads(row['body']))['deleted']]
     ranked = rank_sources(scope.campaign, query, eligible)
     out, budget = [], 5000
@@ -258,8 +271,8 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=execute_r
         routes = [(k, 'local') for k in locals_]
         if job.policy.mode == 'local-free' and job.policy.exportable and all(s['exportable'] for s in sources):
             routes += [(k,'free') for k in approved_free(keys)]
-        # Existing Codex CLI adapter can execute read-only tools; it is excluded
-        # until Obus has a proven tool-free inference adapter. Logged-in != safe.
+        # The shared Codex coding adapter permits tools and workspace writes.
+        # Gameplay requires a separately verified tool-free inference adapter.
         trace, text, selected = [], '', None
         for key, destination in routes:
             for attempt in range(2 if destination == 'local' else 1):

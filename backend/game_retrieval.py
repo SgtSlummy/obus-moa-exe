@@ -65,15 +65,16 @@ def _request_json(path: str, payload: dict, deadline: float, limit: int) -> dict
     timer = None
     try:
         connection.connect()
-        connection.sock.settimeout(_remaining(deadline))
+        active_socket = connection.sock
+        active_socket.settimeout(_remaining(deadline))
 
         def abort():
-            active_socket = connection.sock
-            if active_socket is not None:
-                try:
-                    active_socket.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
+            # HTTPConnection may detach its socket for Connection: close. Keep
+            # the original socket so the deadline still interrupts body reads.
+            try:
+                active_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             connection.close()
 
         timer = threading.Timer(_remaining(deadline), abort)
@@ -106,7 +107,7 @@ def _request_json(path: str, payload: dict, deadline: float, limit: int) -> dict
         connection.close()
 
 
-def _require_local_model(model: str, deadline: float) -> None:
+def _require_local_model(model: str, deadline: float) -> str | None:
     # A local proxy address is not sufficient proof of a local model. Reject
     # cloud-backed metadata and require a concrete local GGUF architecture.
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}", model) or "cloud" in model.lower() or "://" in model:
@@ -123,6 +124,14 @@ def _require_local_model(model: str, deadline: float) -> None:
         raise ValueError("Selected model does not advertise embeddings")
     if any(value for key, value in metadata.items() if key.startswith("remote_")) or any(value for key, value in details.items() if key.startswith("remote_")):
         raise ValueError("Remote embedding destinations are forbidden")
+    # Tags can be repointed without changing vector dimensions. Only cache when
+    # every weight source names an immutable SHA256 blob; otherwise re-embed.
+    modelfile = metadata.get("modelfile", "")
+    weight_lines = re.findall(r"(?im)^\s*(?:FROM|ADAPTER)\s+(.+)$", modelfile) if isinstance(modelfile, str) else []
+    if not weight_lines or not all(re.search(r"sha256[-:][a-fA-F0-9]{64}\b", line) for line in weight_lines):
+        return None
+    identity = {key: metadata.get(key) for key in ("modelfile", "parameters", "template", "details", "model_info")}
+    return hashlib.sha256(json.dumps(identity, sort_keys=True, allow_nan=False).encode("utf-8")).hexdigest()
 
 
 def _vectors(response: dict, count: int) -> list[tuple[float, ...]]:
@@ -146,9 +155,9 @@ def _vectors(response: dict, count: int) -> list[tuple[float, ...]]:
     return vectors
 
 
-def _source_key(campaign: str, source: dict, model: str, document: str) -> tuple:
+def _source_key(campaign: str, source: dict, model: str, identity: str | None, document: str) -> tuple:
     digest = hashlib.sha256((source["text"] + "\0" + document).encode("utf-8")).digest()
-    return (campaign, source["ref"], source["revision"], model, digest,
+    return (campaign, source["ref"], source["revision"], model, identity, digest,
             source.get("audience"), source.get("owner"))
 
 
@@ -180,6 +189,10 @@ def rank_sources(campaign: str, query: str, eligible_sources) -> list[dict]:
     fallback = [source for source, lexical in candidates if lexical]
     model = os.environ.get("OBUS_GAME_EMBEDDING_MODEL", "").strip()
     if not candidates or not model:
+        with _CACHE_LOCK:
+            for key in list(_CACHE):
+                if key[0] == campaign:
+                    del _CACHE[key]
         return fallback
     # Embeddings have lower priority than game/STT work. Concurrent retrieval
     # uses deterministic lexical results instead of growing an unbounded queue.
@@ -187,21 +200,21 @@ def rank_sources(campaign: str, query: str, eligible_sources) -> list[dict]:
         return fallback
     try:
         deadline = time.monotonic() + RETRIEVAL_SECONDS
-        _require_local_model(model, deadline)
+        identity = _require_local_model(model, deadline)
         nomic = model.split(":", 1)[0] == "nomic-embed-text"
         query_text = ("search_query: " if nomic else "") + query
         prefix = "search_document: " if nomic else ""
         per_document = min(MAX_SOURCE_CHARS, (MAX_TOTAL_TEXT_CHARS - len(query_text)) // len(candidates) - len(prefix))
         documents = [prefix + source["text"][:per_document] for source, _ in candidates]
-        keys = [_source_key(campaign, source, model, document) for (source, _), document in zip(candidates, documents)]
+        keys = [_source_key(campaign, source, model, identity, document) for (source, _), document in zip(candidates, documents)]
         with _CACHE_LOCK:
             # Revisions, content and access changes invalidate affected cached
             # vectors. Cache entries never introduce a source into this result.
             current_keys = set(keys)
             for old in list(_CACHE):
-                if old[3] != model or (old[0] == campaign and old not in current_keys):
+                if old[3] != model or old[4] != identity or (old[0] == campaign and old not in current_keys):
                     del _CACHE[old]
-            cached = [_CACHE.get(key) for key in keys]
+            cached = [_CACHE.get(key) if identity is not None else None for key in keys]
         missing = [index for index, vector in enumerate(cached) if vector is None]
         response = _request_json("/api/embed", {"model": model, "input": [query_text] + [documents[index] for index in missing], "truncate": False}, deadline, MAX_RESPONSE_BYTES)
         embedded = _vectors(response, 1 + len(missing))
@@ -211,12 +224,13 @@ def rank_sources(campaign: str, query: str, eligible_sources) -> list[dict]:
         if any(len(vector) != len(query_vector) for vector in cached):
             raise ValueError("Cached embedding dimensions changed")
         _remaining(deadline)
-        with _CACHE_LOCK:
-            for key, vector in zip(keys, cached):
-                _CACHE[key] = vector
-                _CACHE.move_to_end(key)
-            while len(_CACHE) > MAX_CACHE_ENTRIES:
-                _CACHE.popitem(last=False)
+        if identity is not None:
+            with _CACHE_LOCK:
+                for key, vector in zip(keys, cached):
+                    _CACHE[key] = vector
+                    _CACHE.move_to_end(key)
+                while len(_CACHE) > MAX_CACHE_ENTRIES:
+                    _CACHE.popitem(last=False)
         ranked = []
         for (source, lexical), vector in zip(candidates, cached):
             cosine = sum(left * right for left, right in zip(query_vector, vector))

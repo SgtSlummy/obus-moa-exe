@@ -1,0 +1,39 @@
+services:
+  obus-headless:
+    image: localhost/obus-headless:pilot
+    build:
+      context: .
+      dockerfile: Containerfile.podman
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OBUS_PODMAN_PORT:-38183}:38173"
+    environment:
+      OCCULTBUS_HOME: /var/lib/obus
+      OBUS_AUTO_DELIBERATION: "false"
+      OBUS_DISABLE_NATIVE_WORKSPACE_PICKER: "1"
+      OBUS_OLLAMA_URL: http://host.containers.internal:11434
+      OBUS_PROVIDER_BASE_URL: http://host.containers.internal:11434/v1
+      COMFYUI_URL: http://host.containers.internal:8188
+    volumes:
+      - obus_podman_state:/var/lib/obus
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; response=urllib.request.urlopen('http://127.0.0.1:38173/health', timeout=3); data=json.load(response); assert response.status == 200 and data.get('status') == 'ok'"
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
+
+volumes:
+  obus_podman_state:
