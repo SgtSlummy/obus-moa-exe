@@ -21,7 +21,11 @@ import uuid
 from typing import Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from backend.game_evidence import (
+    EvidenceDenied, EvidenceReference, EvidenceSnapshot,
+    initialize_schema as initialize_evidence_schema, resolve_evidence, save_snapshot,
+)
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
 from backend.game_providers import complete_free, complete_local as complete_game_local
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
@@ -102,6 +106,11 @@ class Job(Strict):
     policy: Policy
     runtime: RuntimeFence
     max_tokens: int = Field(default=900, ge=16, le=6000)
+class EvidenceRequest(Strict):
+    contract: Literal['raph-obus-game-evidence-refs-v1']
+    revision: int = Field(strict=True, ge=0, le=9007199254740991)
+    references: list[EvidenceReference] = Field(min_length=1, max_length=32)
+
 class Source(Strict):
     campaign: str = Field(min_length=1, max_length=100)
     ref: str = Field(min_length=1, max_length=160)
@@ -135,6 +144,7 @@ def database():
     db.row_factory = sqlite3.Row
     db.executescript('CREATE TABLE IF NOT EXISTS sources(campaign TEXT,ref TEXT,revision INTEGER,audience TEXT,owner TEXT,exportable INTEGER,body TEXT,PRIMARY KEY(campaign,ref)); CREATE TABLE IF NOT EXISTS game_jobs(campaign TEXT,session TEXT,owner TEXT,request TEXT,fingerprint TEXT,body TEXT,PRIMARY KEY(campaign,session,owner,request)); CREATE TABLE IF NOT EXISTS stt_jobs(campaign TEXT,session TEXT,owner TEXT,request TEXT,fingerprint TEXT,body TEXT,PRIMARY KEY(campaign,session,owner,request));')
     try:
+        initialize_evidence_schema(db)
         with db:
             yield db
     finally:
@@ -257,6 +267,42 @@ async def _host_control_async(request: Request, action) -> dict:
         authority.verify_host(request.method, request.url.path, body, request.headers)
         return await asyncio.to_thread(action, body)
     except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+def _reference_request(job: Job) -> EvidenceRequest | None:
+    if not isinstance(job.evidence, dict) or 'contract' not in job.evidence:
+        return None
+    try:
+        return EvidenceRequest.model_validate(job.evidence)
+    except ValidationError:
+        raise HTTPException(422, 'evidence_references_invalid') from None
+
+
+def _resolve_job_evidence(db, job: Job, request: EvidenceRequest):
+    # All source/consent reads share one snapshot. The final call runs inside
+    # the authority-owned receipt transaction, excluding concurrent syncs.
+    if not db.in_transaction:
+        db.execute('BEGIN')
+    try:
+        return resolve_evidence(
+            db, job.scope.campaign, job.session, job.scope.owner, job.scope.role,
+            request.revision, request.references, external=False,
+        )
+    except EvidenceDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+def _save_evidence_snapshot(body: dict) -> dict:
+    try:
+        snapshot = EvidenceSnapshot.model_validate(body)
+    except ValidationError:
+        raise HTTPException(422, 'evidence_snapshot_invalid') from None
+    fence = RuntimeFence.model_validate(snapshot.runtime.model_dump())
+    try:
+        with _receipt_transaction(snapshot.campaign, snapshot.session, fence) as db:
+            return save_snapshot(db, snapshot)
+    except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
 
 
