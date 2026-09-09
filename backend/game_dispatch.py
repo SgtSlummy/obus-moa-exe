@@ -304,6 +304,52 @@ def cancel_queued(db: sqlite3.Connection, *, campaign: str, session: str | None 
     return {"cancelled": cancelled, "inFlight": active}
 
 
+def public_recent(game_path: Path, campaign: str, session: str | None = None,
+                  limit: int = 20) -> dict[str, Any]:
+    """Read bounded public metadata without creating, migrating or repairing data.
+
+    Missing/pre-migration stores are neutral uninitialized results. Busy, corrupt,
+    inaccessible or unsupported stores are explicitly unavailable. URI read-only
+    mode protects the database even if a future nested helper tries to write.
+    The read transaction keeps schema, rows and counts in one coherent snapshot.
+    """
+    _text(campaign)
+    if session is not None:
+        _text(session)
+    if type(limit) is not int or not 1 <= limit <= 50:
+        raise DispatchDenied(400, "dispatch_limit_invalid")
+    empty = {"jobs": [], "counts": {state: 0 for state in _STATES}}
+    db = None
+    try:
+        path = Path(game_path).resolve()
+        if not path.is_file():
+            return {"status": "uninitialized", "available": False, **empty}
+        db = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=0.25,
+                             isolation_level=None)
+        # Bound pathological query work as well as lock waiting. The normal
+        # indexed status query is tiny; exceeding this budget is unavailable.
+        steps = 0
+        def query_budget() -> int:
+            nonlocal steps
+            steps += 1000
+            return int(steps > 250_000)
+        db.set_progress_handler(query_budget, 1000)
+        db.execute("BEGIN")
+        if not schema_ready(db):
+            result = {"status": "uninitialized", "available": False, **empty}
+        else:
+            result = {"status": "ready", "available": True,
+                      **recent(db, campaign=campaign, session=session, limit=limit)}
+        db.execute("COMMIT")
+        return result
+    except (OSError, sqlite3.Error, DispatchDenied, ValueError, KeyError, TypeError):
+        # Do not expose filesystem details or raw database errors through GET.
+        return {"status": "unavailable", "available": False, **empty}
+    finally:
+        if db is not None:
+            db.close()
+
+
 def recent(db: sqlite3.Connection, *, campaign: str, session: str | None = None, limit: int = 20) -> dict[str, Any]:
     _text(campaign)
     if session is not None:

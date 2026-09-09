@@ -29,7 +29,7 @@ from backend.game_evidence import (
     initialize_schema as initialize_evidence_schema, resolve_evidence, save_snapshot,
 )
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
-from backend.game_providers import complete_free, complete_local as complete_game_local
+from backend.game_providers import complete_free, complete_local as complete_game_local, _free_pin, GameProviderError
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
 from backend import game_dispatch
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
@@ -222,7 +222,12 @@ def approved_free(keys):
             if key.get('provider') != 'openrouter' or key.get('base_url') != 'https://openrouter.ai/api/v1':
                 continue
             if all(key.get(field) == pin.get(field) for field in ('id', 'provider', 'model', 'base_url')):
-                result.append({**key, 'game_free_pin': dict(pin)})
+                candidate = {**key, 'game_free_pin': dict(pin)}
+                try:
+                    _free_pin(candidate)
+                except GameProviderError:
+                    continue
+                result.append(candidate)
                 if len(result) == 8:
                     return result
     return result
@@ -320,7 +325,11 @@ def _save_evidence_snapshot(body: dict) -> dict:
     fence = RuntimeFence.model_validate(snapshot.runtime.model_dump())
     try:
         with _evidence_transaction(snapshot.campaign, snapshot.session, fence) as db:
-            return save_snapshot(db, snapshot)
+            saved = save_snapshot(db, snapshot)
+            if saved.get('status') == 'saved' and game_dispatch.schema_ready(db):
+                game_dispatch.cancel_queued(db, campaign=snapshot.campaign, session=snapshot.session,
+                                            reason='evidence_changed', now_ms=int(time.time() * 1000))
+            return saved
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
 
@@ -491,13 +500,15 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
                             raise RuntimeError('Invalid free-route provenance')
                         text = completion.get('text')
                         stage.update({name: completion[name] for name in (
-                            'provider', 'model', 'endpoint', 'gateway', 'route_id',
-                            'cost_basis', 'completion_tokens', 'response_id',
+                            'provider', 'model', 'endpoint', 'gateway', 'route_id', 'cost_basis',
                         )})
+                        optional = {name: completion[name] for name in ('completion_tokens', 'response_id')
+                                    if completion.get(name) is not None and completion.get(name) != ''}
+                        stage.update(optional)
                         provenance = {name: completion[name] for name in (
-                            'provider', 'model', 'gateway', 'route_id', 'destination', 'cost',
-                            'cost_basis', 'completion_tokens', 'response_id',
+                            'provider', 'model', 'gateway', 'route_id', 'destination', 'cost', 'cost_basis',
                         )}
+                        provenance.update(optional)
                         provider_completed = True
                     if not isinstance(text,str) or not text.strip() or len(text)>16000 or '<script' in text.lower():
                         raise RuntimeError('Invalid output')
@@ -700,7 +711,11 @@ async def private_access(request: Request, call_next):
     return await call_next(request)
 @app.get('/api/game/capabilities')
 def capabilities():
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':False,'free_route_policy':'runtime authority permits local-only dispatch; no remote or fallback route is available','codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
+    try:
+        free_ready = bool(approved_free(catalogue()))
+    except Exception:
+        free_ready = False
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
 
 
 @app.get('/api/game/runtime')
@@ -708,7 +723,8 @@ def get_runtime(campaign: str, session: str):
     snapshot = runtime_authority().snapshot(campaign, session).public()
     with LOCK:
         counts = dict(ACTIVE_GAME_REQUESTS.get((campaign, session), {'queuedCount': 0, 'dispatchedCount': 0}))
-    return {**snapshot, **counts}
+    external = game_dispatch.public_recent(ROOT / 'game.sqlite', campaign=campaign, session=session)
+    return {**snapshot, **counts, 'externalDispatch': external}
 
 
 @app.put('/api/game/runtime/host-generation')

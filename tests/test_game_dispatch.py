@@ -125,6 +125,30 @@ def test_host_cannot_enable_paid_codex_or_contradict_local(state, mode, exportab
         policy(state, mode=mode, exportable=exportable, codex=codex)
 
 
+def test_snapshot_cannot_mix_master_policy_with_new_child_revision(state, monkeypatch):
+    # WAL lets the controlled writer commit between the two reads. The reader's
+    # explicit transaction must still observe one immutable database snapshot.
+    db = sqlite3.connect(state.root / "runtime.sqlite")
+    db.execute("PRAGMA journal_mode=WAL")
+    db.close()
+    peer = GameRuntimeAuthority(state.root, clock=lambda: state.clock.now)
+    peer.boot_epoch = state.authority.boot_epoch
+    original = state.authority._campaign_row
+    changed = False
+    def master_then_change(connection, campaign):
+        nonlocal changed
+        row = original(connection, campaign)
+        if not changed:
+            changed = True
+            policy(SimpleNamespace(authority=peer), enabled=False)
+        return row
+    monkeypatch.setattr(state.authority, "_campaign_row", master_then_change)
+    snapshot = state.authority.snapshot("camp", "session")
+    assert snapshot == state.snapshot
+    fresh = state.authority.snapshot("camp", "session")
+    assert fresh.enabled is False and fresh.policy_revision == snapshot.policy_revision + 1
+
+
 def test_disable_keeps_evidence_sync_but_denies_dispatch_and_receipts(state):
     policy(state, enabled=False)
     snapshot = state.authority.snapshot("camp", "session")
@@ -408,6 +432,97 @@ def test_failed_backup_prevents_schema_mutation(tmp_path, monkeypatch):
         assert db.execute("SELECT value FROM legacy").fetchone()[0] == "safe"
         with pytest.raises(ledger.DispatchDenied, match="dispatch_backup_required"):
             ledger.initialize_schema(db)
+
+
+def test_public_status_missing_path_does_not_create_directories_or_database(tmp_path):
+    path = tmp_path / "absent" / "game.sqlite"
+    result = ledger.public_recent(path, "camp", "session")
+    assert result["status"] == "uninitialized" and result["available"] is False
+    assert result["jobs"] == [] and not any(result["counts"].values())
+    assert not path.parent.exists()
+
+
+def test_public_status_legacy_store_is_unchanged_and_not_migrated(tmp_path):
+    path = tmp_path / "game.sqlite"
+    with transaction(path) as db:
+        db.execute("CREATE TABLE legacy(value TEXT)")
+        db.execute("INSERT INTO legacy VALUES('untouched')")
+    before = path.read_bytes()
+    assert ledger.public_recent(path, "camp")["status"] == "uninitialized"
+    assert path.read_bytes() == before
+    assert sorted(item.name for item in tmp_path.iterdir()) == ["game.sqlite"]
+
+
+def test_public_status_uses_encoded_readonly_uri_and_filters_scope(state, monkeypatch):
+    first = queue(state)
+    queue(state, session="session", request_id="another")
+    observed = []
+    original = ledger.sqlite3.connect
+    def connect(database, *args, **kwargs):
+        observed.append((database, kwargs))
+        return original(database, *args, **kwargs)
+    monkeypatch.setattr(ledger.sqlite3, "connect", connect)
+    result = ledger.public_recent(state.path, "camp", "session", 1)
+    assert result["status"] == "ready" and result["available"] is True
+    assert len(result["jobs"]) == 1 and result["counts"]["queued"] == 2
+    assert ledger.public_recent(state.path, "other-campaign")["jobs"] == []
+    assert ledger.public_recent(state.path, "camp", "other-session")["jobs"] == []
+    assert all(value[0] == state.path.resolve().as_uri() + "?mode=ro" for value in observed)
+    assert all(value[1]["uri"] is True and value[1]["timeout"] <= 0.25 for value in observed)
+
+
+def test_public_status_path_with_spaces_and_hash_has_no_uri_ambiguity(tmp_path):
+    directory = tmp_path / "game data #1"
+    path = directory / "game #1.sqlite"
+    ledger.prepare_dispatch_store(path)
+    assert ledger.public_recent(path, "camp")["status"] == "ready"
+    assert sorted(item.name for item in directory.iterdir()) == ["game #1.sqlite"]
+
+
+def test_public_status_nested_write_attempt_is_denied(state, monkeypatch):
+    def accidental_write(db, **kwargs):
+        db.execute("CREATE TABLE forbidden(value TEXT)")
+        pytest.fail("read-only URI must prevent writes")
+    monkeypatch.setattr(ledger, "recent", accidental_write)
+    result = ledger.public_recent(state.path, "camp", "session")
+    assert result["status"] == "unavailable" and result["available"] is False
+    with transaction(state.path) as db:
+        assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='forbidden'").fetchone()
+
+
+@pytest.mark.parametrize("kind", ["corrupt", "incomplete", "unsupported", "busy"])
+def test_public_status_never_claims_health_on_storage_errors(tmp_path, kind):
+    path = tmp_path / "game.sqlite"
+    held = None
+    if kind == "corrupt":
+        path.write_bytes(b"not a SQLite database")
+    else:
+        ledger.prepare_dispatch_store(path)
+        if kind == "incomplete":
+            with transaction(path) as db:
+                db.execute("DROP TABLE dispatch_schema")
+        elif kind == "unsupported":
+            with transaction(path) as db:
+                db.execute("UPDATE dispatch_schema SET version=999")
+        else:
+            held = sqlite3.connect(path, isolation_level=None)
+            held.execute("BEGIN EXCLUSIVE")
+    try:
+        result = ledger.public_recent(path, "camp")
+        assert result["status"] == "unavailable" and result["available"] is False
+        assert result["jobs"] == [] and not any(result["counts"].values())
+        assert str(path) not in json.dumps(result)
+    finally:
+        if held is not None:
+            held.close()
+
+
+@pytest.mark.parametrize("limit", [0, 51, True, "1"])
+def test_public_status_invalid_limit_does_not_touch_path(tmp_path, limit):
+    path = tmp_path / "absent" / "game.sqlite"
+    with pytest.raises(ledger.DispatchDenied, match="dispatch_limit_invalid"):
+        ledger.public_recent(path, "camp", limit=limit)
+    assert not path.parent.exists()
 
 
 def test_policy_writes_do_not_migrate_existing_store(tmp_path):

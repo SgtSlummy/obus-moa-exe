@@ -299,7 +299,7 @@ class GameAgentTests(unittest.TestCase):
         with patch.object(g, "approved_free", side_effect=AssertionError("a local-only runtime must not select external routes")):
             with self.assertRaises(HTTPException) as error:
                 g.run_job(self.job(policy={"namespace":"a", "mode":"local-free", "exportable":True}), lambda: [], lambda *args: "")
-        self.assertEqual(error.exception.detail, "runtime policy permits local-only dispatch")
+        self.assertEqual(error.exception.detail, "legacy game requests require local-only dispatch")
 
 
 if __name__ == "__main__":
