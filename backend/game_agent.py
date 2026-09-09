@@ -30,7 +30,7 @@ from backend.game_evidence import (
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
 from backend.game_providers import complete_free, complete_local as complete_game_local, _free_pin, GameProviderError, GameProviderRejected
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
-from backend import game_dispatch
+from backend import game_dispatch, game_evidence_uploads
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 
@@ -329,6 +329,24 @@ def _save_evidence_snapshot(body: dict) -> dict:
                 game_dispatch.cancel_queued(db, campaign=snapshot.campaign, session=snapshot.session,
                                             reason='evidence_changed', now_ms=int(time.time() * 1000))
             return saved
+    except EvidenceDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+def _upload_evidence(body: dict) -> dict:
+    try:
+        command = game_evidence_uploads.parse_command(body)
+        # Migration and backup must finish before taking the runtime writer lock.
+        game_evidence_uploads.prepare_store(ROOT / 'game.sqlite')
+        fence = RuntimeFence.model_validate(command.runtime.model_dump())
+        with _evidence_transaction(command.campaign, command.session, fence) as db:
+            result = game_evidence_uploads.apply_command(db, command.model_dump(), int(time.time() * 1000))
+            changed = command.operation == 'begin' and result['status'] in {'pending', 'deferred'}
+            changed = changed or result.get('receipt', {}).get('status') == 'saved'
+            if changed and game_dispatch.schema_ready(db):
+                game_dispatch.cancel_queued(db, campaign=command.campaign, session=command.session,
+                                            reason='evidence_changed', now_ms=int(time.time() * 1000))
+            return result
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
 
@@ -702,10 +720,11 @@ async def private_access(request: Request, call_next):
         return JSONResponse(status_code=401,content={'error':'Game service authentication required'})
     if request.method in {'POST','PUT','PATCH'}:
         body=bytearray()
+        limit = game_evidence_uploads.MAX_HTTP_BYTES if request.url.path == '/api/game/evidence/upload' else 9000000
         async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body)>9000000:
+            if len(body) + len(chunk) > limit:
                 return JSONResponse(status_code=413,content={'error':'Request too large'})
+            body.extend(chunk)
         request._body=bytes(body)
     return await call_next(request)
 @app.get('/api/game/capabilities')
@@ -714,7 +733,7 @@ def capabilities():
         free_ready = bool(approved_free(catalogue()))
     except Exception:
         free_ready = False
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
 
 
 @app.get('/api/game/runtime')
@@ -764,6 +783,27 @@ async def sync_evidence_snapshot(request: Request):
     try:
         runtime_authority().verify_host(request.method, request.url.path, body, request.headers)
         return await asyncio.to_thread(_save_evidence_snapshot, body)
+    except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+@app.post('/api/game/evidence/upload')
+async def upload_evidence(request: Request):
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > game_evidence_uploads.MAX_HTTP_BYTES:
+            raise HTTPException(413, 'evidence_upload_too_large')
+        chunks.append(chunk)
+    try:
+        body = json.loads(b''.join(chunks))
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(400, 'evidence_upload_invalid') from None
+    if not isinstance(body, dict):
+        raise HTTPException(400, 'evidence_upload_invalid')
+    try:
+        runtime_authority().verify_host(request.method, request.url.path, body, request.headers)
+        return await asyncio.to_thread(_upload_evidence, body)
     except RuntimeDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
 

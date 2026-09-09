@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from typing import Annotated, Literal, Mapping, Sequence
+from typing import Annotated, ClassVar, Literal, Mapping, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -17,6 +17,8 @@ CONTRACT = "raph-obus-game-evidence-v1"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 MAX_SNAPSHOT_BYTES = 512 * 1024
 MAX_SOURCES = 2048
+MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
+MAX_DOCUMENT_SOURCES = 65_536
 MAX_PARTICIPANTS = 256
 MAX_REFERENCES = 32
 MAX_TEXT = 16_000
@@ -107,14 +109,16 @@ def _source_body(source: EvidenceSource) -> dict:
     return body
 
 
-class EvidenceSnapshot(Strict):
+class EvidenceDocument(Strict):
+    """Complete bounded document; only the paged coordinator may promote it."""
+    max_bytes: ClassVar[int] = MAX_DOCUMENT_BYTES
     contract: Literal["raph-obus-game-evidence-v1"]
     campaign: Identifier
     session: Identifier
     revision: SafeInt
     runtime: EvidenceRuntimeFence
     participants: Annotated[list[EvidenceParticipant], Field(max_length=MAX_PARTICIPANTS)]
-    sources: Annotated[list[EvidenceSource], Field(max_length=MAX_SOURCES)]
+    sources: Annotated[list[EvidenceSource], Field(max_length=MAX_DOCUMENT_SOURCES)]
 
     @model_validator(mode="after")
     def unique_bounded_snapshot(self):
@@ -124,9 +128,15 @@ class EvidenceSnapshot(Strict):
             size = len(_json(self.model_dump()).encode("utf-8"))
         except UnicodeError as exc:
             raise ValueError("snapshot must be UTF-8") from exc
-        if size > MAX_SNAPSHOT_BYTES:
+        if size > self.max_bytes:
             raise ValueError("snapshot exceeds byte limit")
         return self
+
+
+class EvidenceSnapshot(EvidenceDocument):
+    """The legacy one-shot request retains its original resource limits."""
+    max_bytes: ClassVar[int] = MAX_SNAPSHOT_BYTES
+    sources: Annotated[list[EvidenceSource], Field(max_length=MAX_SOURCES)]
 
 
 def initialize_schema(db: sqlite3.Connection) -> None:
@@ -151,20 +161,47 @@ def _digest(body: dict) -> str:
     return hashlib.sha256(_json(body).encode("utf-8")).hexdigest()
 
 
-def save_snapshot(db: sqlite3.Connection, snapshot: EvidenceSnapshot) -> dict:
-    """Replace one complete snapshot; raise before writes on revision conflicts.
+def _upload_state(db: sqlite3.Connection, campaign: str, session: str):
+    # Legacy stores need no new schema merely to read or save small snapshots.
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='game_evidence_uploads'").fetchone():
+        return None
+    return db.execute("SELECT revision,state FROM game_evidence_uploads WHERE campaign=? AND session=?", (campaign, session)).fetchone()
 
-    Source high-water hashes survive removal without retaining removed text, so
-    an old source revision cannot be reintroduced with different evidence.
-    """
+
+def document_body(snapshot: EvidenceDocument) -> dict:
+    """Canonical complete-document identity, independent of page/runtime layout."""
+    body = snapshot.model_dump(exclude={"runtime"})
+    body["participants"].sort(key=lambda item: item["user"])
+    body["sources"] = sorted((_source_body(source) for source in snapshot.sources), key=lambda item: item["ref"])
+    return body
+
+
+def save_snapshot(db: sqlite3.Connection, snapshot: EvidenceSnapshot) -> dict:
+    """Save a bounded one-shot request; only a newer document supersedes staging."""
     _transaction_required(db)
     try:
         snapshot = EvidenceSnapshot.model_validate(snapshot.model_dump())
     except (AttributeError, ValidationError) as exc:
         raise EvidenceDenied(400, "evidence_snapshot_invalid") from exc
-    body = snapshot.model_dump(exclude={"runtime"})
-    body["participants"].sort(key=lambda item: item["user"])
-    body["sources"] = sorted((_source_body(source) for source in snapshot.sources), key=lambda item: item["ref"])
+    barrier = _upload_state(db, snapshot.campaign, snapshot.session)
+    if barrier and barrier[1] != "complete" and snapshot.revision <= barrier[0]:
+        raise EvidenceDenied(409, "evidence_upload_pending")
+    receipt = _replace_snapshot(db, snapshot)
+    if barrier:
+        identity = (snapshot.campaign, snapshot.session)
+        db.execute("DELETE FROM game_evidence_upload_pages WHERE campaign=? AND session=?", identity)
+        db.execute("DELETE FROM game_evidence_uploads WHERE campaign=? AND session=?", identity)
+    return receipt
+
+
+def _replace_snapshot(db: sqlite3.Connection, snapshot: EvidenceDocument) -> dict:
+    """Promote a validated complete document inside the caller's transaction.
+
+    Only the small-snapshot wrapper or fenced paged coordinator may call this.
+    Source high-water hashes survive removal without retaining removed text.
+    """
+    _transaction_required(db)
+    body = document_body(snapshot)
     body_hash = _digest(body)
     identity = (snapshot.campaign, snapshot.session)
     old = db.execute("SELECT revision,body_hash FROM game_evidence_snapshots WHERE campaign=? AND session=?", identity).fetchone()
@@ -248,6 +285,9 @@ def resolve_evidence(
     except (ValidationError, ValueError) as exc:
         raise EvidenceDenied(400, "evidence_references_invalid") from exc
     identity = (campaign, session)
+    barrier = _upload_state(db, campaign, session)
+    if barrier and barrier[1] != "complete":
+        raise EvidenceDenied(409, "evidence_upload_pending")
     snapshot = db.execute("SELECT revision FROM game_evidence_snapshots WHERE campaign=? AND session=?", identity).fetchone()
     if snapshot is None or snapshot[0] != revision:
         raise EvidenceDenied(409, "evidence_snapshot_stale")
