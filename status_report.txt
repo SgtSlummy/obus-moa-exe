@@ -1,28 +1,43 @@
-# Status Report — 2026-08-31 05:52 UTC
+# Status Report — 2026-09-09 06:29 UTC
 
-## Repos
-- obus-moa-exe: ✅ Synced (HEAD de28888)
-- Tarot-Router: ⚠️ No git worktree (HEAD unknown)
-- warden: ✅ Synced (HEAD 6c7b2e9)
-- warden-discord-bot: ✅ Synced (HEAD 4fa686e)
-- mythos-router-source: ✅ Synced (HEAD 032e0c2)
-- temporal: ✅ Synced (HEAD 561ba4ee4)
-- hermes-photon-client: ✅ Synced (HEAD d7acf11)
-- hermes-photon-server: ✅ Synced (HEAD 9cf3bd5)
-- DavyJonesBot/workspace: ⚠️ Ahead 10 (HEAD 249b5bf), new untracked dir with verified SLSA attestations
-- mempalace: ❌ 403 (HEAD b522512)
-- MoA-source: ❌ 403 (HEAD fd816ca)
-- models-dev-source: ❌ SSH (HEAD aa6d1fb5d)
-- warden-source: ❌ 403 (HEAD 794cfcf)
+## Git Push — All Projects
 
-## Services
-- uvicorn :8000: ✅ UP
-- DavyJonesHeartbeat :3000: ✅ UP
+### obus-moa-exe (master)
+- **Status:** ✅ Clean working tree — nothing to commit
+- **HEAD:** `d948ea7` (origin matches)
+- **Push:** ✅ Everything up-to-date
+- **Recent commits:** `d948ea7` docs: cron report updates (#445 cycle), `9533531` docs: cron report #473, `e042e6d` chore: rotate stale cron report
 
-## Build
-- Pipeline stalled since Aug 25 — no loop 77+
+### Uncommitted Changes
+- `backend/game_agent.py` (12.1K) — new file, NOT committed
+- `tests/test_game_agent.py` (3.8K) — new file, NOT committed
+- `build_status_report.txt` — modified, NOT committed
+- `.gortex-batch-3869423120` (11.6K) — untracked, NOT committed
 
-## Notable
-- Source worktree gained large untracked experiment dump (56 new backend .py files, hundreds of test/build dirs)
-- No new commits in any tracked repo since cycle 0397
-- gortex: 7 instances, mempalace-mcp: 6 instances, codex: 2 instances — all stable
+### Blocked (unchanged, pre-existing)
+| Repo | Blocker | State |
+|------|---------|-------|
+| MoA-source | 403 Forbidden | Clean |
+| models-dev-source | SSH auth failure | Clean |
+| warden-source | 403 Forbidden | Clean |
+| DavyJonesBot/workspace | Stale bundle path | Ahead 10 commits |
+| warp submodule | 403 + detached + dir missing | — |
+| warpdotdev-warp submodule | 403, detached HEAD | — |
+| Understand-Anything submodule | 403, pre-existing | — |
+
+## Build Pipeline
+- **Status:** ⏸ STALLED ~15 days (since Aug 25 2026)
+- **Latest build:** loop 76 (`dist-aui-loop76/OBus.exe`, 70.8 MB)
+- **No active builders or agent jobs detected**
+- **No loop 77+ build activity**
+
+## Active Processes
+- **Total:** 426 processes
+- **Notable:** llama-server.exe (2.7GB), python (multiple), node (multiple), OBus (11 instances), gortex (9), msedge (many), ChatGPT (17)
+
+## Summary
+- ✅ Push: Already up-to-date on master
+- ✅ Working tree: Clean (but 4 uncommitted files exist)
+- ⏸ Build: stalled ~15 days
+- 🔒 Blocked repos: unchanged (403/SSH/stale bundle)
+- 📊 Processes: 426 total, llama-server dominant at 2.7GB
