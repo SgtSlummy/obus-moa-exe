@@ -1,3 +1,5 @@
+4b3f596 chore: rotate stale cron report
+101d8bb chore: refresh git state snapshot
 5c2764a chore: cron report #469 + rotate stale push status files
 68f5d71 chore: add push_all_check.sh helper script
 20bf12b feat: add game evidence selection module and selection tests
@@ -6,5 +8,3 @@
 177aa2c chore: finalize game evidence test refinements (cron: push cycle)
 44ab15c feat: game dispatch + evidence sync refinements (cron: push cycle)
 567d46d WIP: game dispatch + evidence sync refinements
-6327b87 feat: add game prompt policy and evidence tests (cron: push cycle)
-56974a7 Cron: snapshot active job state + game evidence test
