@@ -34,6 +34,7 @@ from backend import game_dispatch, game_evidence_uploads
 from backend.game_evidence_selection import SelectionRequest, resolve_selection
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
+from backend.game_mempalace import memory_status
 
 CONTRACT = 'raph-obus-game-v1'
 STT_CONTRACT = 'raph-obus-game-stt-v1'
@@ -182,8 +183,22 @@ def retrieve(scope: Scope, query: str):
         ).fetchall()
     eligible = [source for row in rows if not (source := json.loads(row['body']))['deleted']]
     ranked = rank_sources(scope.campaign, query, eligible)
+    # Memory work can take time. Recheck the current database and ACLs before
+    # exposing any cached hit; return only records unchanged since selection.
+    with LOCK, database() as db:
+        current = {}
+        for source in ranked:
+            row = db.execute(
+                "SELECT body FROM sources WHERE campaign=? AND ref=? AND "
+                "(audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?))",
+                (scope.campaign, source['ref'], scope.role, scope.owner),
+            ).fetchone()
+            if row and json.loads(row['body']) == source and not source['deleted']:
+                current[source['ref']] = source
     out, budget = [], 5000
     for source in ranked:
+        if source['ref'] not in current:
+            continue
         text = source['text'][:budget]
         if not text or len(out) == 6:
             break
@@ -740,7 +755,7 @@ def capabilities():
         free_ready = bool(approved_free(catalogue()))
     except Exception:
         free_ready = False
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_reference_contracts':['raph-obus-game-evidence-refs-v1','raph-obus-game-evidence-refs-v2'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_reference_contracts':['raph-obus-game-evidence-refs-v1','raph-obus-game-evidence-refs-v2'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'memory':memory_status(),'retrieval':'authorized MemPalace ranking with lexical/local fallback','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
 
 
 @app.get('/api/game/runtime')

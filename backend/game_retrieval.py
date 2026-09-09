@@ -187,6 +187,17 @@ def rank_sources(campaign: str, query: str, eligible_sources) -> list[dict]:
     candidates.sort(key=lambda item: (-item[1], item[0]["ref"], item[0]["revision"], item[0]["text"]))
     candidates = candidates[:MAX_CANDIDATES]
     fallback = [source for source, lexical in candidates if lexical]
+    from backend.game_mempalace import rank_current_sources
+    memory = rank_current_sources(campaign, query, [source for source, _ in candidates])
+    if memory is not None:
+        lexical_by_id = {id(source): lexical for source, lexical in candidates}
+        ranked_memory = []
+        for source, cosine in memory:
+            lexical = lexical_by_id[id(source)]
+            if lexical or cosine >= SEMANTIC_MIN_COSINE:
+                ranked_memory.append((source, 0.85 * cosine + 0.15 * lexical / max(1, len(words))))
+        ranked_memory.sort(key=lambda item: (-item[1], item[0]["ref"], item[0]["revision"]))
+        return [source for source, _ in ranked_memory]
     model = os.environ.get("OBUS_GAME_EMBEDDING_MODEL", "").strip()
     if not candidates or not model:
         with _CACHE_LOCK:
