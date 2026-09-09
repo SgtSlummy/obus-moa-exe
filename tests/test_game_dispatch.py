@@ -479,6 +479,37 @@ def test_public_status_path_with_spaces_and_hash_has_no_uri_ambiguity(tmp_path):
     assert sorted(item.name for item in directory.iterdir()) == ["game #1.sqlite"]
 
 
+def test_public_status_dormant_wal_is_unavailable_without_new_sidecars(tmp_path):
+    path = tmp_path / "game.sqlite"
+    ledger.prepare_dispatch_store(path)
+    db = sqlite3.connect(path)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.close()
+    before = sorted(item.name for item in tmp_path.iterdir())
+    assert before == ["game.sqlite"]
+    result = ledger.public_recent(path, "camp")
+    assert result["status"] == "unavailable" and result["available"] is False
+    assert sorted(item.name for item in tmp_path.iterdir()) == before
+
+
+def test_public_status_active_wal_reads_committed_snapshot(state):
+    attempt = queue(state)
+    writer = sqlite3.connect(state.path, isolation_level=None)
+    try:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("BEGIN IMMEDIATE")
+        writer.execute("UPDATE dispatch_attempts SET status='cancelled' WHERE attempt_id=?", (attempt["attemptId"],))
+        old = ledger.public_recent(state.path, "camp", "session")
+        assert old["status"] == "ready" and old["counts"]["queued"] == 1
+        assert old["jobs"][0]["status"] == "queued"
+        writer.execute("COMMIT")
+        new = ledger.public_recent(state.path, "camp", "session")
+        assert new["status"] == "ready" and new["counts"]["cancelled"] == 1
+        assert new["jobs"][0]["status"] == "cancelled"
+    finally:
+        writer.close()
+
+
 def test_public_status_nested_write_attempt_is_denied(state, monkeypatch):
     def accidental_write(db, **kwargs):
         db.execute("CREATE TABLE forbidden(value TEXT)")

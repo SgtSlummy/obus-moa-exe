@@ -306,11 +306,13 @@ def cancel_queued(db: sqlite3.Connection, *, campaign: str, session: str | None 
 
 def public_recent(game_path: Path, campaign: str, session: str | None = None,
                   limit: int = 20) -> dict[str, Any]:
-    """Read bounded public metadata without creating, migrating or repairing data.
+    """Read public metadata without creating a store or changing game state.
 
     Missing/pre-migration stores are neutral uninitialized results. Busy, corrupt,
     inaccessible or unsupported stores are explicitly unavailable. URI read-only
-    mode protects the database even if a future nested helper tries to write.
+    mode protects game data even if a future nested helper tries to write. WAL
+    coordination files are SQLite's normal concurrency mechanism, not game state;
+    a missing-sidecar precheck avoids opening dormant WAL stores from a GET.
     The read transaction keeps schema, rows and counts in one coherent snapshot.
     """
     _text(campaign)
@@ -324,6 +326,11 @@ def public_recent(game_path: Path, campaign: str, session: str | None = None,
         path = Path(game_path).resolve()
         if not path.is_file():
             return {"status": "uninitialized", "available": False, **empty}
+        with path.open("rb") as handle:
+            header = handle.read(20)
+        if (header[:16] == b"SQLite format 3\x00" and header[18:20] == b"\x02\x02"
+                and not all(Path(str(path) + suffix).is_file() for suffix in ("-wal", "-shm"))):
+            return {"status": "unavailable", "available": False, **empty}
         db = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=0.25,
                              isolation_level=None)
         # Bound pathological query work as well as lock waiting. The normal

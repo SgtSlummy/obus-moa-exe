@@ -17,7 +17,6 @@ import sqlite3
 import io
 import threading
 import time
-import urllib.error
 import urllib.request
 import uuid
 from typing import Literal
@@ -29,7 +28,7 @@ from backend.game_evidence import (
     initialize_schema as initialize_evidence_schema, resolve_evidence, save_snapshot,
 )
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
-from backend.game_providers import complete_free, complete_local as complete_game_local, _free_pin, GameProviderError
+from backend.game_providers import complete_free, complete_local as complete_game_local, _free_pin, GameProviderError, GameProviderRejected
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
 from backend import game_dispatch
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
@@ -518,7 +517,7 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
                 except Exception as exc:
                     stage['status'] = 'failed'; trace.append(stage); text = ''
                     if active_attempt:
-                        known_failure = provider_completed or isinstance(exc, urllib.error.HTTPError)
+                        known_failure = provider_completed or isinstance(exc, GameProviderRejected)
                         outcome = 'failed' if known_failure else 'uncertain'
                         recorded = _record_dispatch_outcome(active_attempt, fingerprint, outcome, provenance)
                         if not known_failure or not recorded:

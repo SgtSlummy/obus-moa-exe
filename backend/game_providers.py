@@ -42,6 +42,19 @@ class GameProviderError(RuntimeError):
     """A route cannot satisfy the game's provider contract."""
 
 
+class GameProviderRejected(GameProviderError):
+    """The fixed free gateway returned HTTP 429 without a completion.
+
+    This narrow, sanitized signal permits a different approved route attempt.
+    Timeouts, other HTTP statuses and invalid completion/provenance responses
+    remain uncertain; they must not trigger another export automatically.
+    """
+    status_code = 429
+
+    def __init__(self) -> None:
+        super().__init__("Game provider rejected the request due to rate limiting")
+
+
 def _remaining(deadline: float) -> float:
     value = deadline - time.monotonic()
     if value <= 0:
@@ -110,6 +123,10 @@ def _request_json(endpoint: str, payload: dict, headers: dict, deadline: float) 
             connection.sock.settimeout(_remaining(deadline))
             connection.request("POST", path, body=body, headers={"Content-Type": "application/json", **headers})
             response = connection.getresponse()
+            if endpoint == FREE_ENDPOINT and response.status == 429:
+                # A gateway rate-limit response is an explicit rejection. Do
+                # not read, retain or propagate its potentially sensitive body.
+                raise GameProviderRejected()
             if response.status != 200:
                 raise GameProviderError("Game provider rejected the request")
             declared = response.getheader("Content-Length")
@@ -132,6 +149,10 @@ def _request_json(endpoint: str, payload: dict, headers: dict, deadline: float) 
             if not isinstance(result, dict):
                 raise GameProviderError("Game provider response must be an object")
             state["result"] = result
+        except GameProviderRejected:
+            # Preserve only the fixed gateway's explicit, sanitized rejection.
+            # No arbitrary remote message or status can create this signal.
+            state["error"] = GameProviderRejected()
         except (OSError, ValueError, TypeError, RecursionError, http.client.HTTPException, GameProviderError):
             # Never relay a remote response or authorization header in errors.
             state["error"] = GameProviderError("Game provider transport or response failed validation")

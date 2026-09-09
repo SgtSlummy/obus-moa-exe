@@ -271,6 +271,70 @@ class FakeConnection:
         self.closed = True
 
 
+def test_exact_free_gateway_429_is_sanitized_rejection_without_body_or_retry(monkeypatch):
+    class RateLimited(FakeConnection):
+        status = 429
+        content = b"private upstream response with credentials"
+        def getheader(self, name):
+            pytest.fail("rate-limit response headers must not be parsed")
+        def read1(self, count):
+            pytest.fail("rate-limit response body must not be read")
+    monkeypatch.setattr(providers.http.client, "HTTPSConnection", RateLimited)
+    before = len(RateLimited.instances)
+    with pytest.raises(providers.GameProviderRejected) as error:
+        providers.complete_free(free_key(), "private campaign evidence", 32)
+    assert error.value.status_code == 429
+    assert isinstance(error.value, providers.GameProviderError)
+    assert len(RateLimited.instances) == before + 1
+    assert RateLimited.instances[-1].closed and len(RateLimited.instances[-1].calls) == 1
+    for private in ("private campaign", "private upstream", "fixture-secret"):
+        assert private not in str(error.value)
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 408, 409, 500, 502, 503, 504])
+def test_other_http_failures_remain_uncertain_and_never_retry(monkeypatch, status):
+    monkeypatch.setattr(FakeConnection, "status", status)
+    monkeypatch.setattr(providers.http.client, "HTTPSConnection", FakeConnection)
+    before = len(FakeConnection.instances)
+    with pytest.raises(providers.GameProviderError) as error:
+        providers.complete_free(free_key(), "private scene", 32)
+    assert not isinstance(error.value, providers.GameProviderRejected)
+    assert len(FakeConnection.instances) == before + 1
+    assert FakeConnection.instances[-1].closed and len(FakeConnection.instances[-1].calls) == 1
+
+
+def test_local_429_is_not_a_free_gateway_rejection(monkeypatch):
+    monkeypatch.setattr(FakeConnection, "status", 429)
+    monkeypatch.setattr(providers.http.client, "HTTPConnection", FakeConnection)
+    with pytest.raises(providers.GameProviderError) as error:
+        providers._request_json(providers.LOCAL_BASE + "/api/chat", {"model": "fixture"}, {}, time.monotonic() + 1)
+    assert not isinstance(error.value, providers.GameProviderRejected)
+    assert len(FakeConnection.instances[-1].calls) == 1
+
+
+@pytest.mark.parametrize("failure", ["timeout", "json", "provenance", "cost"])
+def test_uncertain_completion_failures_cannot_become_rejection(monkeypatch, failure):
+    response = free_response()
+    if failure == "provenance":
+        response["provider"] = "Groq"
+    if failure == "cost":
+        response["usage"]["cost"] = 0.1
+    class Uncertain(FakeConnection):
+        content = b"malformed private response" if failure == "json" else json.dumps(response).encode()
+        def read1(self, count):
+            if failure == "timeout":
+                raise TimeoutError("private transport details")
+            return super().read1(count)
+    monkeypatch.setattr(providers.http.client, "HTTPSConnection", Uncertain)
+    before = len(Uncertain.instances)
+    with pytest.raises(providers.GameProviderError) as error:
+        providers.complete_free(free_key(), "private scene", 32)
+    assert not isinstance(error.value, providers.GameProviderRejected)
+    assert len(Uncertain.instances) == before + 1
+    assert Uncertain.instances[-1].closed and len(Uncertain.instances[-1].calls) == 1
+    assert "private" not in str(error.value)
+
+
 def test_transport_uses_fixed_direct_tls_host_and_ignores_proxy_environment(monkeypatch):
     monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:9999")
     monkeypatch.setattr(providers.http.client, "HTTPSConnection", FakeConnection)

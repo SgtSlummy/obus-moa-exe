@@ -314,7 +314,7 @@ class RoutingPolicyTests(unittest.TestCase):
         def remote(key, prompt, maximum):
             result = self.remote(key, prompt, maximum)
             if key['id'] == 'free-primary':
-                raise urllib.error.HTTPError('https://openrouter.ai/api/v1/chat/completions', 429, 'synthetic quota', {}, None)
+                raise game_providers.GameProviderRejected()
             return result
         result = self.run_route(local=self.local_failure, remote=remote)
         self.assertEqual([call[0]['id'] for call in self.remote_calls], ['free-primary', 'free-secondary'])
@@ -336,6 +336,109 @@ class RoutingPolicyTests(unittest.TestCase):
         self.assertEqual(self.receipts(), 0)
         self.assertEqual(self.attempts()['counts']['uncertain'], 1)
         self.assertNotIn('UNAPPROVED_PROVIDER', json.dumps(self.attempts()))
+
+    def test_server_error_is_uncertain_and_cannot_trigger_another_export(self):
+        def remote(*args):
+            self.remote(*args)
+            raise urllib.error.HTTPError('https://openrouter.ai/api/v1/chat/completions', 500, 'synthetic server error', {}, None)
+        with self.assertRaises(HTTPException) as caught:
+            self.run_route(local=self.local_failure, remote=remote)
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertEqual(len(self.remote_calls), 1)
+        self.assertEqual(self.attempts()['counts']['uncertain'], 1)
+        with self.assertRaises(HTTPException) as replay:
+            self.run_route(local=self.local_failure, remote=self.remote)
+        self.assertEqual(replay.exception.status_code, 409)
+        self.assertEqual(len(self.remote_calls), 1)
+        self.assertEqual(self.receipts(), 0)
+
+    def test_capabilities_report_only_transport_ready_free_pins_and_sanitize_catalogue_failure(self):
+        pins_path = Path(self.fixture.temp.name) / 'free-routes.json'
+        pins = json.loads(pins_path.read_text(encoding='utf-8'))
+        for variant in ('ready', 'empty', 'non-list', 'unverified', 'paid-model', 'wrong-downstream', 'missing-catalogue', 'catalogue-failed'):
+            with self.subTest(variant=variant):
+                configured, keys = copy.deepcopy(pins), copy.deepcopy(self.keys)
+                if variant == 'empty':
+                    configured = []
+                elif variant == 'non-list':
+                    configured = {'routes': pins}
+                elif variant == 'unverified':
+                    for pin in configured:
+                        pin['zero_charge'] = False
+                elif variant == 'paid-model':
+                    for pin, key in zip(configured, keys[1:]):
+                        pin['model'] = key['model'] = key['model'].removesuffix(':free')
+                elif variant == 'wrong-downstream':
+                    for pin in configured:
+                        pin['downstream_provider_name'] = 'UNAPPROVED_PROVIDER'
+                elif variant == 'missing-catalogue':
+                    keys = []
+                pins_path.write_text(json.dumps(configured), encoding='utf-8')
+                with patch.object(g, 'catalogue', side_effect=RuntimeError('SECRET_PROVIDER_ACCOUNT') if variant == 'catalogue-failed' else None, return_value=keys):
+                    response = self.fixture.client.get('/api/game/capabilities', headers=self.fixture.headers)
+                self.assertEqual(response.status_code, 200, response.text)
+                body = response.json()
+                self.assertIs(body['free_route_ready'], variant == 'ready')
+                self.assertIs(body['verified_free_route_fallback'], True)
+                self.assertIn('session-summary-v1', body['prompt_templates'])
+                for private_value in ('SECRET_PROVIDER_ACCOUNT', 'UNAPPROVED_PROVIDER', 'free-primary', 'free-secondary'):
+                    self.assertNotIn(private_value, response.text)
+        self.assertEqual(self.local_calls, [])
+        self.assertEqual(self.remote_calls, [])
+
+    def test_runtime_status_does_not_create_dispatch_schema(self):
+        with g.database() as db:
+            before = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'dispatch_%'").fetchall()
+        self.assertEqual(before, [])
+        response = self.fixture.client.get('/api/game/runtime?campaign=camp&session=session', headers=self.fixture.headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        status = response.json()['externalDispatch']
+        self.assertEqual(status['status'], 'uninitialized')
+        self.assertIs(status['available'], False)
+        self.assertEqual(status['jobs'], [])
+        self.assertEqual(sum(status['counts'].values()), 0)
+        with g.database() as db:
+            after = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'dispatch_%'").fetchall()
+        self.assertEqual(after, [])
+        self.assertEqual(self.local_calls, [])
+        self.assertEqual(self.remote_calls, [])
+
+    def test_runtime_dispatch_status_is_private_and_read_only_after_completion(self):
+        self.run_route(local=self.local_failure, remote=self.remote)
+        calls_before = (len(self.local_calls), len(self.remote_calls), self.catalogue_calls)
+        for _ in range(2):
+            response = self.fixture.client.get('/api/game/runtime?campaign=camp&session=session', headers=self.fixture.headers)
+            self.assertEqual(response.status_code, 200, response.text)
+            status = response.json()['externalDispatch']
+            self.assertEqual(status['status'], 'ready')
+            self.assertIs(status['available'], True)
+            self.assertEqual(status['counts']['completed'], 1)
+            self.assertEqual(len(status['jobs']), 1)
+            self.assertEqual(status['jobs'][0]['provider'], 'DeepInfra')
+            public = json.dumps(status)
+            for private_value in ('The harbor bell', 'chronicle:session:E1', '"player"', '"request"', '"owner"', '"fingerprint"', '"evidence"', '"prompt"'):
+                self.assertNotIn(private_value, public)
+        self.assertEqual((len(self.local_calls), len(self.remote_calls), self.catalogue_calls), calls_before)
+        self.assertEqual(self.receipts(), 1)
+        self.assertEqual(self.attempts()['counts']['completed'], 1)
+
+    def test_unrelated_returned_model_is_uncertain_and_never_receipted(self):
+        def remote(*args):
+            return {**self.remote(*args), 'model': 'fixture/unrelated'}
+        with self.assertRaises(HTTPException) as caught:
+            self.run_route(local=self.local_failure, remote=remote)
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertEqual(len(self.remote_calls), 1)
+        self.assertEqual(self.receipts(), 0)
+        ledger = self.attempts()
+        self.assertEqual(ledger['counts']['uncertain'], 1)
+        self.assertEqual(ledger['counts']['completed'], 0)
+        self.assertNotIn('fixture/unrelated', json.dumps(ledger))
+        with self.assertRaises(HTTPException) as replay:
+            self.run_route(local=self.local_failure, remote=self.remote)
+        self.assertEqual(replay.exception.status_code, 409)
+        self.assertEqual(len(self.remote_calls), 1)
+        self.assertEqual(self.receipts(), 0)
 
 
 if __name__ == '__main__':
