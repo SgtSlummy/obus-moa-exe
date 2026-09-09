@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+import ipaddress
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 OBUS_EXE = Path(os.getenv("OBUS_EXE", str(PROJECT_ROOT / "dist" / "OBus.exe")))
@@ -24,6 +26,9 @@ OBUS_URL = os.getenv("OBUS_URL", "http://127.0.0.1:38173").rstrip("/")
 BRIDGE_HOST = os.getenv("OBUS_BRIDGE_HOST", "127.0.0.1")
 BRIDGE_PORT = int(os.getenv("OBUS_BRIDGE_PORT", "38174"))
 BRIDGE_API_KEY = os.getenv("OCCULTBUS_API_KEY", "").strip()
+ALLOW_LOCAL_CLIENTS = os.getenv("OBUS_ALLOW_LOCAL_CLIENTS", "0") == "1"
+if ALLOW_LOCAL_CLIENTS and BRIDGE_HOST not in ("127.0.0.1", "::1", "localhost"):
+    raise ValueError("Local client access requires a loopback bridge bind address")
 OBUS_MODEL = os.getenv("OBUS_MODEL", "gpt-oss:20b").strip() or "gpt-oss:20b"
 LOG_PATH = Path(os.getenv("LOCALAPPDATA", Path.home())) / "OBus" / "logs" / "hermes-bridge.log"
 
@@ -39,12 +44,15 @@ class ObusRuntime:
             request = Request(f"{OBUS_URL}/health", headers={"User-Agent": "OBus-Hermes-Bridge/1.0"})
             with urlopen(request, timeout=3) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            return {"reachable": True, **payload}
+            return {**payload, "reachable": payload.get("service") == "obus-moa" and payload.get("status") == "ok"}
         except (OSError, URLError, json.JSONDecodeError) as exc:
             return {"reachable": False, "error": type(exc).__name__}
 
     def launch_command(self) -> list[str]:
         """Start either the packaged runtime or source launcher without opening UI."""
+        # Prefer current checkout source unless a packaged runtime is explicit.
+        if OBUS_LAUNCHER.is_file() and not os.getenv("OBUS_EXE"):
+            return [sys.executable, str(OBUS_LAUNCHER), "--headless"]
         if OBUS_EXE.is_file():
             return [str(OBUS_EXE), "--headless"]
         if OBUS_LAUNCHER.is_file():
@@ -144,6 +152,13 @@ def completion_payload(model: str, answer: str) -> dict[str, Any]:
 
 class BridgeHandler(BaseHTTPRequestHandler):
     def _authorized(self) -> bool:
+        if ALLOW_LOCAL_CLIENTS and ipaddress.ip_address(self.client_address[0]).is_loopback:
+            origin = self.headers.get("Origin")
+            # Native local clients need no key; arbitrary websites do not.
+            if origin:
+                parsed = urlparse(origin)
+                return parsed.scheme in ("http", "https") and parsed.hostname in ("127.0.0.1", "::1", "localhost")
+            return True
         if not BRIDGE_API_KEY:
             return True
         authorization = self.headers.get("Authorization", "")
@@ -178,7 +193,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self._json({
                 "provider": "obus", "display_name": "OBus", "model": OBUS_MODEL,
                 "base_url": f"http://{BRIDGE_HOST}:{BRIDGE_PORT}/v1",
-                "api_key_env": "OCCULTBUS_API_KEY", "api_key_required": bool(BRIDGE_API_KEY),
+                "api_key_env": "OCCULTBUS_API_KEY", "api_key_required": bool(BRIDGE_API_KEY) and not ALLOW_LOCAL_CLIENTS,
                 "bind_host": BRIDGE_HOST, "port": BRIDGE_PORT,
             })
             return

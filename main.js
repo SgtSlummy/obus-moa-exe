@@ -2,14 +2,12 @@
 
 const { app, BrowserWindow, dialog, shell } = require("electron");
 const http = require("http");
-const net = require("net");
 const path = require("path");
 const { spawn } = require("child_process");
 
 const DEFAULT_OBUS_URL = "http://127.0.0.1:38173/";
 const BACKEND_READY_TIMEOUT_MS = 20_000;
 let mainWindow = null;
-let ownedBackend = null;
 let activeTarget = null;
 
 function obusUrl(value = process.env.OBUS_URL) {
@@ -41,8 +39,12 @@ function healthUrl(target) {
 function backendHealthy(target) {
   return new Promise((resolve) => {
     const request = http.get(healthUrl(target), { timeout: 1500 }, (response) => {
-      response.resume();
-      resolve(response.statusCode === 200);
+      let body = "";
+      response.on("data", (chunk) => { body += chunk; if (body.length > 8192) request.destroy(); });
+      response.on("end", () => {
+        try { const state = JSON.parse(body); resolve(response.statusCode === 200 && state.service === "obus-moa" && state.status === "ok"); }
+        catch { resolve(false); }
+      });
     });
     request.on("error", () => resolve(false));
     request.on("timeout", () => { request.destroy(); resolve(false); });
@@ -52,21 +54,7 @@ function backendHealthy(target) {
 function bundledBackendPath() {
   return app.isPackaged
     ? path.join(process.resourcesPath, "backend", "OBus.exe")
-    : path.resolve(__dirname, "..", "dist", "OBus.exe");
-}
-
-function reserveLoopbackTarget() {
-  return new Promise((resolve, reject) => {
-    const probe = net.createServer();
-    probe.once("error", reject);
-    probe.listen(0, "127.0.0.1", () => {
-      const address = probe.address();
-      probe.close((error) => {
-        if (error) return reject(error);
-        resolve(`http://127.0.0.1:${address.port}/`);
-      });
-    });
-  });
+    : path.resolve(__dirname, path.basename(__dirname) === "electron_app" ? ".." : ".", "dist", "OBus.exe");
 }
 
 async function backendSupportsCurrentDesktopRuntime(target) {
@@ -78,7 +66,7 @@ async function backendSupportsCurrentDesktopRuntime(target) {
         response.resume();
         // A registered FastAPI route responds to OPTIONS/405; a missing legacy
         // route responds 404. Do not silently bind the desktop shell to v97.
-        resolve(response.statusCode !== 404);
+        resolve(response.statusCode === 405 || response.statusCode === 200 || response.statusCode === 204);
       },
     );
     request.once("timeout", () => request.destroy());
@@ -90,15 +78,23 @@ async function backendSupportsCurrentDesktopRuntime(target) {
 async function startBundledBackend(target) {
   const executable = bundledBackendPath();
   const port = new URL(target).port;
-  ownedBackend = spawn(executable, ["--headless"], {
+  const sourceLauncher = process.env.OBUS_LAUNCHER;
+  const command = sourceLauncher && process.env.OBUS_PYTHON ? process.env.OBUS_PYTHON : executable;
+  const args = sourceLauncher && process.env.OBUS_PYTHON ? [sourceLauncher, "--headless"] : ["--headless"];
+  let spawnError = null;
+  const backend = spawn(command, args, {
     cwd: path.dirname(executable),
-    env: { ...process.env, OBUS_PORT: port },
+    env: { ...process.env, OBUS_PORT: port, OBUS_HOST: "127.0.0.1" },
     windowsHide: true,
+    detached: true,
     stdio: "ignore",
   });
+  backend.on("error", (error) => { spawnError = error; });
+  backend.unref();
   const deadline = Date.now() + BACKEND_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (await backendHealthy(target) && await backendSupportsCurrentDesktopRuntime(target)) return target;
+    if (spawnError) throw spawnError;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`OBus backend did not become ready: ${executable}`);
@@ -107,20 +103,12 @@ async function startBundledBackend(target) {
 async function ensureBackend(target) {
   if (await backendHealthy(target)) {
     if (await backendSupportsCurrentDesktopRuntime(target)) return target;
-    if (process.env.OBUS_URL) {
-      throw new Error(`OBUS_URL points to an older or incompatible OBus backend: ${target}`);
-    }
-    return startBundledBackend(await reserveLoopbackTarget());
+    throw new Error(`Update the shared OBus backend at ${target}; it is incompatible with this desktop.`);
   }
-  if (process.env.OBUS_URL) {
+  if (target !== DEFAULT_OBUS_URL) {
     throw new Error(`OBUS_URL is unavailable: ${target}`);
   }
   return startBundledBackend(target);
-}
-
-function stopOwnedBackend() {
-  if (ownedBackend && !ownedBackend.killed) ownedBackend.kill();
-  ownedBackend = null;
 }
 
 function createWindow(target = activeTarget || obusUrl()) {
@@ -169,9 +157,8 @@ if (!app.requestSingleInstanceLock()) {
       app.quit();
     }
   });
-  app.on("before-quit", stopOwnedBackend);
   app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
   app.on("activate", () => { if (mainWindow === null) createWindow(); });
 }
 
-module.exports = { DEFAULT_OBUS_URL, isLoopbackUrl, obusUrl };
+module.exports = { DEFAULT_OBUS_URL, isLoopbackUrl, obusUrl, ensureBackend, backendHealthy };

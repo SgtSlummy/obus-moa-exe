@@ -1,4 +1,7 @@
 import unittest
+import os
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -28,8 +31,23 @@ class HeadlessRuntimeTests(unittest.TestCase):
         runtime = bridge.ObusRuntime()
         fake_exe = Path("C:/OBus/OBus.exe")
         with patch.object(bridge, "OBUS_EXE", fake_exe), \
+             patch.dict(os.environ, {"OBUS_EXE": str(fake_exe)}), \
              patch.object(Path, "is_file", return_value=True):
             self.assertEqual(runtime.launch_command(), [str(fake_exe), "--headless"])
+
+    def test_bridge_prefers_current_source_over_old_packaged_runtime(self):
+        with patch.dict(os.environ, {}, clear=True), patch.object(Path, "is_file", return_value=True):
+            self.assertEqual(bridge.ObusRuntime().launch_command(), [sys.executable, str(bridge.OBUS_LAUNCHER), "--headless"])
+
+    def test_local_clients_can_connect_without_disclosing_a_key(self):
+        client = SimpleNamespace(client_address=("127.0.0.1", 50100), headers={})
+        with patch.object(bridge, "ALLOW_LOCAL_CLIENTS", True), patch.object(bridge, "BRIDGE_API_KEY", "private-test-key"):
+            self.assertTrue(bridge.BridgeHandler._authorized(client))
+            client.headers = {"Origin": "https://unrelated.example"}
+            self.assertFalse(bridge.BridgeHandler._authorized(client))
+            client.headers = {}
+            client.client_address = ("192.0.2.1", 50100)
+            self.assertFalse(bridge.BridgeHandler._authorized(client))
 
     def test_bridge_advertises_the_actual_local_default_model(self):
         self.assertEqual(bridge.OBUS_MODEL, "gpt-oss:20b")

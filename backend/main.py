@@ -130,7 +130,8 @@ async def enforce_local_access(request: Request, call_next):
 
 
 # Data storage paths
-DATA_DIR = Path(os.environ.get('OCCULTBUS_HOME', Path.home() / '.occultbus'))
+DEFAULT_DATA_DIR = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'OBus' if os.name == 'nt' else Path.home() / '.occultbus'
+DATA_DIR = Path(os.environ.get('OCCULTBUS_HOME', DEFAULT_DATA_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE = DATA_DIR / 'obus_state.json'
@@ -2732,10 +2733,14 @@ async def provider_connection():
         pass
     bridge_connection = safe_base_url.removesuffix("/v1") + "/connection"
     reachable = False
+    api_key_required = bool(os.getenv(OBUS_PROVIDER_KEY_ENV))
     try:
         with _NO_REDIRECT_OPENER.open(urllib.request.Request(bridge_connection, method="GET"), timeout=2) as response:
             reachable = response.status == 200
-    except (OSError, urllib.error.URLError, RuntimeError):
+            metadata = json.loads(response.read(16384))
+            if isinstance(metadata, dict):
+                api_key_required = metadata.get("api_key_required", api_key_required) is not False
+    except (OSError, urllib.error.URLError, RuntimeError, ValueError):
         pass
     return {
         "provider": "obus", "display_name": "OBus", "model": "OBus",
@@ -2743,7 +2748,7 @@ async def provider_connection():
         "models_url": f"{safe_base_url}/models",
         "chat_completions_url": f"{safe_base_url}/chat/completions",
         "api_key_env": OBUS_PROVIDER_KEY_ENV,
-        "api_key_required": bool(os.getenv(OBUS_PROVIDER_KEY_ENV)),
+        "api_key_required": api_key_required,
         "bind_scope": "loopback-only", "reachable": reachable,
     }
 

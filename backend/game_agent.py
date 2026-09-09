@@ -35,6 +35,7 @@ from backend.game_evidence_selection import SelectionRequest, resolve_selection
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 from backend.game_mempalace import memory_status
+from backend import game_images
 
 CONTRACT = 'raph-obus-game-v1'
 STT_CONTRACT = 'raph-obus-game-stt-v1'
@@ -211,14 +212,47 @@ def retrieve(scope: Scope, query: str):
     return out
 
 def catalogue():
-    req = urllib.request.Request(CORE + '/api/dashboard')
+    value = _catalogue_json(CORE + '/api/dashboard')
+    if not isinstance(value, dict) or not isinstance(value.get('providers', []), list):
+        raise HTTPException(503, 'game_catalogue_unavailable')
+    return value.get('providers', [])
+
+
+def _catalogue_json(url):
+    req = urllib.request.Request(url)
     if os.environ.get('OBUS_ACCESS_TOKEN'):
-        req.add_header('X-OBus-Access', os.environ['OBUS_ACCESS_TOKEN'])
-    with _NO_REDIRECT_OPENER.open(req, timeout=10) as response:
-        raw = response.read(1000001)
-    if len(raw) > 1000000:
-        raise RuntimeError('Obus catalogue too large')
-    return json.loads(raw).get('providers', [])
+        if url.startswith(CORE + '/'):
+            req.add_header('X-OBus-Access', os.environ['OBUS_ACCESS_TOKEN'])
+    try:
+        with _NO_REDIRECT_OPENER.open(req, timeout=4) as response:
+            raw = response.read(1000001)
+        if len(raw) > 1000000:
+            raise ValueError()
+        return json.loads(raw)
+    except Exception:
+        raise HTTPException(503, 'game_catalogue_unavailable') from None
+
+
+def local_catalogue():
+    """Read registered local routing metadata without dashboard/free-provider work.
+
+    Tags establish current installed-model availability. The private local
+    provider still verifies GGUF and completion capability before any prompt.
+    """
+    keys = _catalogue_json(CORE + '/api/keys')
+    if not isinstance(keys, list):
+        raise HTTPException(503, 'game_catalogue_unavailable')
+    candidates = [key for key in keys if isinstance(key, dict)
+                  and key.get('id') == 'key-local-ollama' and key.get('provider') == 'ollama'
+                  and key.get('verified') is True and key.get('state') == 'ready']
+    if not candidates:
+        return []
+    tags = _catalogue_json('http://127.0.0.1:11434/api/tags')
+    installed = {entry.get('name') for entry in tags.get('models', []) if isinstance(entry, dict)} if isinstance(tags, dict) else set()
+    # The public key registry can redact address substrings. It supplies model
+    # identity/approval only; the gameplay destination is always this fixed URL.
+    return [{**key, 'base_url': 'http://127.0.0.1:11434', 'connected': True}
+            for key in candidates if key.get('model') in installed]
 
 def approved_free(keys):
     # Host pins choose a route; the game transport separately enforces its free
@@ -461,9 +495,11 @@ def _record_dispatch_outcome(attempt_id, fingerprint, outcome, provenance=None):
         return False
 
 
-def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_free):
+def run_job(job: Job, get_keys=None, local=complete_local, remote=complete_free):
     # Snapshot caller-owned models before any queue wait or provider callback.
     job = Job.model_validate(job.model_dump())
+    if get_keys is None:
+        get_keys = local_catalogue if job.policy.mode == 'local' else catalogue
     if job.policy.codex:
         raise HTTPException(409, 'Codex escalation is not supported by this game agent')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
@@ -762,7 +798,7 @@ async def private_access(request: Request, call_next):
 @app.get('/api/game/capabilities')
 def capabilities():
     try:
-        free_ready = bool(approved_free(catalogue()))
+        free_ready = bool(approved_free(catalogue())) if (ROOT / 'free-routes.json').is_file() else False
     except Exception:
         free_ready = False
     return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_reference_contracts':['raph-obus-game-evidence-refs-v1','raph-obus-game-evidence-refs-v2'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'memory':memory_status(),'retrieval':'authorized MemPalace ranking with lexical/local fallback','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
@@ -847,6 +883,19 @@ def put_source(source: Source):
 @app.post('/api/game/route')
 async def route(job: Job):
     return await asyncio.to_thread(run_job,job)
+@app.post('/api/game/images')
+async def generate_game_image(request: Request):
+    try:
+        body = await request.json()
+        job = game_images.ImageJob.model_validate(body)
+    except (ValueError, ValidationError):
+        raise HTTPException(400, 'scoped_image_request_required') from None
+    try:
+        runtime_authority().verify_host(request.method, request.url.path, body, request.headers)
+    except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from None
+    return await asyncio.to_thread(game_images.run_image, job, require_runtime=_require_runtime,
+                                   inference=INFERENCE, state_lock=LOCK, active_requests=ACTIVE_GAME_REQUESTS)
 @app.post('/api/voice/transcribe')
 async def transcribe(request: Request):
     try:
