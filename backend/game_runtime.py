@@ -649,6 +649,35 @@ class GameRuntimeAuthority:
             response = {"status": "policy_updated", "runtime": self._snapshot_from(refreshed_master, refreshed_child).public()}
             return self._record_operation(db, "patch_policy", body, response)
 
+    def release_host(self, body: Mapping[str, Any]) -> dict[str, Any]:
+        """Relinquish only the caller's fenced master; a disabled policy is not a release."""
+        fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId"}
+        self._validate_common(body, fields)
+        if body["session"] != "campaign":
+            raise RuntimeDenied(403, "runtime_master_session_required")
+        _uuid4(body.get("generation"), "runtime_generation_invalid")
+        revision = body.get("expectedSessionPolicyRevision")
+        if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+            raise RuntimeDenied(400, "runtime_policy_revision_invalid")
+        if body["expectedBootEpoch"] != self.boot_epoch:
+            raise RuntimeDenied(409, "runtime_boot_epoch_stale")
+        with self._transaction() as db:
+            replay = self._operation(db, "release_host", body)
+            if replay is not None:
+                return replay
+            master = self._campaign_row(db, body["campaign"])
+            child = self._session_row(db, body["campaign"], "campaign")
+            self._require_current(master, child, body)
+            if child["policy_revision"] != revision:
+                raise RuntimeDenied(409, "runtime_policy_revision_stale")
+            # Cancellation precedes the runtime write under its writer lock. An
+            # interrupted release can conservatively cancel work, never revive it.
+            self._cancel_dispatches(body["campaign"], reason="generation_changed", uncertain=True)
+            db.execute("UPDATE campaign_runtime SET generation=NULL, lease_expires_at_ms=NULL, enabled=0, policy_revision=policy_revision+1 WHERE campaign=?", (body["campaign"],))
+            db.execute("UPDATE session_runtime SET generation=NULL, lease_expires_at_ms=NULL, policy_revision=policy_revision+1 WHERE campaign=?", (body["campaign"],))
+            result = self._snapshot_from(self._campaign_row(db, body["campaign"]), self._session_row(db, body["campaign"], "campaign"))
+            return self._record_operation(db, "release_host", body, {"status": "host_released", "runtime": result.public()})
+
     def revoke_session(self, body: Mapping[str, Any]) -> dict[str, Any]:
         """Immediately invalidate one child fence without altering campaign policy."""
         fields = {"contract", "campaign", "session", "generation", "expectedBootEpoch", "expectedSessionPolicyRevision", "opId"}

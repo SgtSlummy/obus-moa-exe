@@ -828,6 +828,11 @@ async def patch_runtime_policy(request: Request):
     return (await _host_control_async(request, runtime_authority().patch_policy))["runtime"]
 
 
+@app.post('/api/game/runtime/host-generation/release')
+async def release_host_generation(request: Request):
+    return await _host_control_async(request, runtime_authority().release_host)
+
+
 @app.post('/api/game/runtime/session/revoke')
 async def revoke_runtime_session(request: Request):
     return await _host_control_async(request, runtime_authority().revoke_session)

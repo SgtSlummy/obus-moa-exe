@@ -181,3 +181,37 @@ def test_concurrent_master_compare_and_swap_has_one_winner():
             worker.join()
         assert [kind for kind, _ in outcomes].count("ok") == 1
         assert [kind for kind, _ in outcomes].count("denied") == 1
+
+
+def test_master_release_permits_immediate_restart_and_stale_close_cannot_revoke_it(tmp_path):
+    authority = GameRuntimeAuthority(tmp_path, clock=Clock())
+    first = authority.register(register_body(authority, session="campaign"))["runtime"]
+    authority.register(register_body(authority, session="child", generation=first["generation"]))
+    release = renewal_body(authority, first, session="campaign")
+    del release["leaseSeconds"]
+    for field, bad in [("expectedBootEpoch", str(uuid.uuid4())), ("generation", str(uuid.uuid4())), ("expectedSessionPolicyRevision", first["sessionPolicyRevision"] + 1)]:
+        with pytest.raises(RuntimeDenied):
+            authority.release_host({**release, field: bad, "opId": str(uuid.uuid4())})
+        assert authority.snapshot("camp-1", "campaign").generation == first["generation"]
+    receipt = authority.release_host(release)
+    assert receipt["status"] == "host_released"
+    assert receipt["runtime"]["generation"] is None
+    assert receipt["runtime"]["leaseExpiresAtMs"] is None
+    assert receipt["runtime"]["sessionPolicyRevision"] == first["sessionPolicyRevision"] + 1
+    assert authority.snapshot("camp-1", "child").generation is None
+    second = authority.register(register_body(authority, session="campaign"))["runtime"]
+    assert second["generation"] != first["generation"]
+    assert authority.release_host(release) == receipt  # exact retry has no new mutation
+    with pytest.raises(RuntimeDenied, match="runtime_generation_stale"):
+        authority.release_host({**release, "opId": str(uuid.uuid4())})
+    assert authority.snapshot("camp-1", "campaign").generation == second["generation"]
+
+
+def test_child_cannot_release_master(tmp_path):
+    authority = GameRuntimeAuthority(tmp_path, clock=Clock())
+    first = authority.register(register_body(authority, session="campaign"))["runtime"]
+    body = renewal_body(authority, first, session="child")
+    del body["leaseSeconds"]
+    with pytest.raises(RuntimeDenied, match="runtime_master_session_required"):
+        authority.release_host(body)
+    assert authority.snapshot("camp-1", "campaign").generation == first["generation"]

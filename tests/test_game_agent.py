@@ -244,6 +244,35 @@ class GameAgentTests(unittest.TestCase):
             self.assertEqual(revoked.json()["status"], "session_revoked")
             self.assertIsNone(revoked.json()["runtime"]["generation"])
 
+    def test_signed_master_release_and_immediate_http_restart(self):
+        authority = g.runtime_authority()
+        current = authority.snapshot("a", "campaign")
+        release = {"contract": "raph-obus-game-runtime-v1", "campaign": "a", "session": "campaign",
+                   "generation": current.generation, "expectedBootEpoch": current.boot_epoch,
+                   "expectedSessionPolicyRevision": current.policy_revision, "opId": str(uuid.uuid4())}
+        headers = {"X-Obus-Game-Token": g.token()}
+        def signed(method, path, body):
+            timestamp, nonce = str(int(time.time())), uuid.uuid4().hex + uuid.uuid4().hex
+            signature = hmac.new(authority.host_key(), authority._signed_bytes(method, path, timestamp, nonce, body), hashlib.sha256).hexdigest()
+            return {**headers, "X-Obus-Game-Host-Timestamp": timestamp, "X-Obus-Game-Host-Nonce": nonce, "X-Obus-Game-Host-Signature": signature}
+        path = "/api/game/runtime/host-generation/release"
+        with TestClient(g.app) as client:
+            self.assertEqual(client.post(path, json=release, headers=headers).status_code, 401)
+            response = client.post(path, json=release, headers=signed("POST", path, release))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "host_released")
+            self.assertIsNone(response.json()["runtime"]["generation"])
+            register = {"contract": "raph-obus-game-runtime-v1", "campaign": "a", "session": "campaign",
+                        "generation": str(uuid.uuid4()), "expectedBootEpoch": current.boot_epoch,
+                        "expectedGeneration": None, "opId": str(uuid.uuid4()), "leaseSeconds": 30}
+            register_path = "/api/game/runtime/host-generation"
+            fresh = client.put(register_path, json=register, headers=signed("PUT", register_path, register))
+            self.assertEqual(fresh.status_code, 200)
+            self.assertEqual(fresh.json()["generation"], register["generation"])
+            stale = {**release, "opId": str(uuid.uuid4())}
+            self.assertEqual(client.post(path, json=stale, headers=signed("POST", path, stale)).status_code, 409)
+            self.assertEqual(authority.snapshot("a", "campaign").generation, register["generation"])
+
     def test_runtime_counts_track_waiting_running_and_failed_jobs(self):
         waiting, release_gate, dispatched, finish = (threading.Event() for _ in range(4))
         errors = []

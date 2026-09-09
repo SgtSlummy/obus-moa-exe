@@ -566,3 +566,21 @@ def test_policy_writes_do_not_migrate_existing_store(tmp_path):
     with transaction(path) as db:
         assert not ledger.schema_ready(db)
     assert not (tmp_path / "backups").exists()
+
+
+def test_master_release_cancels_all_queued_children_and_fences_dispatched_work(state):
+    first = queue(state)
+    claim(state, first)
+    register(state.authority, "other", state.snapshot.generation)
+    other = state.authority.snapshot("camp", "other")
+    with state.authority.dispatch_transaction("camp", "other", **fence(other)) as (db, _):
+        ledger.enqueue(db, **metadata(state, session="other", policy_revision=other.policy_revision))
+    master = state.authority.snapshot("camp", "campaign")
+    state.authority.release_host({"contract": RUNTIME_CONTRACT, "campaign": "camp", "session": "campaign",
+        "generation": master.generation, "expectedBootEpoch": master.boot_epoch,
+        "expectedSessionPolicyRevision": master.policy_revision, "opId": str(uuid.uuid4())})
+    assert recent(state, session="session")["counts"]["uncertain"] == 1
+    assert recent(state, session="other")["counts"]["cancelled"] == 1
+    with pytest.raises(RuntimeDenied):
+        with state.authority.dispatch_transaction("camp", "session", **fence(state.snapshot)):
+            pytest.fail("Released child fence was accepted")
