@@ -102,6 +102,7 @@ class Job(Strict):
     requestId: str = Field(min_length=1, max_length=100)
     task: Literal['narration','dialogue','intent','summary','final','council','counsel','prepare','contradiction','cue']
     instructions: str = Field(max_length=8000)
+    promptTemplate: Literal['session-summary-v1'] | None = None
     evidence: dict | list
     policy: Policy
     runtime: RuntimeFence
@@ -279,7 +280,7 @@ def _reference_request(job: Job) -> EvidenceRequest | None:
         raise HTTPException(422, 'evidence_references_invalid') from None
 
 
-def _resolve_job_evidence(db, job: Job, request: EvidenceRequest):
+def _resolve_job_evidence(db, job: Job, request: EvidenceRequest, *, external: bool = False):
     # All source/consent reads share one snapshot. The final call runs inside
     # the authority-owned receipt transaction, excluding concurrent syncs.
     if not db.in_transaction:
@@ -287,7 +288,7 @@ def _resolve_job_evidence(db, job: Job, request: EvidenceRequest):
     try:
         return resolve_evidence(
             db, job.scope.campaign, job.session, job.scope.owner, job.scope.role,
-            request.revision, request.references, external=False,
+            request.revision, request.references, external=external,
         )
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc

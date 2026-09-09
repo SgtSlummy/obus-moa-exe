@@ -145,6 +145,57 @@ class GameRuntimeAuthority:
         finally:
             connection.close()
 
+    def require_dispatch(
+        self, campaign: str, session: str, *, boot_epoch: str, generation: str,
+        policy_revision: int, external: bool = False,
+    ) -> RuntimeSnapshot:
+        """Read a coherent live policy; only a dispatch transaction authorizes export."""
+        _string(campaign, "runtime_campaign_invalid")
+        _string(session, "runtime_session_invalid")
+        expected = self._fence(boot_epoch, generation, policy_revision)
+        return self._validate_dispatch(self.snapshot(campaign, session), expected,
+                                       require_enabled=True, external=external)
+
+    @staticmethod
+    def _fence(boot_epoch: str, generation: str, policy_revision: int) -> tuple[str, str, int]:
+        if (not isinstance(boot_epoch, str) or not isinstance(generation, str)
+                or isinstance(policy_revision, bool) or not isinstance(policy_revision, int)
+                or policy_revision < 0):
+            raise RuntimeDenied(400, "runtime_fence_invalid")
+        return boot_epoch, generation, policy_revision
+
+    @staticmethod
+    def _validate_dispatch(snapshot: RuntimeSnapshot, expected: tuple[str, str, int], *,
+                           require_enabled: bool, external: bool) -> RuntimeSnapshot:
+        if not snapshot.generation:
+            raise RuntimeDenied(409, "runtime_host_generation_required")
+        if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != expected:
+            raise RuntimeDenied(409, "runtime_fence_stale")
+        if require_enabled and not snapshot.enabled:
+            raise RuntimeDenied(409, "game_ai_disabled")
+        if (snapshot.mode not in {"local", "local-free"} or snapshot.codex
+                or (snapshot.mode == "local" and snapshot.exportable)):
+            raise RuntimeDenied(409, "runtime_policy_not_local_only")
+        if external and (snapshot.mode != "local-free" or not snapshot.exportable):
+            raise RuntimeDenied(403, "runtime_external_disabled")
+        return snapshot
+
+    @contextmanager
+    def dispatch_transaction(
+        self, campaign: str, session: str, *, boot_epoch: str, generation: str,
+        policy_revision: int, external: bool = True,
+    ) -> Iterator[tuple[sqlite3.Connection, RuntimeSnapshot]]:
+        """Serialize a bounded dispatch claim with current host policy and game evidence.
+
+        Commit the claim before invoking a provider. No inference belongs in this
+        guard. External permission still requires independently validated consent
+        and a verified zero-charge route in the caller.
+        """
+        with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
+                                    policy_revision=policy_revision, require_enabled=True,
+                                    require_external=external) as guarded:
+            yield guarded
+
     @contextmanager
     def receipt_transaction(
         self,
@@ -157,7 +208,7 @@ class GameRuntimeAuthority:
     ) -> Iterator[sqlite3.Connection]:
         """Commit inference receipts only while the fenced local AI policy is enabled."""
         with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
-                                    policy_revision=policy_revision, require_enabled=True) as game:
+                                    policy_revision=policy_revision, require_enabled=True) as (game, _snapshot):
             yield game
 
     @contextmanager
@@ -176,7 +227,7 @@ class GameRuntimeAuthority:
         Live host/session fences, leases and the local-only policy still apply.
         """
         with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
-                                    policy_revision=policy_revision, require_enabled=False) as game:
+                                    policy_revision=policy_revision, require_enabled=False) as (game, _snapshot):
             yield game
 
     @contextmanager
@@ -189,7 +240,8 @@ class GameRuntimeAuthority:
         generation: str,
         policy_revision: int,
         require_enabled: bool,
-    ) -> Iterator[sqlite3.Connection]:
+        require_external: bool = False,
+    ) -> Iterator[tuple[sqlite3.Connection, RuntimeSnapshot]]:
         """Commit game data under the same SQLite lock used by runtime writers.
 
         Initialize game.sqlite's schema before entering, and do not enter while
@@ -207,11 +259,7 @@ class GameRuntimeAuthority:
         """
         _string(campaign, "runtime_campaign_invalid")
         _string(session, "runtime_session_invalid")
-        if (not isinstance(boot_epoch, str) or not isinstance(generation, str)
-                or isinstance(policy_revision, bool) or not isinstance(policy_revision, int)
-                or policy_revision < 0):
-            raise RuntimeDenied(400, "runtime_fence_invalid")
-        expected = (boot_epoch, generation, policy_revision)
+        expected = self._fence(boot_epoch, generation, policy_revision)
         # Existing-file mode prevents missing initialization from silently
         # creating a second or empty authoritative game database.
         game_uri = (self.root / "game.sqlite").resolve().as_uri() + "?mode=rw"
@@ -219,18 +267,12 @@ class GameRuntimeAuthority:
         game.row_factory = sqlite3.Row
         try:
             with self._transaction() as runtime:
-                def validate() -> None:
+                def validate() -> RuntimeSnapshot:
                     snapshot = self._snapshot_from(
                         self._campaign_row(runtime, campaign), self._session_row(runtime, campaign, session)
                     )
-                    if not snapshot.generation:
-                        raise RuntimeDenied(409, "runtime_host_generation_required")
-                    if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != expected:
-                        raise RuntimeDenied(409, "runtime_fence_stale")
-                    if require_enabled and not snapshot.enabled:
-                        raise RuntimeDenied(409, "game_ai_disabled")
-                    if snapshot.mode != "local" or snapshot.codex or snapshot.exportable:
-                        raise RuntimeDenied(409, "runtime_policy_not_local_only")
+                    return self._validate_dispatch(snapshot, expected, require_enabled=require_enabled,
+                                                   external=require_external)
 
                 def receipt_statements_only(action: int, _arg1, _arg2, _database, _trigger) -> int:
                     if action in {sqlite3.SQLITE_TRANSACTION, sqlite3.SQLITE_SAVEPOINT,
@@ -240,12 +282,12 @@ class GameRuntimeAuthority:
 
                 try:
                     game.execute("BEGIN IMMEDIATE")
-                    validate()
+                    snapshot = validate()
                     # Guard ownership also prevents accidental `with game:` or
                     # executescript calls from committing before final validation.
                     game.set_authorizer(receipt_statements_only)
                     try:
-                        yield game
+                        yield game, snapshot
                     finally:
                         game.set_authorizer(None)
                     # Recheck leases after the body, immediately before commit.
