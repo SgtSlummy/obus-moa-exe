@@ -1,9 +1,11 @@
 """Bounded, optional semantic ranking for already-authorized game sources.
 
 The caller must perform campaign and audience/owner authorization before calling
-rank_sources. This module never searches another store. It defensively discards
-other campaigns and tombstones, and returns original dictionaries from the
-current eligible list only. The database remains authoritative.
+rank_sources. Configured MemPalace queries only current eligible content IDs
+in its private vector cache. It defensively discards other campaigns and
+tombstones and returns original current dictionaries only. The source database
+remains authoritative. MemPalace has a 15-second worker limit; the following
+Ollama-specific limits apply to the pre-existing fallback path.
 
 OBUS_GAME_EMBEDDING_MODEL opts in to an explicitly named local GGUF embedding
 model. No model is downloaded. All HTTP uses the fixed loopback Ollama service,
@@ -191,13 +193,17 @@ def rank_sources(campaign: str, query: str, eligible_sources) -> list[dict]:
     memory = rank_current_sources(campaign, query, [source for source, _ in candidates])
     if memory is not None:
         lexical_by_id = {id(source): lexical for source, lexical in candidates}
-        ranked_memory = []
+        ranked_memory, scored = [], set()
         for source, cosine in memory:
-            lexical = lexical_by_id[id(source)]
+            lexical = lexical_by_id.get(id(source))
+            if lexical is None:
+                continue
+            scored.add(id(source))
             if lexical or cosine >= SEMANTIC_MIN_COSINE:
                 ranked_memory.append((source, 0.85 * cosine + 0.15 * lexical / max(1, len(words))))
         ranked_memory.sort(key=lambda item: (-item[1], item[0]["ref"], item[0]["revision"]))
-        return [source for source, _ in ranked_memory]
+        return ([source for source, _ in ranked_memory]
+                + [source for source in fallback if id(source) not in scored])
     model = os.environ.get("OBUS_GAME_EMBEDDING_MODEL", "").strip()
     if not candidates or not model:
         with _CACHE_LOCK:

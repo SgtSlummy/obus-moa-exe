@@ -61,7 +61,11 @@ def test_foreign_deleted_or_invalid_sources_never_reach_worker(monkeypatch, conf
     [{'id': 'x', 'cosine': True}],
 ])
 def test_invalid_or_unrequested_results_are_discarded(monkeypatch, configured, hits):
-    monkeypatch.setattr(memory.subprocess, 'run', lambda *a, **k: completion(k['input'], hits))
+    def run(*args, **kwargs):
+        current_id = json.loads(kwargs['input'])['sources'][0]['id']
+        actual_hits = [{**hit, 'id': current_id if hit['id'] == 'x' else hit['id']} for hit in hits]
+        return completion(kwargs['input'], actual_hits)
+    monkeypatch.setattr(memory.subprocess, 'run', run)
     assert memory.rank_current_sources('alpha', 'bridge', [source()]) is None
     assert memory.memory_status()['last_query_status'] == 'fallback'
 
@@ -82,6 +86,14 @@ def test_semantic_relevance_without_literal_keyword(monkeypatch):
     assert retrieval.rank_sources('alpha', 'physician remedy', [record]) == [record]
     monkeypatch.setattr(memory, 'rank_current_sources', lambda *args: [(record, 0.1)])
     assert retrieval.rank_sources('alpha', 'unrelated', [record]) == []
+
+
+def test_omitted_lexical_matches_survive_partial_memory_results(monkeypatch):
+    semantic = source('semantic', text='A physician carries a remedy.')
+    lexical = source('lexical', text='The medicine is safely stored.')
+    foreign = source('foreign', campaign='beta', text='medicine')
+    monkeypatch.setattr(memory, 'rank_current_sources', lambda *args: [(semantic, 0.9), (foreign, 1.0)])
+    assert retrieval.rank_sources('alpha', 'medicine', [semantic, lexical]) == [semantic, lexical]
 
 
 def test_revisions_acl_text_and_embedding_prefix_change_identity(monkeypatch, configured):
@@ -114,6 +126,22 @@ def test_database_filters_before_memory_and_rechecks_changes(monkeypatch, tmp_pa
     assert len(calls) == 1
 
 
+def test_forged_rank_results_are_hydrated_and_deduplicated(monkeypatch, tmp_path):
+    from backend import game_agent as game
+    monkeypatch.setattr(game, 'ROOT', tmp_path)
+    record = source()
+    game.ingest(game.Source(**record))
+    forged = [
+        dict(record, text='forged text from the ranker'),
+        dict(record),
+        dict(record, revision=0),
+        dict(record, ref='unknown'),
+    ]
+    monkeypatch.setattr(game, 'rank_sources', lambda *args: forged)
+    result = game.retrieve(game.Scope(campaign='alpha', owner='alice', role='player'), 'bridge')
+    assert result == [record]
+
+
 def test_missing_or_incomplete_model_configuration_is_disabled(monkeypatch, tmp_path):
     config = tmp_path / 'config.json'
     monkeypatch.setenv('OBUS_GAME_MEMORY_CONFIG', str(config))
@@ -138,4 +166,21 @@ def test_real_mempalace_persistence_and_exact_candidate_isolation(monkeypatch, t
     changed = source('public', revision=2, text='The merchant has left town.')
     assert memory.rank_current_sources('alpha', 'merchant', [changed])[0][0] is changed
     assert list((tmp_path / 'palace').rglob('sqlite_exact.sqlite3'))
+    script = '''import hashlib,json,sys
+from pathlib import Path
+from mempalace.backends.base import PalaceRef
+from mempalace.backends.sqlite_exact import SQLiteExactBackend
+key=hashlib.sha256(b'alpha').hexdigest()
+backend=SQLiteExactBackend()
+try:
+ c=backend.get_collection(palace=PalaceRef(id=key,local_path=str(Path(sys.argv[1])/key)),collection_name='operator_game_vectors_minilm_v1')
+ records=c.get(include=['documents','metadatas'])
+ print(json.dumps({'documents':records.documents,'metadata':records.metadatas}))
+finally:
+ backend.close()
+'''
+    saved = json.loads(subprocess.run([python, '-I', '-X', 'utf8', '-c', script, config['palace_path']], capture_output=True, text=True, encoding='utf-8', check=True, timeout=15).stdout)
+    assert len(saved['documents']) == 2  # superseded public revision was retired
+    assert all(document == '' for document in saved['documents'])
+    assert 'dragon' not in json.dumps(saved) and 'merchant' not in json.dumps(saved)
     assert memory.memory_status()['last_query_status'] == 'ready'

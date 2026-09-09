@@ -117,7 +117,8 @@ def rank_current_sources(campaign, query, candidates):
                 if (not isinstance(hit, dict) or set(hit) != {'id', 'cosine'}
                         or hit['id'] not in by_id or hit['id'] in seen
                         or type(hit['cosine']) not in (float, int)
-                        or not math.isfinite(hit['cosine']) or not -1.000001 <= hit['cosine'] <= 1.000001):
+                        or not -1.000001 <= hit['cosine'] <= 1.000001
+                        or not math.isfinite(hit['cosine'])):
                     raise ValueError('Invalid or unauthorized memory hit')
                 seen.add(hit['id'])
                 ranked.append((by_id[hit['id']], hit['cosine']))
@@ -158,8 +159,15 @@ def _worker(palace_root, model_root):
     try:
         collection = backend.get_collection(
             palace=PalaceRef(id=campaign_id, local_path=path),
-            collection_name='operator_game_sources_minilm_v1', create=True)
+            collection_name='operator_game_vectors_minilm_v1', create=True)
         ids = [source['id'] for source in sources]
+        ref_keys = {source['id']: hashlib.sha256(source['ref'].encode('utf-8')).hexdigest() for source in sources}
+        # Retire superseded cache entries for active refs. Tombstoned refs are
+        # absent from the allowed query set; no source/query text is cached.
+        prior = collection.get(where={'ref_key': {'$in': list(ref_keys.values())}}, include=[])
+        obsolete = [key for key in prior.ids if key not in ids]
+        if obsolete:
+            collection.delete(ids=obsolete)
         existing = set(collection.get(ids=ids, include=[]).ids)
         missing = [source for source in sources if source['id'] not in existing]
         # Match the existing ranking budget: <=16000 embedding input characters.
@@ -171,8 +179,8 @@ def _worker(palace_root, model_root):
         if missing:
             collection.upsert(
                 ids=[source['id'] for source in missing],
-                documents=[source['text'] for source in missing],
-                metadatas=[{'source_key': source['id'], 'ref': source['ref'],
+                documents=['' for source in missing],
+                metadatas=[{'source_key': source['id'], 'ref_key': ref_keys[source['id']],
                             'revision': source['revision'], 'campaign_hash': campaign_id,
                             'embedding_model': 'all-MiniLM-L6-v2', 'embedding_chars': per_document}
                            for source in missing], embeddings=vectors[1:])

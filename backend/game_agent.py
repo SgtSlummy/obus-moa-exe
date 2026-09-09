@@ -193,12 +193,16 @@ def retrieve(scope: Scope, query: str):
                 "(audience='party' OR (audience='host' AND ?='host') OR (audience='private' AND owner=?))",
                 (scope.campaign, source['ref'], scope.role, scope.owner),
             ).fetchone()
-            if row and json.loads(row['body']) == source and not source['deleted']:
-                current[source['ref']] = source
-    out, budget = [], 5000
-    for source in ranked:
-        if source['ref'] not in current:
+            authoritative = json.loads(row['body']) if row else None
+            if authoritative and authoritative == source and not authoritative['deleted']:
+                current[source['ref']] = authoritative
+    out, budget, emitted = [], 5000, set()
+    for ranked_source in ranked:
+        ref = ranked_source['ref']
+        if ref in emitted or ref not in current:
             continue
+        emitted.add(ref)
+        source = current[ref]
         text = source['text'][:budget]
         if not text or len(out) == 6:
             break
@@ -567,6 +571,12 @@ def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_
         if not text:
             raise HTTPException(503, 'No eligible Obus game provider completed the request')
         result={'text':text.strip(),'routeId':str(uuid.uuid4()),'model':selected['model'],'trace':trace,'sources':[{'ref':s['ref'],'revision':s['revision']} for s in sources], 'retention': {'request_evidence_persisted': False, 'general_memory_writes': False, 'route_journal_writes': False, 'game_receipt_persisted': True}}
+        if memory_status()['configured']:
+            result['retention']['campaign_memory_cache'] = {
+                'configured': True, 'source_text_persisted': False,
+                'query_text_persisted': False,
+                'content': 'derived vectors and opaque identifiers only',
+            }
         if reference_request:
             result['evidenceRevision'] = reference_request.revision
         try:
