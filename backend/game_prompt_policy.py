@@ -18,6 +18,8 @@ from backend.game_evidence import (
     EvidenceReference, EvidenceSource, MAX_REFERENCES, MAX_SAFE_INTEGER, MAX_TEXT,
 )
 
+from backend.game_evidence_selection import SelectionRequest
+
 MAX_PROMPT_BYTES = 64 * 1024
 REFERENCE_CONTRACT = "raph-obus-game-evidence-refs-v1"
 PROMPT_CONTRACT = "raph-obus-game-prompt-v1"
@@ -122,6 +124,14 @@ def classify_job(*, task, prompt_template, instructions, evidence) -> Classified
         _fail("prompt_template_task_mismatch")
     if instructions != "":
         _fail("prompt_template_instructions_forbidden")
+    if type(evidence) is dict and evidence.get("contract") == "raph-obus-game-evidence-refs-v2":
+        try:
+            selected = SelectionRequest.model_validate(evidence)
+        except (ValidationError, ValueError, TypeError):
+            _fail("prompt_evidence_invalid")
+        # Classification does not authorize a hash. The game resolver validates
+        # the exact current selection before dispatch, receipt and replay.
+        return ClassifiedJob(prompt_template, task, selected.revision, _references(selected.references))
     if (type(evidence) is not dict or set(evidence) != {"contract", "revision", "references"}
             or evidence.get("contract") != REFERENCE_CONTRACT or not _safe_revision(evidence.get("revision"))
             or type(evidence.get("references")) is not list):

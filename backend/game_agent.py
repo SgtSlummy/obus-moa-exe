@@ -31,6 +31,7 @@ from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validate
 from backend.game_providers import complete_free, complete_local as complete_game_local, _free_pin, GameProviderError, GameProviderRejected
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
 from backend import game_dispatch, game_evidence_uploads
+from backend.game_evidence_selection import SelectionRequest, resolve_selection
 from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 
@@ -277,21 +278,25 @@ async def _host_control_async(request: Request, action) -> dict:
         raise HTTPException(exc.status, exc.code) from exc
 
 
-def _reference_request(job: Job) -> EvidenceRequest | None:
+def _reference_request(job: Job) -> EvidenceRequest | SelectionRequest | None:
     if not isinstance(job.evidence, dict) or 'contract' not in job.evidence:
         return None
     try:
-        return EvidenceRequest.model_validate(job.evidence)
+        model = SelectionRequest if job.evidence.get('contract') == 'raph-obus-game-evidence-refs-v2' else EvidenceRequest
+        return model.model_validate(job.evidence)
     except ValidationError:
         raise HTTPException(422, 'evidence_references_invalid') from None
 
 
-def _resolve_job_evidence(db, job: Job, request: EvidenceRequest, *, external: bool = False):
+def _resolve_job_evidence(db, job: Job, request: EvidenceRequest | SelectionRequest, *, external: bool = False):
     # All source/consent reads share one snapshot. The final call runs inside
     # the authority-owned receipt transaction, excluding concurrent syncs.
     if not db.in_transaction:
         db.execute('BEGIN')
     try:
+        if isinstance(request, SelectionRequest):
+            return resolve_selection(db, job.scope.campaign, job.session, job.scope.owner,
+                                     job.scope.role, request, external=external)
         return resolve_evidence(
             db, job.scope.campaign, job.session, job.scope.owner, job.scope.role,
             request.revision, request.references, external=external,
@@ -326,8 +331,8 @@ def _save_evidence_snapshot(body: dict) -> dict:
         with _evidence_transaction(snapshot.campaign, snapshot.session, fence) as db:
             saved = save_snapshot(db, snapshot)
             if saved.get('status') == 'saved' and game_dispatch.schema_ready(db):
-                game_dispatch.cancel_queued(db, campaign=snapshot.campaign, session=snapshot.session,
-                                            reason='evidence_changed', now_ms=int(time.time() * 1000))
+                game_dispatch.cancel_evidence_changed(db, campaign=snapshot.campaign, session=snapshot.session,
+                                                      now_ms=int(time.time() * 1000))
             return saved
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
@@ -344,8 +349,8 @@ def _upload_evidence(body: dict) -> dict:
             changed = command.operation == 'begin' and result['status'] in {'pending', 'deferred'}
             changed = changed or result.get('receipt', {}).get('status') == 'saved'
             if changed and game_dispatch.schema_ready(db):
-                game_dispatch.cancel_queued(db, campaign=command.campaign, session=command.session,
-                                            reason='evidence_changed', now_ms=int(time.time() * 1000))
+                game_dispatch.cancel_evidence_changed(db, campaign=command.campaign, session=command.session,
+                                                      now_ms=int(time.time() * 1000))
             return result
     except EvidenceDenied as exc:
         raise HTTPException(exc.status, exc.code) from exc
@@ -403,6 +408,8 @@ def _prepare_free_dispatch(job, key, classified, reference_request, fingerprint,
             evidence_digest=rendered.prompt_digest, route_id=key['id'], route_digest=route_digest,
             provider=key['game_free_pin']['downstream_provider_name'], model=key['model'],
             now_ms=int(time.time() * 1000),
+            evidence_selection={'role': job.scope.role, 'request': reference_request.model_dump()}
+                if isinstance(reference_request, SelectionRequest) else None,
         )
     if record['status'] == 'failed':
         return None
@@ -733,7 +740,7 @@ def capabilities():
         free_ready = bool(approved_free(catalogue()))
     except Exception:
         free_ready = False
-    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
+    return {'contract':CONTRACT,'campaign_rag':True,'audience_filtering':True,'provider_allowlist':True,'codex_gate':True,'no_tools':True,'no_personal_memory':True,'no_auto_memory':True,'generic_remote_routes':False,'verified_free_route_fallback':True,'free_route_ready':free_ready,'free_route_readiness_basis':'eligible host pins and current catalogue status; inference availability is checked at dispatch','free_route_policy':'host-authorized local-free mode; classified reference-only templates; current external consent; one pinned zero-charge destination without tools or nested fallback','prompt_templates':['session-summary-v1'],'evidence_reference_contracts':['raph-obus-game-evidence-refs-v1','raph-obus-game-evidence-refs-v2'],'evidence_upload':{'contract':game_evidence_uploads.CONTRACT,'maxRequestBytes':game_evidence_uploads.MAX_HTTP_BYTES,'maxPageBytes':game_evidence_uploads.MAX_PAGE_BYTES,'maxPageSources':game_evidence_uploads.MAX_PAGE_SOURCES,'maxSources':game_evidence_uploads.MAX_DOCUMENT_SOURCES,'maxDocumentBytes':game_evidence_uploads.MAX_DOCUMENT_BYTES},'codex_available':False,'retrieval':'scoped lexical with opt-in local semantic reranking','semantic_rag_configured':bool(os.environ.get('OBUS_GAME_EMBEDDING_MODEL', '').strip()),'local_stt':local_stt_status()}
 
 
 @app.get('/api/game/runtime')

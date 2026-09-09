@@ -73,10 +73,11 @@ class EvidenceUploadAPITests(unittest.TestCase):
     def test_begin_cancels_exports_and_blocks_old_evidence_before_commit(self):
         g._save_evidence_snapshot(self.snapshot())
         begin, pages, commit = self.commands(2)
-        with patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_queued') as cancel:
+        with patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_evidence_changed') as cancel:
             self.assertEqual(g._upload_evidence(begin)['status'], 'pending')
             self.assertEqual(cancel.call_count, 1)
-            self.assertEqual(cancel.call_args.kwargs['reason'], 'evidence_changed')
+            self.assertEqual(cancel.call_args.kwargs['campaign'], 'camp')
+            self.assertEqual(cancel.call_args.kwargs['session'], 'session')
             g._upload_evidence(pages[0])
             self.assertEqual(cancel.call_count, 1)
             g._upload_evidence(commit)
@@ -84,7 +85,7 @@ class EvidenceUploadAPITests(unittest.TestCase):
 
     def test_capacity_deferred_begin_still_cancels_exports(self):
         begin, _, _ = self.commands()
-        with patch.object(uploads, 'MAX_STAGED_BYTES', 1), patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_queued') as cancel:
+        with patch.object(uploads, 'MAX_STAGED_BYTES', 1), patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_evidence_changed') as cancel:
             result = g._upload_evidence(begin)
             self.assertEqual(result['status'], 'deferred')
             cancel.assert_called_once()
@@ -94,7 +95,7 @@ class EvidenceUploadAPITests(unittest.TestCase):
     def test_cancel_failure_rolls_back_barrier_transaction(self):
         g._save_evidence_snapshot(self.snapshot())
         begin, _, _ = self.commands(2)
-        with patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_queued', side_effect=RuntimeError('fixture')):
+        with patch.object(g.game_dispatch, 'schema_ready', return_value=True), patch.object(g.game_dispatch, 'cancel_evidence_changed', side_effect=RuntimeError('fixture')):
             with self.assertRaises(RuntimeError):
                 g._upload_evidence(begin)
         with g.database() as db:

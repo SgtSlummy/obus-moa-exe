@@ -16,6 +16,10 @@ import sqlite3
 import uuid
 from typing import Any, Mapping
 
+from pydantic import ValidationError
+from backend.game_evidence import EvidenceDenied
+from backend.game_evidence_selection import SelectionRequest, resolve_selection
+
 SCHEMA_VERSION = 1
 _STATES = ("queued", "dispatched", "completed", "failed", "uncertain", "discarded", "cancelled")
 _FINAL = {"completed", "failed", "uncertain", "discarded"}
@@ -193,11 +197,35 @@ def _receipt(row: Mapping[str, Any]) -> dict[str, Any]:
     return receipt
 
 
+def _selection_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
+    if (type(value) is not dict or set(value) != {"role", "request"}
+            or type(value["role"]) is not str or value["role"] not in {"host", "player"}):
+        raise DispatchDenied(400, "dispatch_selection_invalid")
+    try:
+        request = SelectionRequest.model_validate(value["request"])
+    except (ValidationError, ValueError, TypeError) as exc:
+        raise DispatchDenied(400, "dispatch_selection_invalid") from exc
+    return {"role": value["role"], "request": request.model_dump()}
+
+
+def _require_selection(db: sqlite3.Connection, campaign: str, session: str, owner: str,
+                       metadata: Mapping[str, Any]) -> None:
+    if "selection" not in metadata:
+        return  # Existing ledger records retain whole-snapshot cancellation.
+    selection = _selection_metadata(metadata["selection"])
+    if selection["request"]["revision"] != metadata["evidence_revision"]:
+        raise DispatchDenied(409, "dispatch_selection_invalid")
+    try:
+        resolve_selection(db, campaign, session, owner, selection["role"], selection["request"], external=True)
+    except EvidenceDenied as exc:
+        raise DispatchDenied(exc.status, exc.code) from exc
+
+
 def enqueue(db: sqlite3.Connection, *, campaign: str, session: str, owner: str,
             request_id: str, fingerprint: str, task: str, boot_epoch: str,
             generation: str, policy_revision: int, evidence_revision: int,
             evidence_digest: str, route_id: str, route_digest: str, provider: str,
-            model: str, now_ms: int) -> dict[str, Any]:
+            model: str, now_ms: int, evidence_selection: Mapping[str, Any] | None = None) -> dict[str, Any]:
     _transaction(db)
     identity = tuple(_text(value) for value in (campaign, session, owner, request_id))
     fingerprint, route_digest = _digest(fingerprint), _digest(route_digest)
@@ -207,6 +235,9 @@ def enqueue(db: sqlite3.Connection, *, campaign: str, session: str, owner: str,
         "evidence_digest": _digest(evidence_digest), "route_id": _text(route_id, 160),
         "route_digest": route_digest, "provider": _text(provider, 160), "model": _text(model, 200),
     }
+    if evidence_selection is not None:
+        metadata["selection"] = _selection_metadata(evidence_selection)
+        _require_selection(db, campaign, session, owner, metadata)
     now_ms = _integer(now_ms)
     prior = db.execute("SELECT fingerprint FROM dispatch_jobs WHERE campaign=? AND session=? AND owner=? AND request_id=?", identity).fetchone()
     if prior and prior[0] != fingerprint:
@@ -238,6 +269,7 @@ def mark_dispatched(db: sqlite3.Connection, attempt_id: str, *, fingerprint: str
         raise DispatchDenied(409, "dispatch_request_conflict")
     if row["status"] != "queued" or row["cancel_requested"]:
         raise DispatchDenied(409, "dispatch_attempt_not_queued")
+    _require_selection(db, row["campaign"], row["session"], row["owner"], json.loads(row["metadata"]))
     # Different eligible routes may already be queued by competing workers. A
     # logical job still gets at most one active/uncertain send across all routes.
     blocked = db.execute("""SELECT 1 FROM dispatch_attempts WHERE campaign=? AND session=?
@@ -276,6 +308,8 @@ def finish(db: sqlite3.Connection, attempt_id: str, *, fingerprint: str, outcome
     if outcome not in _FINAL:
         raise DispatchDenied(400, "dispatch_outcome_invalid")
     encoded = _provenance(provenance, json.loads(row["metadata"]))
+    if outcome == "completed":
+        _require_selection(db, row["campaign"], row["session"], row["owner"], json.loads(row["metadata"]))
     if row["status"] == outcome and row["provenance"] == encoded:
         return _receipt(row)
     if row["status"] != "dispatched":
@@ -301,6 +335,41 @@ def cancel_queued(db: sqlite3.Connection, *, campaign: str, session: str | None 
     cancelled = db.execute(f"UPDATE dispatch_attempts SET status='cancelled',cancel_requested=1,cancel_reason=?,updated_at_ms=?,finished_at_ms=? WHERE {condition} AND status='queued'", (reason, now_ms, now_ms, *scope)).rowcount
     status = "uncertain" if uncertain_dispatched else "dispatched"
     active = db.execute(f"UPDATE dispatch_attempts SET status=?,cancel_requested=1,cancel_reason=?,updated_at_ms=? WHERE {condition} AND status='dispatched'", (status, reason, now_ms, *scope)).rowcount
+    return {"cancelled": cancelled, "inFlight": active}
+
+
+def cancel_evidence_changed(db: sqlite3.Connection, *, campaign: str, session: str,
+                            now_ms: int) -> dict[str, int]:
+    """Invalidate only affected v2 selections; never revive a cancelled attempt.
+
+    A staged upload is a privacy barrier, not a new authoritative document.
+    Keep v2 attempts pending until it commits: mark_dispatched and finish both
+    re-resolve and deny while the barrier exists. Legacy attempts still cancel.
+    Runtime/policy cancellation always uses cancel_queued without exceptions.
+    """
+    _transaction(db)
+    _text(campaign)
+    _text(session)
+    now_ms = _integer(now_ms)
+    rows = db.execute("SELECT attempt_id,owner,metadata,status FROM dispatch_attempts WHERE campaign=? AND session=? AND status IN ('queued','dispatched') AND cancel_requested=0",
+                      (campaign, session)).fetchall()
+    cancelled = active = 0
+    for attempt_id, owner, encoded, status in rows:
+        try:
+            metadata = json.loads(encoded)
+            if "selection" in metadata:
+                _require_selection(db, campaign, session, owner, metadata)
+                continue
+        except DispatchDenied as exc:
+            if exc.code == "evidence_upload_pending":
+                continue  # No send or successful completion can pass the barrier.
+        except (ValueError, KeyError, TypeError):
+            pass  # Corrupt metadata cannot opt out of invalidation.
+        queued = status == "queued"
+        db.execute("UPDATE dispatch_attempts SET status=?,cancel_requested=1,cancel_reason='evidence_changed',updated_at_ms=?,finished_at_ms=? WHERE attempt_id=?",
+                   ("cancelled" if queued else "dispatched", now_ms, now_ms if queued else None, attempt_id))
+        cancelled += int(queued)
+        active += int(not queued)
     return {"cancelled": cancelled, "inFlight": active}
 
 

@@ -134,10 +134,20 @@ def test_escalation_eligible_task_runs_locally_without_free_or_codex_dispatch(tm
     assert calls == ["local:test-local"]
 
 
-def test_capabilities_report_local_only_runtime_policy():
+def test_capabilities_distinguish_free_support_from_configured_readiness(monkeypatch):
+    # Inspect the declared contract without connecting to the user's catalogue,
+    # provider configuration or local speech model.
+    monkeypatch.setattr(game_agent, "catalogue", lambda: [])
+    monkeypatch.setattr(game_agent, "approved_free", lambda keys: [])
+    monkeypatch.setattr(game_agent, "local_stt_status", lambda: {"available": False})
     declared = game_agent.capabilities()
 
     assert declared["generic_remote_routes"] is False
-    assert declared["verified_free_route_fallback"] is False
-    assert "local-only" in declared["free_route_policy"]
+    assert declared["verified_free_route_fallback"] is True
+    assert declared["free_route_ready"] is False
+    assert declared["prompt_templates"] == ["session-summary-v1"]
+    assert "current external consent" in declared["free_route_policy"]
+    assert "zero-charge destination" in declared["free_route_policy"]
+    assert declared["evidence_reference_contracts"] == ["raph-obus-game-evidence-refs-v1", "raph-obus-game-evidence-refs-v2"]
     assert declared["codex_available"] is False
+    assert declared["no_tools"] is True
