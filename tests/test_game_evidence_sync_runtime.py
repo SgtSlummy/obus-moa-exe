@@ -224,7 +224,7 @@ def test_policy_flip_and_game_writer_are_ordered_after_evidence_commit(state, mo
     assert updates(state.root) == [("new", "accepted")]
 
 
-@pytest.mark.parametrize("mode,codex,exportable", [("local-free", 0, 0), ("local", 1, 0), ("local", 0, 1)])
+@pytest.mark.parametrize("mode,codex,exportable", [("paid", 0, 0), ("local", 1, 0), ("local", 0, 1)])
 def test_evidence_guard_does_not_expand_provider_policy(state, mode, codex, exportable):
     with closing(sqlite3.connect(state.root / "runtime.sqlite")) as db, db:
         db.execute("UPDATE campaign_runtime SET mode=?,codex=?,exportable=?", (mode, codex, exportable))

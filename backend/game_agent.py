@@ -16,6 +16,8 @@ import secrets
 import sqlite3
 import io
 import threading
+import time
+import urllib.error
 import urllib.request
 import uuid
 from typing import Literal
@@ -29,6 +31,8 @@ from backend.game_evidence import (
 from backend.persistent_agents import _http_json, _NO_REDIRECT_OPENER, _validated_provider_base_url
 from backend.game_providers import complete_free, complete_local as complete_game_local
 from backend.game_runtime import GameRuntimeAuthority, RuntimeDenied
+from backend import game_dispatch
+from backend.game_prompt_policy import classify_job, render_template, PromptPolicyDenied
 from backend.game_retrieval import MAX_SCANNED_SOURCES, rank_sources
 
 CONTRACT = 'raph-obus-game-v1'
@@ -228,16 +232,14 @@ def complete_local(key, prompt, maximum):
     # returned model/provenance before exposing text to the existing job API.
     return complete_game_local(key, prompt, maximum)['text']
 
-def _require_runtime(campaign: str, session: str, fence: RuntimeFence) -> None:
-    snapshot = runtime_authority().snapshot(campaign, session)
-    if not snapshot.generation:
-        raise HTTPException(409, "runtime_host_generation_required")
-    if (snapshot.boot_epoch, snapshot.generation, snapshot.policy_revision) != (fence.bootEpoch, fence.generation, fence.sessionPolicyRevision):
-        raise HTTPException(409, "runtime_fence_stale")
-    if not snapshot.enabled:
-        raise HTTPException(409, "game_ai_disabled")
-    if snapshot.mode != "local" or snapshot.codex or snapshot.exportable:
-        raise HTTPException(409, "runtime_policy_not_local_only")
+def _require_runtime(campaign: str, session: str, fence: RuntimeFence):
+    try:
+        return runtime_authority().require_dispatch(
+            campaign, session, boot_epoch=fence.bootEpoch,
+            generation=fence.generation, policy_revision=fence.sessionPolicyRevision,
+        )
+    except RuntimeDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
 
 
 @contextmanager
@@ -323,83 +325,215 @@ def _save_evidence_snapshot(body: dict) -> dict:
         raise HTTPException(exc.status, exc.code) from exc
 
 
+def _external_allowed(job, classified, snapshot):
+    return bool(classified.external_capable and job.policy.mode == 'local-free'
+                and job.policy.exportable and not job.policy.codex
+                and snapshot.enabled and snapshot.mode == 'local-free'
+                and snapshot.exportable and not snapshot.codex)
+
+
+def _render_job(classified, resolved):
+    try:
+        return render_template(classified, resolved)
+    except PromptPolicyDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+def _route_digest(key):
+    descriptor = {name: key.get(name) for name in ('id', 'provider', 'model', 'base_url', 'game_free_pin')}
+    return hashlib.sha256(json.dumps(descriptor, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+
+
+@contextmanager
+def _dispatch_transaction(job):
+    # Back up an existing store before introducing the ledger. Never migrate
+    # while holding the runtime writer lock or a receipt transaction.
+    game_dispatch.prepare_dispatch_store(ROOT / 'game.sqlite')
+    with database():
+        pass
+    try:
+        with runtime_authority().dispatch_transaction(
+            job.scope.campaign, job.session, boot_epoch=job.runtime.bootEpoch,
+            generation=job.runtime.generation, policy_revision=job.runtime.sessionPolicyRevision,
+            external=True,
+        ) as guarded:
+            yield guarded
+    except (RuntimeDenied, game_dispatch.DispatchDenied) as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+
+
+def _prepare_free_dispatch(job, key, classified, reference_request, fingerprint, get_keys):
+    route_digest = _route_digest(key)
+    with _dispatch_transaction(job) as (db, snapshot):
+        if not _external_allowed(job, classified, snapshot):
+            raise HTTPException(409, 'external_policy_denied')
+        resolved = _resolve_job_evidence(db, job, reference_request, external=True)
+        rendered = _render_job(classified, resolved)
+        record = game_dispatch.enqueue(
+            db, campaign=job.scope.campaign, session=job.session, owner=job.scope.owner,
+            request_id=job.requestId, fingerprint=fingerprint, task=job.task,
+            boot_epoch=snapshot.boot_epoch, generation=snapshot.generation,
+            policy_revision=snapshot.policy_revision, evidence_revision=rendered.revision,
+            evidence_digest=rendered.prompt_digest, route_id=key['id'], route_digest=route_digest,
+            provider=key['game_free_pin']['downstream_provider_name'], model=key['model'],
+            now_ms=int(time.time() * 1000),
+        )
+    if record['status'] == 'failed':
+        return None
+    # Recheck the provider pin outside the database lock, then consent and the
+    # host fence inside it. Marking dispatched is the one-use admission point.
+    if not any(_route_digest(candidate) == route_digest for candidate in approved_free(get_keys())):
+        raise HTTPException(409, 'free_route_no_longer_allowed')
+    with _dispatch_transaction(job) as (db, snapshot):
+        if not _external_allowed(job, classified, snapshot):
+            raise HTTPException(409, 'external_policy_denied')
+        current = _render_job(classified, _resolve_job_evidence(db, job, reference_request, external=True))
+        if current.prompt_digest != rendered.prompt_digest:
+            raise HTTPException(409, 'evidence_changed_before_dispatch')
+        game_dispatch.mark_dispatched(db, record['attemptId'], fingerprint=fingerprint, now_ms=int(time.time() * 1000))
+    return current, record['attemptId']
+
+
+def _record_dispatch_outcome(attempt_id, fingerprint, outcome, provenance=None):
+    # This diagnostic-only transaction never acquires the runtime lock and
+    # never stores model text. It can record an already admitted call after
+    # policy withdrawal; it cannot create an inference receipt or another call.
+    try:
+        with database() as db:
+            db.execute('BEGIN IMMEDIATE')
+            game_dispatch.finish(db, attempt_id, fingerprint=fingerprint, outcome=outcome,
+                                 provenance=provenance, now_ms=int(time.time() * 1000))
+        return True
+    except Exception:
+        # An unresolved dispatched row is deliberately non-retryable.
+        return False
+
+
 def run_job(job: Job, get_keys=catalogue, local=complete_local, remote=complete_free):
+    # Snapshot caller-owned models before any queue wait or provider callback.
+    job = Job.model_validate(job.model_dump())
     if job.policy.codex:
         raise HTTPException(409, 'Codex escalation is not supported by this game agent')
-    _require_runtime(job.scope.campaign, job.session, job.runtime)
-    if job.policy.mode != 'local' or job.policy.exportable:
-        raise HTTPException(409, 'runtime policy permits local-only dispatch')
     if job.policy.namespace != job.scope.campaign or len(json.dumps(job.evidence)) > 50000:
         raise HTTPException(400, 'Invalid campaign evidence')
+    try:
+        classified = classify_job(task=job.task, prompt_template=job.promptTemplate,
+                                  instructions=job.instructions, evidence=job.evidence)
+    except PromptPolicyDenied as exc:
+        raise HTTPException(exc.status, exc.code) from exc
+    _require_runtime(job.scope.campaign, job.session, job.runtime)
+    if not classified.external_capable and (job.policy.mode != 'local' or job.policy.exportable):
+        raise HTTPException(409, 'legacy game requests require local-only dispatch')
     reference_request = _reference_request(job)
-    fingerprint = hashlib.sha256(job.model_dump_json().encode()).hexdigest()
+    # Optional template support must not change historical local fingerprints.
+    serialized = job.model_dump_json(exclude={'promptTemplate'} if job.promptTemplate is None else set())
+    fingerprint = hashlib.sha256(serialized.encode()).hexdigest()
     identity = (job.scope.campaign, job.session, job.scope.owner, job.requestId)
     with _tracked_dispatch(job.scope.campaign, job.session, INFERENCE):
-        _require_runtime(job.scope.campaign, job.session, job.runtime)
+        snapshot = _require_runtime(job.scope.campaign, job.session, job.runtime)
         with database() as db:
-            # Replays must still satisfy current source revisions and access.
             resolved = _resolve_job_evidence(db, job, reference_request) if reference_request else None
             prior = db.execute('SELECT fingerprint,body FROM game_jobs WHERE campaign=? AND session=? AND owner=? AND request=?', identity).fetchone()
         if prior:
             if prior['fingerprint'] != fingerprint:
                 raise HTTPException(409, 'Request ID conflict')
-            return json.loads(prior['body'])
+            result = json.loads(prior['body'])
+            if any(stage.get('destination') == 'free' and stage.get('status') == 'ready' for stage in result.get('trace', [])):
+                with _dispatch_transaction(job) as (db, current):
+                    if not _external_allowed(job, classified, current):
+                        raise HTTPException(409, 'external_policy_denied')
+                    _render_job(classified, _resolve_job_evidence(db, job, reference_request, external=True))
+            return result
         sources = resolved['sources'] if resolved else retrieve(job.scope, str(job.evidence.get('question','')) if isinstance(job.evidence,dict) else job.task)
-        prompt = json.dumps({'task':job.task,'instructions':job.instructions,'evidence':job.evidence,'retrieved':sources}, ensure_ascii=False)
-        _require_runtime(job.scope.campaign, job.session, job.runtime)
-        keys = get_keys()
-        locals_ = [k for k in keys if k.get('id') == 'key-local-ollama' and k.get('provider') == 'ollama' and k.get('connected') and k.get('verified')]
-        routes = [(k, 'local') for k in locals_]
-        if job.policy.mode == 'local-free' and job.policy.exportable and all(s['exportable'] for s in sources):
-            routes += [(k,'free') for k in approved_free(keys)]
-        # The shared Codex coding adapter permits tools and workspace writes.
-        # Gameplay requires a separately verified tool-free inference adapter.
-        trace, text, selected = [], '', None
+        rendered = _render_job(classified, resolved) if classified.external_capable else None
+        prompt = rendered.prompt if rendered else json.dumps({'task':job.task,'instructions':job.instructions,'evidence':job.evidence,'retrieved':sources}, ensure_ascii=False)
+        snapshot = _require_runtime(job.scope.campaign, job.session, job.runtime)
+        keys = [dict(key) for key in get_keys() if isinstance(key, dict)]
+        locals_ = [key for key in keys if key.get('id') == 'key-local-ollama' and key.get('provider') == 'ollama' and key.get('connected') is True and key.get('verified') is True]
+        routes = [(key, 'local') for key in locals_]
+        if _external_allowed(job, classified, snapshot):
+            routes += [(key, 'free') for key in approved_free(keys)]
+        # No general Obus router, coding adapter, nested advisor or memory route
+        # can be reached from this explicit, destination-checked attempt list.
+        trace, text, selected, selected_attempt, selected_provenance = [], '', None, None, None
         for key, destination in routes:
             for attempt in range(2 if destination == 'local' else 1):
+                active_attempt, provenance, provider_completed = None, None, False
                 stage = {'provider':key['id'],'model':key['model'],'destination':destination,'cost':'zero' if destination == 'free' else 'local','attempt':attempt+1}
                 _require_runtime(job.scope.campaign, job.session, job.runtime)
-                if reference_request:
+                request_prompt = prompt
+                if destination == 'free':
+                    prepared = _prepare_free_dispatch(job, key, classified, reference_request, fingerprint, get_keys)
+                    if prepared is None:
+                        continue
+                    current_prompt, active_attempt = prepared
+                    request_prompt = current_prompt.prompt
+                elif reference_request:
                     with database() as db:
-                        _resolve_job_evidence(db, job, reference_request)
+                        current_sources = _resolve_job_evidence(db, job, reference_request)
+                        if classified.external_capable:
+                            request_prompt = _render_job(classified, current_sources).prompt
                 try:
                     if destination == 'local':
-                        text = local(key, prompt, job.max_tokens)
+                        text = local(key, request_prompt, job.max_tokens)
                     else:
-                        completion = remote(key, prompt, job.max_tokens)
+                        completion = remote(key, request_prompt, job.max_tokens)
                         pin = key.get('game_free_pin', {})
                         if (not isinstance(completion, dict)
                                 or completion.get('route_id') != key['id']
                                 or completion.get('model') != key['model']
                                 or completion.get('provider') != pin.get('downstream_provider_name')
                                 or completion.get('gateway') != 'openrouter'
+                                or completion.get('endpoint') != 'https://openrouter.ai/api/v1/chat/completions'
                                 or completion.get('destination') != 'external'
-                                or completion.get('cost') != 'zero'):
+                                or completion.get('cost') != 'zero'
+                                or completion.get('cost_basis') != 'free-variant+zero-price-ceiling+response-usage'):
                             raise RuntimeError('Invalid free-route provenance')
                         text = completion.get('text')
                         stage.update({name: completion[name] for name in (
                             'provider', 'model', 'endpoint', 'gateway', 'route_id',
                             'cost_basis', 'completion_tokens', 'response_id',
                         )})
+                        provenance = {name: completion[name] for name in (
+                            'provider', 'model', 'gateway', 'route_id', 'destination', 'cost',
+                            'cost_basis', 'completion_tokens', 'response_id',
+                        )}
+                        provider_completed = True
                     if not isinstance(text,str) or not text.strip() or len(text)>16000 or '<script' in text.lower():
                         raise RuntimeError('Invalid output')
-                    stage['status']='ready'; trace.append(stage); selected=key; break
-                except Exception:
-                    stage['status']='failed'; trace.append(stage); text=''
+                    stage['status'] = 'ready'; trace.append(stage); selected = key
+                    selected_attempt, selected_provenance = active_attempt, provenance
+                    break
+                except Exception as exc:
+                    stage['status'] = 'failed'; trace.append(stage); text = ''
+                    if active_attempt:
+                        known_failure = provider_completed or isinstance(exc, urllib.error.HTTPError)
+                        outcome = 'failed' if known_failure else 'uncertain'
+                        recorded = _record_dispatch_outcome(active_attempt, fingerprint, outcome, provenance)
+                        if not known_failure or not recorded:
+                            raise HTTPException(503, 'External dispatch outcome is uncertain; the request will not be exported again') from None
             if text:
                 break
         if not text:
             raise HTTPException(503, 'No eligible Obus game provider completed the request')
-        # A master-policy or session-fence change during inference cannot allow a
-        # late result to become a durable receipt.
-        _require_runtime(job.scope.campaign, job.session, job.runtime)
         result={'text':text.strip(),'routeId':str(uuid.uuid4()),'model':selected['model'],'trace':trace,'sources':[{'ref':s['ref'],'revision':s['revision']} for s in sources], 'retention': {'request_evidence_persisted': False, 'general_memory_writes': False, 'route_journal_writes': False, 'game_receipt_persisted': True}}
         if reference_request:
             result['evidenceRevision'] = reference_request.revision
-        with _receipt_transaction(job.scope.campaign, job.session, job.runtime) as db:
-            if reference_request:
-                _resolve_job_evidence(db, job, reference_request)
-            db.execute('INSERT INTO game_jobs VALUES(?,?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
+        try:
+            _require_runtime(job.scope.campaign, job.session, job.runtime)
+            with _receipt_transaction(job.scope.campaign, job.session, job.runtime) as db:
+                if reference_request:
+                    current_sources = _resolve_job_evidence(db, job, reference_request, external=selected_attempt is not None)
+                    if classified.external_capable:
+                        _render_job(classified, current_sources)
+                if selected_attempt:
+                    game_dispatch.finish(db, selected_attempt, fingerprint=fingerprint, outcome='completed',
+                                         provenance=selected_provenance, now_ms=int(time.time() * 1000))
+                db.execute('INSERT INTO game_jobs VALUES(?,?,?,?,?,?)', (*identity,fingerprint,json.dumps(result)))
+        except Exception:
+            if selected_attempt:
+                _record_dispatch_outcome(selected_attempt, fingerprint, 'discarded', selected_provenance)
+            raise
         return result
 
 def _game_stt_model_path() -> Path:

@@ -1,6 +1,6 @@
 """Durable, private campaign-runtime authority for the game agent.
 
-A campaign owns one host generation, lease, and local-only policy.  A session
+A campaign owns one host generation, lease, and local/free-only policy. A session
 holds only a lease under that generation and an effective policy revision.  The
 module never selects or calls an inference provider.
 """
@@ -206,7 +206,10 @@ class GameRuntimeAuthority:
         generation: str,
         policy_revision: int,
     ) -> Iterator[sqlite3.Connection]:
-        """Commit inference receipts only while the fenced local AI policy is enabled."""
+        """Commit inference receipts while the fenced host AI policy is enabled.
+
+        This guard alone grants no permission to export evidence to a provider.
+        """
         with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
                                     policy_revision=policy_revision, require_enabled=True) as (game, _snapshot):
             yield game
@@ -224,7 +227,7 @@ class GameRuntimeAuthority:
         """Synchronize authoritative evidence/consent even while AI is disabled.
 
         This datastore-only guard grants no inference or provider permission.
-        Live host/session fences, leases and the local-only policy still apply.
+        Live host/session fences, leases and supported host policy still apply.
         """
         with self._game_transaction(campaign, session, boot_epoch=boot_epoch, generation=generation,
                                     policy_revision=policy_revision, require_enabled=False) as (game, _snapshot):
@@ -403,11 +406,14 @@ class GameRuntimeAuthority:
     def snapshot(self, campaign: str, session: str) -> RuntimeSnapshot:
         connection = self._connect()
         try:
+            connection.execute("BEGIN")
             master = self._campaign_row(connection, campaign)
             child = self._session_row(connection, campaign, session)
+            snapshot = self._snapshot_from(master, child)
+            connection.execute("COMMIT")
+            return snapshot
         finally:
             connection.close()
-        return self._snapshot_from(master, child)
 
     def _validate_common(self, body: Mapping[str, Any], fields: set[str]) -> None:
         if set(body) != fields or body.get("contract") != RUNTIME_CONTRACT:
@@ -462,7 +468,37 @@ class GameRuntimeAuthority:
             (campaign, session, generation, revision, expires),
         )
 
+    def _cancel_dispatches(self, campaign: str, *, session: str | None = None,
+                           reason: str, uncertain: bool = False) -> None:
+        """Called only while owning the runtime writer lock; never migrates.
+
+        Cancellation commits before the runtime change. A crash between those
+        commits may cancel extra work conservatively, but cannot revive a send.
+        All writers use runtime->game ordering; game-only diagnostics must not
+        acquire runtime. Missing pre-migration ledgers have nothing to cancel.
+        """
+        from backend.game_dispatch import cancel_queued, schema_ready
+
+        path = self.root / "game.sqlite"
+        if not path.exists():
+            return
+        game = sqlite3.connect(path.resolve().as_uri() + "?mode=rw", uri=True,
+                               timeout=10, isolation_level=None)
+        try:
+            game.execute("BEGIN IMMEDIATE")
+            if schema_ready(game):
+                cancel_queued(game, campaign=campaign, session=session, reason=reason,
+                              now_ms=self._clock(), uncertain_dispatched=uncertain)
+            game.execute("COMMIT")
+        except BaseException:
+            if game.in_transaction:
+                game.execute("ROLLBACK")
+            raise
+        finally:
+            game.close()
+
     def _reset_campaign(self, db: sqlite3.Connection, body: Mapping[str, Any], generation: str, lease: int, master: sqlite3.Row | None) -> RuntimeSnapshot:
+        self._cancel_dispatches(body["campaign"], reason="generation_changed", uncertain=True)
         next_master_revision = (int(master["policy_revision"]) + 1) if master else 0
         previous_child = self._session_row(db, body["campaign"], body["session"])
         session_revision = (int(previous_child["policy_revision"]) + 1) if previous_child else next_master_revision
@@ -515,6 +551,8 @@ class GameRuntimeAuthority:
                 revision = max(int(master["policy_revision"]), int(child["policy_revision"]) if child else 0)
                 if child is not None and observed.generation is None:
                     # Rejoining must not revive an expired or revoked fence.
+                    self._cancel_dispatches(body["campaign"], session=body["session"],
+                                            reason="session_rejoined", uncertain=True)
                     revision += 1
                 expires = self._clock() + lease * 1000
                 self._save_session(db, body["campaign"], body["session"], current, revision, expires)
@@ -583,7 +621,9 @@ class GameRuntimeAuthority:
             raise RuntimeDenied(400, "runtime_policy_revision_invalid")
         if not isinstance(policy, Mapping) or set(policy) != {"enabled", "mode", "codex", "exportable"}:
             raise RuntimeDenied(400, "runtime_policy_invalid")
-        if not isinstance(policy["enabled"], bool) or policy["mode"] != "local" or policy["codex"] is not False or policy["exportable"] is not False:
+        if (not isinstance(policy["enabled"], bool) or policy["mode"] not in ("local", "local-free")
+                or policy["codex"] is not False or not isinstance(policy["exportable"], bool)
+                or (policy["mode"] == "local" and policy["exportable"])):
             raise RuntimeDenied(409, "runtime_policy_not_local_only")
         if body["expectedBootEpoch"] != self.boot_epoch:
             raise RuntimeDenied(409, "runtime_boot_epoch_stale")
@@ -596,9 +636,10 @@ class GameRuntimeAuthority:
             self._require_current(master, child, {**body, "generation": body["expectedGeneration"]})
             if child["policy_revision"] != revision:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
+            self._cancel_dispatches(body["campaign"], reason="policy_changed")
             db.execute(
-                "UPDATE campaign_runtime SET policy_revision=policy_revision+1, enabled=?, mode='local', codex=0, exportable=0 WHERE campaign=?",
-                (int(policy["enabled"]), body["campaign"]),
+                "UPDATE campaign_runtime SET policy_revision=policy_revision+1, enabled=?, mode=?, codex=0, exportable=? WHERE campaign=?",
+                (int(policy["enabled"]), policy["mode"], int(policy["exportable"]), body["campaign"]),
             )
             # Every current session gets a new effective revision in one transaction,
             # so queued or late work holding any old four-field fence fails closed.
@@ -636,6 +677,7 @@ class GameRuntimeAuthority:
                 raise RuntimeDenied(409, "runtime_session_generation_required")
             if child["policy_revision"] != revision:
                 raise RuntimeDenied(409, "runtime_policy_revision_stale")
+            self._cancel_dispatches(body["campaign"], session=body["session"], reason="session_revoked")
             db.execute(
                 "UPDATE session_runtime SET generation=NULL, lease_expires_at_ms=NULL, policy_revision=policy_revision+1 WHERE campaign=? AND session=?",
                 (body["campaign"], body["session"]),
