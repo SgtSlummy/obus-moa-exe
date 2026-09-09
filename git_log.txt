@@ -1,10 +1,10 @@
+5c2764a chore: cron report #469 + rotate stale push status files
+68f5d71 chore: add push_all_check.sh helper script
+20bf12b feat: add game evidence selection module and selection tests
+48b4d8c feat: add game evidence upload module and upload tests
+913467c WIP: game dispatch + evidence sync refinements
 177aa2c chore: finalize game evidence test refinements (cron: push cycle)
 44ab15c feat: game dispatch + evidence sync refinements (cron: push cycle)
 567d46d WIP: game dispatch + evidence sync refinements
 6327b87 feat: add game prompt policy and evidence tests (cron: push cycle)
 56974a7 Cron: snapshot active job state + game evidence test
-028e211 feat: add game evidence module and test coverage
-9c72d42 feat: add game evidence module and test coverage
-5a7d106 feat: add game_evidence.py
-f2d8259 chore: commit game_agent.py changes
-63441a6 feat: add podman deployment support and game retrieval tests
